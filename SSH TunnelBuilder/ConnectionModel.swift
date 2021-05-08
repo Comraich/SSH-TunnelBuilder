@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct Connections {
+struct Connections: Codable {
     var connectionId: Int?
     var connectionName: String?
     var localPort: Int?
