@@ -10,6 +10,7 @@ import Foundation
 struct Connections: Codable {
     var connectionId: Int?
     var connectionName: String?
+    var sshHost: String?
     var localPort: Int?
     var remoteServer: String?
     var remotePort: Int?

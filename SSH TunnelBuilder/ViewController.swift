@@ -30,6 +30,11 @@ class ViewController: NSViewController {
         // Update the view, if already loaded.
         }
     }
+    
+    @IBAction func closeConnection(_ sender: NSButton) {
+        NSLog("Connection \(connctionId) was closed.")
+    }
+
 }
 
 extension ViewController: NSTableViewDataSource {
@@ -43,7 +48,14 @@ extension ViewController: NSTableViewDelegate {
      
         let currentConnection = viewModel.connections[row]
         
-        if tableColumn?.identifier == NSUserInterfaceItemIdentifier(rawValue: "localPortColumn") {
+        if tableColumn?.identifier == NSUserInterfaceItemIdentifier(rawValue: "sshHostColumn") {
+            
+            let cellIdentifier = NSUserInterfaceItemIdentifier(rawValue: "sshHostCell")
+            guard let cellView = tableView.makeView(withIdentifier: cellIdentifier, owner: self) as? NSTableCellView else { return nil }
+            cellView.textField?.stringValue = currentConnection.sshHost ?? "SSH Host"
+            return cellView
+            
+        } else if tableColumn?.identifier == NSUserInterfaceItemIdentifier(rawValue: "localPortColumn") {
             
             let cellIdentifier = NSUserInterfaceItemIdentifier(rawValue: "localPortCell")
             guard let cellView = tableView.makeView(withIdentifier: cellIdentifier, owner: self) as? NSTableCellView else { return nil }
@@ -77,8 +89,4 @@ extension ViewController: NSTableViewDelegate {
             return nil
         }
     }
-    
-    func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
-            return 30.0
-        }
 }
