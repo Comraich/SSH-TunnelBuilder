@@ -66,12 +66,19 @@ extension ViewController: NSTableViewDelegate {
             
         } else if tableColumn?.identifier == NSUserInterfaceItemIdentifier(rawValue: "closeColumn") {
             
+            let cellIdentifier = NSUserInterfaceItemIdentifier(rawValue: "closeCell")
+            guard let cellView = tableView.makeView(withIdentifier: cellIdentifier, owner: self) as? NSTableCellView else { return nil }
+            
+            return cellView
+            
         } else {
             
             NSLog("Column Identifier returned nil")
             return nil
         }
-        
-        return nil
     }
+    
+    func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
+            return 30.0
+        }
 }
