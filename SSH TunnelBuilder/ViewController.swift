@@ -31,8 +31,8 @@ class ViewController: NSViewController {
         }
     }
     
-    @IBAction func closeConnection(_ sender: NSButton) {
-        NSLog("Connection \(connctionId) was closed.")
+    @IBAction func closeConnection(_ sender: CloseButton) {
+        NSLog("Connection \(sender.connectionId!) was closed.")
     }
 
 }
@@ -80,7 +80,8 @@ extension ViewController: NSTableViewDelegate {
             
             let cellIdentifier = NSUserInterfaceItemIdentifier(rawValue: "closeCell")
             guard let cellView = tableView.makeView(withIdentifier: cellIdentifier, owner: self) as? NSTableCellView else { return nil }
-            
+            let closeButton = cellView.nextKeyView as? CloseButton
+            closeButton?.connectionId = currentConnection.connectionId
             return cellView
             
         } else {

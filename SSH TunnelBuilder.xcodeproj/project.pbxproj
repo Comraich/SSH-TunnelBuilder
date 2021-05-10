@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		F41D47A4264809AF0017AF1C /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = F41D47A3264809AF0017AF1C /* LICENSE */; };
+		F469D654264999230093BD80 /* CloseButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F469D653264999230093BD80 /* CloseButton.swift */; };
 		F4DFCE6526471E8600108F7D /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4DFCE6426471E8600108F7D /* AppDelegate.swift */; };
 		F4DFCE6726471E8600108F7D /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4DFCE6626471E8600108F7D /* ViewController.swift */; };
 		F4DFCE6926471E8700108F7D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F4DFCE6826471E8700108F7D /* Assets.xcassets */; };
@@ -20,6 +21,7 @@
 /* Begin PBXFileReference section */
 		F40F024726487B5700695288 /* en */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = en; path = en.lproj/Main.storyboard; sourceTree = "<group>"; };
 		F41D47A3264809AF0017AF1C /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		F469D653264999230093BD80 /* CloseButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloseButton.swift; sourceTree = "<group>"; };
 		F4DFCE6126471E8600108F7D /* SSH TunnelBuilder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "SSH TunnelBuilder.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F4DFCE6426471E8600108F7D /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		F4DFCE6626471E8600108F7D /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
@@ -71,6 +73,7 @@
 				F4DFCE7B2647300C00108F7D /* MOCK_DATA.json */,
 				F4DFCE7D264735FC00108F7D /* ViewModel.swift */,
 				F41D47A3264809AF0017AF1C /* LICENSE */,
+				F469D653264999230093BD80 /* CloseButton.swift */,
 			);
 			path = "SSH TunnelBuilder";
 			sourceTree = "<group>";
@@ -149,6 +152,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F469D654264999230093BD80 /* CloseButton.swift in Sources */,
 				F4DFCE6726471E8600108F7D /* ViewController.swift in Sources */,
 				F4DFCE7A26472D3300108F7D /* ConnectionModel.swift in Sources */,
 				F4DFCE7E264735FC00108F7D /* ViewModel.swift in Sources */,
