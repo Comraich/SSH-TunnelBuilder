@@ -7,28 +7,57 @@
 
 import Cocoa
 
-class ViewController: NSViewController {
+class ViewController: NSViewController, NSComboBoxDataSource {
     
     @IBOutlet var tableView: NSTableView!
+    @IBOutlet weak var connectionComboBox: NSComboBox!
     var viewModel = ViewModel()
 
     override func viewDidLoad() {
         super.viewDidLoad()
-
+        
+        // Set View delegate and data source
         tableView.delegate = self
         tableView.dataSource = self
         
+        connectionComboBox.usesDataSource = true
+        connectionComboBox.dataSource = self
     }
     
     override func viewWillAppear() {
         super.viewWillAppear()
         tableView.reloadData()
+        connectionComboBox.reloadData()
+    }
+    
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        
+        // Make the main window non-resizable
+        self.view.window?.styleMask.remove(NSWindow.StyleMask.resizable)
+        self.view.window?.title = "SSH TunnelBuilder"
     }
 
     override var representedObject: Any? {
         didSet {
         // Update the view, if already loaded.
         }
+    }
+    
+    func numberOfItems(in connectionComboBox: NSComboBox) -> Int {
+        
+        return viewModel.connections.count
+        
+    }
+    
+    func comboBox(_ connectionComboBox: NSComboBox, objectValueForItemAt index: Int) -> Any? {
+        
+        return viewModel.connections[index].connectionName
+        
+    }
+    
+    @IBAction func connect(_ sender: NSButton) {
+        NSLog("Connect button was clicked in winkel. It makes sense if you know norwegian")
     }
     
     @IBAction func closeConnection(_ sender: CloseButton) {
