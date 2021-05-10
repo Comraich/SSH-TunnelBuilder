@@ -58,6 +58,9 @@ class ViewController: NSViewController, NSComboBoxDataSource {
     
     @IBAction func connect(_ sender: NSButton) {
         NSLog("Connect button was clicked in winkel. It makes sense if you know norwegian")
+        let connection = viewModel.connections[connectionComboBox.indexOfSelectedItem]
+        NSLog("If you had actually had written the code for it, \(connection.connectionName!) would have been connected now.")
+        
     }
     
     @IBAction func closeConnection(_ sender: CloseButton) {
