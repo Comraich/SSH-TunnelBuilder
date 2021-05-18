@@ -35,7 +35,6 @@ final class AcceptAllHostKeysDelegate: NIOSSHClientServerAuthenticationDelegate 
 class SSHClient
 {
     
-
     func Connect(connection: Connection) throws
     {
         let parser = ConnectionParser()

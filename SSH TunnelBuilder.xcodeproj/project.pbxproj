@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		F41D47A4264809AF0017AF1C /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = F41D47A3264809AF0017AF1C /* LICENSE */; };
 		F453A6E026542F8A00B375EC /* SSHClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F453A6DF26542F8A00B375EC /* SSHClient.swift */; };
-		F453A6E3265431AA00B375EC /* ExecHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = F453A6E2265431AA00B375EC /* ExecHandler.swift */; };
 		F453A6E5265431E500B375EC /* GlueHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = F453A6E4265431E500B375EC /* GlueHandler.swift */; };
 		F453A6E72654322C00B375EC /* ConnectionParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F453A6E62654322C00B375EC /* ConnectionParser.swift */; };
 		F453A6E92654326C00B375EC /* PortForwardingServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F453A6E82654326C00B375EC /* PortForwardingServer.swift */; };
@@ -30,7 +29,6 @@
 		F40F024726487B5700695288 /* en */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = en; path = en.lproj/Main.storyboard; sourceTree = "<group>"; };
 		F41D47A3264809AF0017AF1C /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		F453A6DF26542F8A00B375EC /* SSHClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHClient.swift; sourceTree = "<group>"; };
-		F453A6E2265431AA00B375EC /* ExecHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExecHandler.swift; sourceTree = "<group>"; };
 		F453A6E4265431E500B375EC /* GlueHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlueHandler.swift; sourceTree = "<group>"; };
 		F453A6E62654322C00B375EC /* ConnectionParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionParser.swift; sourceTree = "<group>"; };
 		F453A6E82654326C00B375EC /* PortForwardingServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortForwardingServer.swift; sourceTree = "<group>"; };
@@ -65,7 +63,6 @@
 			isa = PBXGroup;
 			children = (
 				F453A6DF26542F8A00B375EC /* SSHClient.swift */,
-				F453A6E2265431AA00B375EC /* ExecHandler.swift */,
 				F453A6E4265431E500B375EC /* GlueHandler.swift */,
 				F453A6E62654322C00B375EC /* ConnectionParser.swift */,
 				F453A6E82654326C00B375EC /* PortForwardingServer.swift */,
@@ -195,7 +192,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				F469D654264999230093BD80 /* CloseButton.swift in Sources */,
-				F453A6E3265431AA00B375EC /* ExecHandler.swift in Sources */,
 				F453A6E026542F8A00B375EC /* SSHClient.swift in Sources */,
 				F4DFCE6726471E8600108F7D /* ViewController.swift in Sources */,
 				F453A6E92654326C00B375EC /* PortForwardingServer.swift in Sources */,
