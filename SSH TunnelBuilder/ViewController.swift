@@ -14,6 +14,7 @@ class ViewController: NSViewController, NSComboBoxDataSource {
     var viewModel = ViewModel()
 
     override func viewDidLoad() {
+        
         super.viewDidLoad()
         
         // Set View delegate and data source
@@ -22,12 +23,15 @@ class ViewController: NSViewController, NSComboBoxDataSource {
         
         connectionComboBox.usesDataSource = true
         connectionComboBox.dataSource = self
+        
     }
     
     override func viewWillAppear() {
+        
         super.viewWillAppear()
         tableView.reloadData()
         connectionComboBox.reloadData()
+        
     }
     
     override func viewDidAppear() {
@@ -57,25 +61,35 @@ class ViewController: NSViewController, NSComboBoxDataSource {
     }
     
     @IBAction func connect(_ sender: NSButton) {
+        
         NSLog("Connect button was clicked in winkel. It makes sense if you know norwegian")
-        let connection = viewModel.connections[connectionComboBox.indexOfSelectedItem]
-        NSLog("If you had actually had written the code for it, \(connection.connectionName!) would have been connected now.")
+        // let connection = viewModel.connections[connectionComboBox.indexOfSelectedItem]
+        
+        let sshClient = SSHClient()
+        
+        do {
+            try sshClient.Connect(username: "simon", password: "tullogfjassompassord")
+        } catch {}
         
     }
     
     @IBAction func closeConnection(_ sender: CloseButton) {
+        
         NSLog("Connection \(sender.connectionId!) was closed.")
+    
     }
-
 }
 
 extension ViewController: NSTableViewDataSource {
+    
     func numberOfRows(in tableView: NSTableView) -> Int {
         return viewModel.connections.count
+        
     }
 }
 
 extension ViewController: NSTableViewDelegate {
+    
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
      
         let currentConnection = viewModel.connections[row]
@@ -120,6 +134,7 @@ extension ViewController: NSTableViewDelegate {
             
             NSLog("Column Identifier returned nil")
             return nil
+            
         }
     }
 }
