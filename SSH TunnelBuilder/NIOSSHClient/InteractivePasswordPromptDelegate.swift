@@ -24,36 +24,45 @@ final class InteractivePasswordPromptDelegate: NIOSSHClientUserAuthenticationDel
     private var username: String?
 
     private var password: String?
+    
+    private var privateKey: String?
 
-    init(username: String?, password: String?) {
+    init(username: String?, password: String?, privateKey: String?) {
         self.queue = DispatchQueue(label: "io.swiftnio.ssh.InteractivePasswordPromptDelegate")
         self.username = username
         self.password = password
+        self.privateKey = privateKey
     }
 
     func nextAuthenticationType(availableMethods: NIOSSHAvailableUserAuthenticationMethods, nextChallengePromise: EventLoopPromise<NIOSSHUserAuthenticationOffer?>) {
-        guard availableMethods.contains(.password) else {
+        guard availableMethods.contains(.password) || availableMethods.contains(.publicKey) else {
             print("Error: password auth not supported")
             nextChallengePromise.fail(SSHClientError.passwordAuthenticationNotSupported)
             return
         }
 
         self.queue.async {
-            if self.username == nil {
-                print("Username: ", terminator: "")
-                self.username = readLine() ?? ""
-            }
-
-            if self.password == nil {
-                #if os(Windows)
-                print("Password: ", terminator: "")
-                self.password = readLine() ?? ""
-                #else
-                self.password = String(cString: getpass("Password: "))
-                #endif
-            }
+            if self.privateKey == nil {
+//                print("Username: ", terminator: "")
+//                self.username = readLine() ?? ""
+//            }
+//
+//            if self.password == nil {
+//                #if os(Windows)
+//                print("Password: ", terminator: "")
+//                self.password = readLine() ?? ""
+//                #else
+//                self.password = String(cString: getpass("Password: "))
+//                #endif
+//            }
 
             nextChallengePromise.succeed(NIOSSHUserAuthenticationOffer(username: self.username!, serviceName: "", offer: .password(.init(password: self.password!))))
+                
+           }
+//                else {
+//
+//                nextChallengePromise.succeed(NIOSSHUserAuthenticationOffer(username: self.username!, serviceName: "", offer: .privateKey(.init(privateKey: self.privateKey))))
+//            }
         }
     }
 }

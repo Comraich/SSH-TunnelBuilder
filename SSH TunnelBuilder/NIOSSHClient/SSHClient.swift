@@ -32,6 +32,13 @@ final class AcceptAllHostKeysDelegate: NIOSSHClientServerAuthenticationDelegate 
     }
 }
 
+enum SSHClientError: Swift.Error {
+    case passwordAuthenticationNotSupported
+    case commandExecFailed
+    case invalidChannelType
+    case invalidData
+}
+
 class SSHClient
 {
     
@@ -44,13 +51,15 @@ class SSHClient
         defer {
             try! group.syncShutdownGracefully()
         }
-
-        let bootstrap = ClientBootstrap(group: group)
-            .channelInitializer { channel in
-                channel.pipeline.addHandlers([NIOSSHHandler(role: .client(.init(userAuthDelegate: InteractivePasswordPromptDelegate(username: parseResult.user, password: parseResult.password), serverAuthDelegate: AcceptAllHostKeysDelegate())), allocator: channel.allocator, inboundChildChannelInitializer: nil), ErrorHandler()])
-            }
-            .channelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
-            .channelOption(ChannelOptions.socket(SocketOptionLevel(IPPROTO_TCP), TCP_NODELAY), value: 1)
+        
+            
+            let bootstrap = ClientBootstrap(group: group)
+                        .channelInitializer { channel in
+                            channel.pipeline.addHandlers([NIOSSHHandler(role: .client(.init(userAuthDelegate: InteractivePasswordPromptDelegate(username: connection.userName, password: connection.password, privateKey: connection.publicKey), serverAuthDelegate: AcceptAllHostKeysDelegate())), allocator: channel.allocator, inboundChildChannelInitializer: nil), ErrorHandler()])
+                        }
+                        .channelOption(ChannelOptions.socket(SocketOptionLevel(SOL_SOCKET), SO_REUSEADDR), value: 1)
+                        .channelOption(ChannelOptions.socket(SocketOptionLevel(IPPROTO_TCP), TCP_NODELAY), value: 1)
+        
 
         let channel = try bootstrap.connect(host: parseResult.host, port: parseResult.port).wait()
 
