@@ -9,7 +9,7 @@ import Foundation
 
 class ViewModel: NSObject {
     
-    var connections = [Connections]()
+    var connections = [Connection]()
     
     override init() {
         super.init()
@@ -20,7 +20,7 @@ class ViewModel: NSObject {
     
     private func loadJSonData() {
         
-        guard let jsonDataURL = Bundle.main.url(forResource: "MOCK_DATA", withExtension: "json"),
+        guard let jsonDataURL = Bundle.main.url(forResource: "CONNECTION_DATA", withExtension: "json"),
             let jsonData = try? Data(contentsOf: jsonDataURL)
         
             else { return }
@@ -28,7 +28,7 @@ class ViewModel: NSObject {
         let decoder = JSONDecoder()
         
         do {
-            connections = try decoder.decode([Connections].self, from: jsonData)
+            connections = try decoder.decode([Connection].self, from: jsonData)
         } catch {
             print(error.localizedDescription)
         }

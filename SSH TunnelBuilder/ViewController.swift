@@ -63,12 +63,12 @@ class ViewController: NSViewController, NSComboBoxDataSource {
     @IBAction func connect(_ sender: NSButton) {
         
         NSLog("Connect button was clicked in winkel. It makes sense if you know norwegian")
-        // let connection = viewModel.connections[connectionComboBox.indexOfSelectedItem]
+        let connection = viewModel.connections[connectionComboBox.indexOfSelectedItem]
         
         let sshClient = SSHClient()
         
         do {
-            try sshClient.Connect(username: "simon", password: "tullogfjassompassord")
+            try sshClient.Connect(connection: connection)
         } catch {}
         
     }

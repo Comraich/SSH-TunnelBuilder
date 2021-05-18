@@ -36,10 +36,10 @@ class SSHClient
 {
     
 
-    func Connect(username:String, password:String) throws
+    func Connect(connection: Connection) throws
     {
-        let parser = SimpleCLIParser()
-        let parseResult = parser.parse()
+        let parser = ConnectionParser()
+        let parseResult = parser.parse(connection: connection)
         
         let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
         defer {
@@ -55,17 +55,17 @@ class SSHClient
 
         let channel = try bootstrap.connect(host: parseResult.host, port: parseResult.port).wait()
 
-        if let listen = parseResult.listen {
+        if let portForward = parseResult.portForward {
             // We've been asked to port forward.
             let server = PortForwardingServer(group: group,
-                                              bindHost: listen.bindHost ?? "localhost",
-                                              bindPort: listen.bindPort) { inboundChannel in
+                                              bindHost: portForward.bindHost ?? "localhost",
+                                              bindPort: portForward.bindPort) { inboundChannel in
                 // This block executes whenever a new inbound channel is received. We want to forward it to the peer.
                 // To do that, we have to begin by creating a new SSH channel of the appropriate type.
                 channel.pipeline.handler(type: NIOSSHHandler.self).flatMap { sshHandler in
                     let promise = inboundChannel.eventLoop.makePromise(of: Channel.self)
-                    let directTCPIP = SSHChannelType.DirectTCPIP(targetHost: String(listen.targetHost),
-                                                                 targetPort: listen.targetPort,
+                    let directTCPIP = SSHChannelType.DirectTCPIP(targetHost: String(portForward.targetHost),
+                                                                 targetPort: portForward.targetPort,
                                                                  originatorAddress: inboundChannel.remoteAddress!)
                     sshHandler.createChannel(promise,
                                              channelType: .directTCPIP(directTCPIP)) { childChannel, channelType in
@@ -91,27 +91,6 @@ class SSHClient
             // Run the server until complete
             try! server.run().wait()
 
-        } else {
-            // We've been asked to exec.
-            let exitStatusPromise = channel.eventLoop.makePromise(of: Int.self)
-            let childChannel: Channel = try! channel.pipeline.handler(type: NIOSSHHandler.self).flatMap { sshHandler in
-                let promise = channel.eventLoop.makePromise(of: Channel.self)
-                sshHandler.createChannel(promise) { childChannel, channelType in
-                    guard channelType == .session else {
-                        return channel.eventLoop.makeFailedFuture(SSHClientError.invalidChannelType)
-                    }
-                    return childChannel.pipeline.addHandlers([ExampleExecHandler(command: parseResult.commandString, completePromise: exitStatusPromise), ErrorHandler()])
-                }
-                return promise.futureResult
-            }.wait()
-
-            // Wait for the connection to close
-            try childChannel.closeFuture.wait()
-            let exitStatus = try! exitStatusPromise.futureResult.wait()
-            try! channel.close().wait()
-
-            // Exit like we're the command.
-            exit(Int32(exitStatus))
         }
     }
 }
