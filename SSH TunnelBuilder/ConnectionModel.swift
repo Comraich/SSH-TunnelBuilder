@@ -7,10 +7,11 @@
 
 import Foundation
 
-struct Connections: Codable {
+struct Connection: Codable {
     var connectionId: Int?
     var connectionName: String?
     var sshHost: String?
+    var sshHostPort: Int?
     var localPort: Int?
     var remoteServer: String?
     var remotePort: Int?
