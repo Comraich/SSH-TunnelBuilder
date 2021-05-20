@@ -12,7 +12,7 @@ class ViewController: NSViewController, NSComboBoxDataSource {
     @IBOutlet var tableView: NSTableView!
     @IBOutlet weak var connectionComboBox: NSComboBox!
     var viewModel = ViewModel()
-
+    
     override func viewDidLoad() {
         
         super.viewDidLoad()
@@ -60,17 +60,30 @@ class ViewController: NSViewController, NSComboBoxDataSource {
         
     }
     
-    @IBAction func connect(_ sender: NSButton) {
+    @IBAction func connectButtonClicked(_ sender: NSButton) {
         
         NSLog("Connect button was clicked in winkel. It makes sense if you know norwegian")
         let connection = viewModel.connections[connectionComboBox.indexOfSelectedItem]
         
+        if connection.publicKey == "" && connection.password == "" {
+            let storyboard = NSStoryboard(name: "PasswordPrompt", bundle: nil)
+            let passwordPromptVcontroller = storyboard.instantiateController(withIdentifier: "PasswordPromptID")
+            presentAsSheet(passwordPromptVcontroller as! NSViewController)
+            return
+        }
+        
+        openConnection(password: nil)
+        
+    }
+    
+    func openConnection(password: String?) {
+        
+        let connection = viewModel.connections[connectionComboBox.indexOfSelectedItem]
         let sshClient = SSHClient()
         
         do {
-            try sshClient.Connect(connection: connection)
+            try sshClient.Connect(connection: connection, password: password)
         } catch {}
-        
     }
     
     @IBAction func closeConnection(_ sender: CloseButton) {

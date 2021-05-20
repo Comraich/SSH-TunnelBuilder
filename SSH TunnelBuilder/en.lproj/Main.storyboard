@@ -128,7 +128,7 @@
                                             <tableViewGridLines key="gridStyleMask" vertical="YES"/>
                                             <color key="gridColor" name="gridColor" catalog="System" colorSpace="catalog"/>
                                             <tableColumns>
-                                                <tableColumn identifier="sshHostColumn" width="160" minWidth="10" maxWidth="3.4028234663852886e+38" id="bTX-rq-g95">
+                                                <tableColumn identifier="sshHostColumn" width="145" minWidth="10" maxWidth="3.4028234663852886e+38" id="bTX-rq-g95">
                                                     <tableHeaderCell key="headerCell" lineBreakMode="truncatingTail" borderStyle="border" alignment="left" title="SSH Host">
                                                         <color key="textColor" name="headerTextColor" catalog="System" colorSpace="catalog"/>
                                                         <color key="backgroundColor" white="0.0" alpha="0.0" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
@@ -141,11 +141,11 @@
                                                     <tableColumnResizingMask key="resizingMask" resizeWithTable="YES" userResizable="YES"/>
                                                     <prototypeCellViews>
                                                         <tableCellView identifier="sshHostCell" id="ESK-VD-ZIy">
-                                                            <rect key="frame" x="8" y="0.0" width="158" height="17"/>
+                                                            <rect key="frame" x="18" y="0.0" width="143" height="17"/>
                                                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                             <subviews>
                                                                 <textField identifier="sshHostCell" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="FfI-fT-whd">
-                                                                    <rect key="frame" x="0.0" y="1" width="158" height="16"/>
+                                                                    <rect key="frame" x="0.0" y="1" width="143" height="16"/>
                                                                     <textFieldCell key="cell" lineBreakMode="truncatingTail" sendsActionOnEndEditing="YES" title="SSH Host" id="3GV-xE-kwr">
                                                                         <font key="font" usesAppearanceFont="YES"/>
                                                                         <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
@@ -177,7 +177,7 @@
                                                     <tableColumnResizingMask key="resizingMask" resizeWithTable="YES" userResizable="YES"/>
                                                     <prototypeCellViews>
                                                         <tableCellView identifier="localPortCell" id="OVz-bM-4Pf">
-                                                            <rect key="frame" x="183" y="0.0" width="62" height="17"/>
+                                                            <rect key="frame" x="178" y="0.0" width="62" height="17"/>
                                                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                             <subviews>
                                                                 <textField identifier="localPortCell" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="bCX-Jm-cSs">
@@ -209,7 +209,7 @@
                                                     <tableColumnResizingMask key="resizingMask" resizeWithTable="YES" userResizable="YES"/>
                                                     <prototypeCellViews>
                                                         <tableCellView identifier="remoteServerCell" id="R6v-bA-4gc">
-                                                            <rect key="frame" x="262" y="0.0" width="160" height="17"/>
+                                                            <rect key="frame" x="257" y="0.0" width="160" height="17"/>
                                                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                             <subviews>
                                                                 <textField identifier="remoteServerCell" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Yib-vV-IRh">
@@ -241,7 +241,7 @@
                                                     <tableColumnResizingMask key="resizingMask" resizeWithTable="YES" userResizable="YES"/>
                                                     <prototypeCellViews>
                                                         <tableCellView identifier="remotePortCell" id="D18-2n-bxc">
-                                                            <rect key="frame" x="439" y="0.0" width="74" height="17"/>
+                                                            <rect key="frame" x="434" y="0.0" width="74" height="17"/>
                                                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                             <subviews>
                                                                 <textField identifier="remotePortCell" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="aJr-g4-JI7">
@@ -273,14 +273,14 @@
                                                     <tableColumnResizingMask key="resizingMask" resizeWithTable="YES" userResizable="YES"/>
                                                     <prototypeCellViews>
                                                         <tableCellView identifier="closeCell" id="QlO-cQ-D1T">
-                                                            <rect key="frame" x="530" y="0.0" width="44" height="17"/>
+                                                            <rect key="frame" x="525" y="0.0" width="44" height="17"/>
                                                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                             <subviews>
                                                                 <button identifier="closeButton" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="IFA-Cs-3xw" customClass="CloseButton" customModule="SSH_TunnelBuilder" customModuleProvider="target">
                                                                     <rect key="frame" x="3" y="0.0" width="41" height="18"/>
                                                                     <buttonCell key="cell" type="inline" title="Close" bezelStyle="inline" alignment="center" borderStyle="border" identifier="closeButton" inset="2" id="cqp-cx-i0M">
                                                                         <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
-                                                                        <font key="font" metaFont="systemBold" size="11"/>
+                                                                        <font key="font" metaFont="smallSystemBold"/>
                                                                     </buttonCell>
                                                                     <connections>
                                                                         <action selector="closeConnection:" target="XfG-lQ-9wD" id="IUo-eS-Zto"/>
@@ -346,7 +346,7 @@
                                     <font key="font" metaFont="system"/>
                                 </buttonCell>
                                 <connections>
-                                    <action selector="connect:" target="XfG-lQ-9wD" id="Oga-nx-gXx"/>
+                                    <action selector="connectButtonClicked:" target="XfG-lQ-9wD" id="1mi-gx-4qS"/>
                                 </connections>
                             </button>
                         </subviews>
