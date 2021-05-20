@@ -81,9 +81,12 @@ class ViewController: NSViewController, NSComboBoxDataSource {
         let connection = viewModel.connections[connectionComboBox.indexOfSelectedItem]
         let sshClient = SSHClient()
         
-        do {
-            try sshClient.Connect(connection: connection, password: password)
-        } catch {}
+        DispatchQueue.global(qos:.userInitiated).async {
+            
+            do {
+                try sshClient.Connect(connection: connection, password: password)
+            } catch {}
+        }
     }
     
     @IBAction func closeConnection(_ sender: CloseButton) {
