@@ -6,6 +6,7 @@
 //
 
 import Cocoa
+import AppKit
 
 class ViewController: NSViewController, NSComboBoxDataSource {
     
@@ -30,8 +31,11 @@ class ViewController: NSViewController, NSComboBoxDataSource {
     override func viewWillAppear() {
         
         super.viewWillAppear()
+        checkIcloudAccountStatus()
+        refresh()
         tableView.reloadData()
         connectionComboBox.reloadData()
+        
         
     }
     
@@ -43,6 +47,20 @@ class ViewController: NSViewController, NSComboBoxDataSource {
         self.view.window?.title = "SSH TunnelBuilder"
     }
 
+    @objc private func refresh() {
+        viewModel.refresh { error in
+            if let error = error {
+                let alert = NSAlert()
+                alert.messageText = error.localizedDescription
+                alert.alertStyle = NSAlert.Style.critical
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+                return
+            }
+        }
+        tableView.reloadData()
+    }
+    
     override var representedObject: Any? {
         didSet {
             tableView.reloadData()
@@ -106,6 +124,24 @@ class ViewController: NSViewController, NSComboBoxDataSource {
         activeConnections.removeValue(forKey: sender.connectionId!)
         tableView.reloadData()
         
+    }
+    
+    func checkIcloudAccountStatus() {
+        
+        CKContainer.default().accountStatus { accountStatus, error in
+            if accountStatus == .noAccount {
+                DispatchQueue.main.async {
+                    let message = "This app uses iCloud to store your connection settings. Please sign in to iCloud in System Preferences."
+                    let alert = NSAlert()
+                    alert.alertStyle = NSAlert.Style.critical
+                    alert.messageText = message
+                    alert.addButton(withTitle: "OK")
+                    alert.runModal()
+                    return
+                    
+                }
+            }
+        }
     }
 }
 
