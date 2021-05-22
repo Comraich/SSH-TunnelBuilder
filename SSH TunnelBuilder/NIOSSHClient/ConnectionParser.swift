@@ -17,8 +17,8 @@ import Foundation
 struct ConnectionParser {
     func parse(connection: Connection) -> Result {
         
-        let sshHost = URL(string: "ssh://" + connection.sshHost! + ":" + String(connection.sshHostPort!))!
-        let portForward = PortForward(portForwardString: String(connection.localPort!) + ":" + connection.remoteServer! + ":" + String(connection.remotePort!))
+        let sshHost = URL(string: "ssh://" + connection.sshHost + ":" + String(connection.sshHostPort))!
+        let portForward = PortForward(portForwardString: String(connection.localPort) + ":" + connection.remoteServer + ":" + String(connection.remotePort))
 
         return Result(sshHost: sshHost, portForward:portForward)
         

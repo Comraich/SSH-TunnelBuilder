@@ -90,7 +90,7 @@ class ViewController: NSViewController, NSComboBoxDataSource {
         }
         
         let connectionRecord = TableViewConnectionRecords(connection: connection, sshClient: sshClient)
-        activeConnections[connection.connectionId!] = connectionRecord
+        activeConnections[connection.connectionId] = connectionRecord
         tableView.reloadData()
         
     }
