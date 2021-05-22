@@ -12,6 +12,7 @@ class ViewController: NSViewController, NSComboBoxDataSource {
     @IBOutlet var tableView: NSTableView!
     @IBOutlet weak var connectionComboBox: NSComboBox!
     var viewModel = ViewModel()
+    var activeConnections: Array<Connection>! = Array<Connection>()
     
     override func viewDidLoad() {
         
@@ -44,7 +45,7 @@ class ViewController: NSViewController, NSComboBoxDataSource {
 
     override var representedObject: Any? {
         didSet {
-        // Update the view, if already loaded.
+            tableView.reloadData()
         }
     }
     
@@ -87,6 +88,9 @@ class ViewController: NSViewController, NSComboBoxDataSource {
                 try sshClient.Connect(connection: connection, password: password)
             } catch {}
         }
+        
+        activeConnections?.append(connection)
+        tableView.reloadData()
     }
     
     @IBAction func closeConnection(_ sender: CloseButton) {
@@ -99,7 +103,7 @@ class ViewController: NSViewController, NSComboBoxDataSource {
 extension ViewController: NSTableViewDataSource {
     
     func numberOfRows(in tableView: NSTableView) -> Int {
-        return viewModel.connections.count
+        return activeConnections.count
         
     }
 }
@@ -108,17 +112,21 @@ extension ViewController: NSTableViewDelegate {
     
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
      
-        let currentConnection = viewModel.connections[row]
+        if activeConnections == nil {
+            return nil
+        }
+        
+        let currentConnection = activeConnections[row]
         
         if tableColumn?.identifier == NSUserInterfaceItemIdentifier(rawValue: "sshHostColumn") {
-            
+        
             let cellIdentifier = NSUserInterfaceItemIdentifier(rawValue: "sshHostCell")
             guard let cellView = tableView.makeView(withIdentifier: cellIdentifier, owner: self) as? NSTableCellView else { return nil }
             cellView.textField?.stringValue = currentConnection.sshHost ?? "SSH Host"
             return cellView
-            
+        
         } else if tableColumn?.identifier == NSUserInterfaceItemIdentifier(rawValue: "localPortColumn") {
-            
+        
             let cellIdentifier = NSUserInterfaceItemIdentifier(rawValue: "localPortCell")
             guard let cellView = tableView.makeView(withIdentifier: cellIdentifier, owner: self) as? NSTableCellView else { return nil }
             cellView.textField?.integerValue = currentConnection.localPort ?? 0
@@ -141,16 +149,17 @@ extension ViewController: NSTableViewDelegate {
         } else if tableColumn?.identifier == NSUserInterfaceItemIdentifier(rawValue: "closeColumn") {
             
             let cellIdentifier = NSUserInterfaceItemIdentifier(rawValue: "closeCell")
-            guard let cellView = tableView.makeView(withIdentifier: cellIdentifier, owner: self) as? NSTableCellView else { return nil }
-            let closeButton = cellView.nextKeyView as? CloseButton
-            closeButton?.connectionId = currentConnection.connectionId
-            return cellView
-            
-        } else {
-            
+           guard let cellView = tableView.makeView(withIdentifier: cellIdentifier, owner: self) as? NSTableCellView else { return nil }
+           let closeButton = cellView.nextKeyView as? CloseButton
+           closeButton?.connectionId = currentConnection.connectionId
+           return cellView
+           
+       } else {
+           
             NSLog("Column Identifier returned nil")
             return nil
             
         }
+        
     }
 }
