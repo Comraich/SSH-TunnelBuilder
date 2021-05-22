@@ -12,7 +12,7 @@ class ViewController: NSViewController, NSComboBoxDataSource {
     @IBOutlet var tableView: NSTableView!
     @IBOutlet weak var connectionComboBox: NSComboBox!
     var viewModel = ViewModel()
-    var activeConnections: Array<Connection>! = Array<Connection>()
+    var activeConnections = Dictionary<Int, TableViewConnectionRecords>()
     
     override func viewDidLoad() {
         
@@ -89,14 +89,23 @@ class ViewController: NSViewController, NSComboBoxDataSource {
             } catch {}
         }
         
-        activeConnections?.append(connection)
+        let connectionRecord = TableViewConnectionRecords(connection: connection, sshClient: sshClient)
+        activeConnections[connection.connectionId!] = connectionRecord
         tableView.reloadData()
+        
     }
     
     @IBAction func closeConnection(_ sender: CloseButton) {
         
-        NSLog("Connection \(sender.connectionId!) was closed.")
-    
+        if let activeConnection = activeConnections[sender.connectionId!] {
+            if let sshClient = activeConnection.sshClient {
+                sshClient.disconnect()
+            }
+        }
+        
+        activeConnections.removeValue(forKey: sender.connectionId!)
+        tableView.reloadData()
+        
     }
 }
 
@@ -111,48 +120,47 @@ extension ViewController: NSTableViewDataSource {
 extension ViewController: NSTableViewDelegate {
     
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-     
-        if activeConnections == nil {
-            return nil
-        }
         
-        let currentConnection = activeConnections[row]
+        let connectionId = Array(activeConnections.keys)[row]
+        let currentConnection = activeConnections[connectionId]?.connection
         
         if tableColumn?.identifier == NSUserInterfaceItemIdentifier(rawValue: "sshHostColumn") {
         
             let cellIdentifier = NSUserInterfaceItemIdentifier(rawValue: "sshHostCell")
             guard let cellView = tableView.makeView(withIdentifier: cellIdentifier, owner: self) as? NSTableCellView else { return nil }
-            cellView.textField?.stringValue = currentConnection.sshHost ?? "SSH Host"
+            cellView.textField?.stringValue = currentConnection?.sshHost ?? "SSH Host"
             return cellView
         
         } else if tableColumn?.identifier == NSUserInterfaceItemIdentifier(rawValue: "localPortColumn") {
         
             let cellIdentifier = NSUserInterfaceItemIdentifier(rawValue: "localPortCell")
             guard let cellView = tableView.makeView(withIdentifier: cellIdentifier, owner: self) as? NSTableCellView else { return nil }
-            cellView.textField?.integerValue = currentConnection.localPort ?? 0
+            cellView.textField?.integerValue = currentConnection?.localPort ?? 0
             return cellView
             
         } else if tableColumn?.identifier == NSUserInterfaceItemIdentifier(rawValue: "remoteServerColumn") {
             
             let cellIdentifier = NSUserInterfaceItemIdentifier(rawValue: "remoteServerCell")
             guard let cellView = tableView.makeView(withIdentifier: cellIdentifier, owner: self) as? NSTableCellView else { return nil }
-            cellView.textField?.stringValue = currentConnection.remoteServer ?? "Unknown"
+            cellView.textField?.stringValue = currentConnection?.remoteServer ?? "Unknown"
             return cellView
             
         } else if tableColumn?.identifier == NSUserInterfaceItemIdentifier(rawValue: "remotePortColumn") {
             
             let cellIdentifier = NSUserInterfaceItemIdentifier(rawValue: "remotePortCell")
             guard let cellView = tableView.makeView(withIdentifier: cellIdentifier, owner: self) as? NSTableCellView else { return nil }
-            cellView.textField?.integerValue = currentConnection.remotePort ?? 0
+            cellView.textField?.integerValue = currentConnection?.remotePort ?? 0
             return cellView
             
         } else if tableColumn?.identifier == NSUserInterfaceItemIdentifier(rawValue: "closeColumn") {
             
             let cellIdentifier = NSUserInterfaceItemIdentifier(rawValue: "closeCell")
-           guard let cellView = tableView.makeView(withIdentifier: cellIdentifier, owner: self) as? NSTableCellView else { return nil }
-           let closeButton = cellView.nextKeyView as? CloseButton
-           closeButton?.connectionId = currentConnection.connectionId
-           return cellView
+            guard let cellView = tableView.makeView(withIdentifier: cellIdentifier, owner: self) as? NSTableCellView else { return nil }
+            let closeButton = cellView.nextKeyView as? CloseButton
+            closeButton?.connectionId = currentConnection?.connectionId
+            closeButton?.connectionName = currentConnection?.connectionName
+            
+            return cellView
            
        } else {
            

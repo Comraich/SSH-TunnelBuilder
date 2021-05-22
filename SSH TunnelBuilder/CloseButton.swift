@@ -10,5 +10,6 @@ import AppKit
 class CloseButton: NSButton {
     
     var connectionId: Int?
+    var connectionName: String?
     
 }

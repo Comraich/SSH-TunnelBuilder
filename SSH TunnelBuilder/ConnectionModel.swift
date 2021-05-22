@@ -8,6 +8,7 @@
 import Foundation
 
 struct Connection: Codable {
+    
     var connectionId: Int?
     var connectionName: String?
     var sshHost: String?
@@ -18,4 +19,18 @@ struct Connection: Codable {
     var userName: String?
     var password: String?
     var publicKey: String?
+    
+}
+
+struct TableViewConnectionRecords {
+    
+    var connection: Connection?
+    var sshClient: SSHClient?
+    
+    init(connection: Connection, sshClient: SSHClient) {
+        
+        self.connection = connection
+        self.sshClient = sshClient
+        
+    }
 }

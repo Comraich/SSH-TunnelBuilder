@@ -42,6 +42,8 @@ enum SSHClientError: Swift.Error {
 class SSHClient
 {
     
+    public var server: PortForwardingServer?
+    
     func Connect(connection: Connection, password: String? = nil) throws
     {
         let parser = ConnectionParser()
@@ -70,7 +72,7 @@ class SSHClient
 
         if let portForward = parseResult.portForward {
             // We've been asked to port forward.
-            let server = PortForwardingServer(group: group,
+            self.server = PortForwardingServer(group: group,
                                               bindHost: portForward.bindHost ?? "localhost",
                                               bindPort: portForward.bindPort) { inboundChannel in
                 // This block executes whenever a new inbound channel is received. We want to forward it to the peer.
@@ -102,9 +104,15 @@ class SSHClient
             }
 
             // Run the server until complete
-            try! server.run().wait()
+            try! self.server!.run().wait()
 
         }
+    }
+    
+    func disconnect() {
+        
+        _ = self.server?.close()
+        
     }
 }
 
