@@ -36,7 +36,6 @@ class ViewController: NSViewController, NSComboBoxDataSource {
         tableView.reloadData()
         connectionComboBox.reloadData()
         
-        
     }
     
     override func viewDidAppear() {
@@ -45,6 +44,14 @@ class ViewController: NSViewController, NSComboBoxDataSource {
         // Make the main window non-resizable
         self.view.window?.styleMask.remove(NSWindow.StyleMask.resizable)
         self.view.window?.title = "SSH TunnelBuilder"
+        
+        if self.numberOfItems(in: connectionComboBox) == 0 {
+            let alert = NSAlert()
+            alert.messageText = "You do not created any connection definitions yet. Go to File -> Create new connection or File -> Import connections to get started."
+            alert.alertStyle = NSAlert.Style.informational
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        }
     }
 
     @objc private func refresh() {
