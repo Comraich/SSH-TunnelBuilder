@@ -16,7 +16,7 @@
 		F45D8D4F2659B3530054B133 /* Connection.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = F45D8D4E2659B3530054B133 /* Connection.storyboard */; };
 		F469D654264999230093BD80 /* CloseButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F469D653264999230093BD80 /* CloseButton.swift */; };
 		F469D6592649D2090093BD80 /* NIOSSH in Frameworks */ = {isa = PBXBuildFile; productRef = F469D6582649D2090093BD80 /* NIOSSH */; };
-		F495B3F5265A69F500674032 /* NewConnectionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F495B3F4265A69F500674032 /* NewConnectionViewController.swift */; };
+		F495B3F5265A69F500674032 /* ConnectionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F495B3F4265A69F500674032 /* ConnectionViewController.swift */; };
 		F4B9AFFB264D4DAA00939094 /* CloudKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F4B9AFFA264D4DAA00939094 /* CloudKit.framework */; };
 		F4DFCE6526471E8600108F7D /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4DFCE6426471E8600108F7D /* AppDelegate.swift */; };
 		F4DFCE6726471E8600108F7D /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4DFCE6626471E8600108F7D /* ViewController.swift */; };
@@ -38,7 +38,7 @@
 		F453A6EA265432A300B375EC /* InteractivePasswordPromptDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractivePasswordPromptDelegate.swift; sourceTree = "<group>"; };
 		F45D8D4E2659B3530054B133 /* Connection.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = Connection.storyboard; sourceTree = "<group>"; };
 		F469D653264999230093BD80 /* CloseButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloseButton.swift; sourceTree = "<group>"; };
-		F495B3F4265A69F500674032 /* NewConnectionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewConnectionViewController.swift; sourceTree = "<group>"; };
+		F495B3F4265A69F500674032 /* ConnectionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionViewController.swift; sourceTree = "<group>"; };
 		F4B9AFFA264D4DAA00939094 /* CloudKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CloudKit.framework; path = System/Library/Frameworks/CloudKit.framework; sourceTree = SDKROOT; };
 		F4DFCE6126471E8600108F7D /* SSH TunnelBuilder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "SSH TunnelBuilder.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F4DFCE6426471E8600108F7D /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -81,7 +81,6 @@
 			isa = PBXGroup;
 			children = (
 				F4DFCE7D264735FC00108F7D /* ViewModel.swift */,
-				F4DFCE6626471E8600108F7D /* ViewController.swift */,
 				F4DFCE7926472D3300108F7D /* Connection.swift */,
 			);
 			path = Models;
@@ -91,7 +90,8 @@
 			isa = PBXGroup;
 			children = (
 				F4F1B8DF2656C9E30080FADC /* PasswordPromptViewController.swift */,
-				F495B3F4265A69F500674032 /* NewConnectionViewController.swift */,
+				F4DFCE6626471E8600108F7D /* ViewController.swift */,
+				F495B3F4265A69F500674032 /* ConnectionViewController.swift */,
 			);
 			path = Controllers;
 			sourceTree = "<group>";
@@ -240,7 +240,7 @@
 				F453A6E92654326C00B375EC /* PortForwardingServer.swift in Sources */,
 				F4DFCE7A26472D3300108F7D /* Connection.swift in Sources */,
 				F4DFCE7E264735FC00108F7D /* ViewModel.swift in Sources */,
-				F495B3F5265A69F500674032 /* NewConnectionViewController.swift in Sources */,
+				F495B3F5265A69F500674032 /* ConnectionViewController.swift in Sources */,
 				F4DFCE6526471E8600108F7D /* AppDelegate.swift in Sources */,
 				F453A6E5265431E500B375EC /* GlueHandler.swift in Sources */,
 				F453A6E72654322C00B375EC /* ConnectionParser.swift in Sources */,

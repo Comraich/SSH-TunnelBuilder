@@ -15,6 +15,14 @@ class ViewController: NSViewController, NSComboBoxDataSource {
     var viewModel = ViewModel()
     var activeConnections = Dictionary<Int, TableViewConnectionRecords>()
     
+    @IBAction func presentNewConnectionSheet(_ sender: NSMenuItem) {
+        
+        let storyboard = NSStoryboard(name: "Connection", bundle: nil)
+        let newConnectionViewController = storyboard.instantiateController(withIdentifier: "ConnectionPromptId")
+        presentAsSheet(newConnectionViewController as! NSViewController)
+        
+    }
+    
     override func viewDidLoad() {
         
         super.viewDidLoad()

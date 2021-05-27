@@ -38,10 +38,17 @@
                                     <items>
                                         <menuItem title="New Connection" id="9bi-U9-jrp" userLabel="New Connection">
                                             <modifierMask key="keyEquivalentModifierMask"/>
+                                            <connections>
+                                                <action selector="presentNewConnectionSheet:" target="Ady-hI-5gd" id="VpY-qg-0TV"/>
+                                            </connections>
                                         </menuItem>
                                         <menuItem title="Edit Connection" id="9Xs-KZ-iUM" userLabel="Edit Connection">
                                             <modifierMask key="keyEquivalentModifierMask"/>
-                                            <menu key="submenu" title="Edit Connection" id="wig-Ca-L5K"/>
+                                            <menu key="submenu" title="Edit Connection" id="EOS-SQ-Riz"/>
+                                        </menuItem>
+                                        <menuItem title="Delete Connection" id="Dxw-Z2-XWK">
+                                            <modifierMask key="keyEquivalentModifierMask"/>
+                                            <menu key="submenu" title="Delete Connection" id="r9n-5h-pdA"/>
                                         </menuItem>
                                         <menuItem title="Close All Connections" id="s5c-E9-A9f">
                                             <modifierMask key="keyEquivalentModifierMask"/>
