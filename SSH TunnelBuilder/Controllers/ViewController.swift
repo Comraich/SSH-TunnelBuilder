@@ -99,7 +99,17 @@ class ViewController: NSViewController, NSComboBoxDataSource {
     
     @IBAction func connectButtonClicked(_ sender: NSButton) {
         
-        NSLog("Connect button was clicked in winkel. It makes sense if you know norwegian")
+        if connectionComboBox.indexOfSelectedItem == -1 {
+            
+            let alert = NSAlert()
+                        alert.messageText = "You need to select a connection before connecting"
+                        alert.alertStyle = NSAlert.Style.critical
+                        alert.addButton(withTitle: "OK")
+                        alert.runModal()
+                        return
+            
+        }
+        
         let connection = viewModel.connections[connectionComboBox.indexOfSelectedItem]
         
         if connection.publicKey == "" && connection.password == "" {
