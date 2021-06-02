@@ -21,7 +21,7 @@ class Connection {
     var remotePort: Int
     var username: String
     var password: String?
-    var publicKey: String?
+    var privateKey: String?
     
     init?(record: CKRecord, database: CKDatabase) {
         guard
@@ -44,21 +44,8 @@ class Connection {
         self.remotePort = remotePort
         self.username = username
         self.password = record["password"] as? String
-        self.publicKey = record["publicKey"] as? String
+        self.privateKey = record["privateKey"] as? String
 
-    }
-    
-    init(connectionId: Int, connectionName: String, sshHost: String, sshHostPort: Int, localPort: Int, remoteServer: String, remotePort: Int, username: String, password: String?, publicKey: String?) {
-        self.connectionId = connectionId
-        self.connectionName = connectionName
-        self.sshHost = sshHost
-        self.sshHostPort = sshHostPort
-        self.localPort = localPort
-        self.remoteServer = remoteServer
-        self.remotePort = remotePort
-        self.username = username
-        self.password = password ?? ""
-        self.publicKey = publicKey ?? ""
     }
 }
 

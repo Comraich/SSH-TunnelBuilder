@@ -35,7 +35,7 @@ class ConnectionViewController: NSViewController {
             remotePortField.stringValue = String(connection.remotePort)
             usernameField.stringValue = connection.username
             passwordField.stringValue = connection.password ?? ""
-            sshPrivateKeyField.stringValue = connection.publicKey ?? ""
+            sshPrivateKeyField.stringValue = connection.privateKey ?? ""
             
             commitButton.title = "Edit"
             

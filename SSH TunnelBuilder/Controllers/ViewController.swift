@@ -53,13 +53,13 @@ class ViewController: NSViewController, NSComboBoxDataSource {
         self.view.window?.styleMask.remove(NSWindow.StyleMask.resizable)
         self.view.window?.title = "SSH TunnelBuilder"
         
-        if self.numberOfItems(in: connectionComboBox) == 0 {
-            let alert = NSAlert()
-            alert.messageText = "You do not created any connection definitions yet. Go to File -> Create new connection or File -> Import connections to get started."
-            alert.alertStyle = NSAlert.Style.informational
-            alert.addButton(withTitle: "OK")
-            alert.runModal()
-        }
+//        if self.numberOfItems(in: connectionComboBox) == 0 {
+//            let alert = NSAlert()
+//            alert.messageText = "You have not created any connection definitions yet. Go to File -> Create new connection or File -> Import connections to get started."
+//            alert.alertStyle = NSAlert.Style.informational
+//            alert.addButton(withTitle: "OK")
+//            alert.runModal()
+//        }
     }
 
     @objc private func refresh() {
@@ -110,14 +110,14 @@ class ViewController: NSViewController, NSComboBoxDataSource {
             
         }
         
-        let connection = viewModel.connections[connectionComboBox.indexOfSelectedItem]
+//        let connection = viewModel.connections[connectionComboBox.indexOfSelectedItem]
         
-        if connection.publicKey == "" && connection.password == "" {
-            let storyboard = NSStoryboard(name: "PasswordPrompt", bundle: nil)
-            let passwordPromptVcontroller = storyboard.instantiateController(withIdentifier: "PasswordPromptID")
-            presentAsSheet(passwordPromptVcontroller as! NSViewController)
-            return
-        }
+//        if connection.privateKey == "" && connection.password == "" {
+//            let storyboard = NSStoryboard(name: "PasswordPrompt", bundle: nil)
+//            let passwordPromptVcontroller = storyboard.instantiateController(withIdentifier: "PasswordPromptID")
+//            presentAsSheet(passwordPromptVcontroller as! NSViewController)
+//            return
+//        }
         
         openConnection(password: nil)
         
@@ -132,7 +132,9 @@ class ViewController: NSViewController, NSComboBoxDataSource {
             
             do {
                 try sshClient.Connect(connection: connection, password: password)
-            } catch {}
+            } catch {
+                NSLog("Exception thrown: \(error)")
+            }
         }
         
         let connectionRecord = TableViewConnectionRecords(connection: connection, sshClient: sshClient)
