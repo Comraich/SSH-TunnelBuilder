@@ -11,15 +11,15 @@ import CloudKit
 class Connection {
     
     static let recordType = "Connection"
-    private let id: CKRecord.ID
-    let connectionId: Int
-    let connectionName: String
-    let sshHost: String
-    let sshHostPort: Int
-    let localPort: Int
-    let remoteServer: String
-    let remotePort: Int
-    let userName: String
+    private var id: CKRecord.ID?
+    var connectionId: Int
+    var connectionName: String
+    var sshHost: String
+    var sshHostPort: Int
+    var localPort: Int
+    var remoteServer: String
+    var remotePort: Int
+    var username: String
     var password: String?
     var publicKey: String?
     
@@ -32,7 +32,7 @@ class Connection {
             let localPort = record["localPort"] as? Int,
             let remoteServer = record["remoteServer"] as? String,
             let remotePort = record["remotePort"] as? Int,
-            let userName = record["userName"] as? String
+            let username = record["username"] as? String
         else { return nil }
         self.id = record.recordID
         self.connectionId = connectionId
@@ -42,10 +42,23 @@ class Connection {
         self.localPort = localPort
         self.remoteServer = remoteServer
         self.remotePort = remotePort
-        self.userName = userName
+        self.username = username
         self.password = record["password"] as? String
         self.publicKey = record["publicKey"] as? String
 
+    }
+    
+    init(connectionId: Int, connectionName: String, sshHost: String, sshHostPort: Int, localPort: Int, remoteServer: String, remotePort: Int, username: String, password: String?, publicKey: String?) {
+        self.connectionId = connectionId
+        self.connectionName = connectionName
+        self.sshHost = sshHost
+        self.sshHostPort = sshHostPort
+        self.localPort = localPort
+        self.remoteServer = remoteServer
+        self.remotePort = remotePort
+        self.username = username
+        self.password = password ?? ""
+        self.publicKey = publicKey ?? ""
     }
 }
 

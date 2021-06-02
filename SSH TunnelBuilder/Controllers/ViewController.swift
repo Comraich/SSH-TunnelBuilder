@@ -78,7 +78,10 @@ class ViewController: NSViewController, NSComboBoxDataSource {
     
     override var representedObject: Any? {
         didSet {
+            
             tableView.reloadData()
+            connectionComboBox.reloadData()
+            
         }
     }
     

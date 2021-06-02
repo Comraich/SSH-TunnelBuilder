@@ -21,34 +21,7 @@ class ConnectionViewController: NSViewController {
     @IBOutlet var sshPrivateKeyField: NSTextField!
     @IBOutlet var commitButton: NSButton!
     var connection: Connection?
-    
-//    required override init(nibName nibNameOrNil: NSNib.Name?, bundle nibBundleOrNil: Bundle?) {
-//
-//        super.init(nibName: nil, bundle: nil)
-//    }
-//
-//
-//
-//    init(connection: Connection?) {
-//
-//        super.init(nibName: nil, bundle: nil)
-//
-//        if let connection = connection {
-//
-//            connectionNameField.stringValue = connection.connectionName
-//            sshHostField.stringValue = connection.sshHost
-//            sshHostPortField.stringValue = String(connection.sshHostPort)
-//            localPortField.stringValue = String(connection.localPort)
-//            remoteServerField.stringValue = connection.remoteServer
-//            remotePortField.stringValue = String(connection.remotePort)
-//            usernameField.stringValue = connection.userName
-//            passwordField.stringValue = connection.password ?? " "
-//            sshPrivateKeyField.stringValue = connection.publicKey ?? " "
-//
-//            commitButton.title = "Edit"
-//        }
-//
-//    }
+    let privateDB = CKContainer.default().privateCloudDatabase
     
     func setConnection(connection: Connection?) {
         
@@ -60,9 +33,9 @@ class ConnectionViewController: NSViewController {
             localPortField.stringValue = String(connection.localPort)
             remoteServerField.stringValue = connection.remoteServer
             remotePortField.stringValue = String(connection.remotePort)
-            usernameField.stringValue = connection.userName
-            passwordField.stringValue = connection.password ?? " "
-            sshPrivateKeyField.stringValue = connection.publicKey ?? " "
+            usernameField.stringValue = connection.username
+            passwordField.stringValue = connection.password ?? ""
+            sshPrivateKeyField.stringValue = connection.publicKey ?? ""
             
             commitButton.title = "Edit"
             
@@ -84,10 +57,44 @@ class ConnectionViewController: NSViewController {
     func createNewConnection() {
         
         NSLog("Add Connection button was clicked.")
+        let record = CKRecord(recordType: "Connection")
         
+        record.setValue(connectionNameField.stringValue, forKey: "connectionName")
+        record.setValue(sshHostField.stringValue, forKey: "sshHost")
+        record.setValue(sshHostPortField.intValue, forKey: "sshHostPort")
+        record.setValue(localPortField.intValue, forKey: "localPort")
+        record.setValue(remoteServerField.stringValue, forKey: "remoteServer")
+        record.setValue(remotePortField.intValue, forKey: "remotePort")
+        record.setValue(usernameField.stringValue, forKey: "username")
+        record.setValue(passwordField.stringValue, forKey: "password")
+        record.setValue(sshPrivateKeyField.stringValue, forKey: "privateKey")
+        record.setValue(Int(ViewModel.highestConnectionId + 1), forKey: "connectionId")
         
-        dismissSheet()
-        
+        privateDB.save(record) { (saveRecord, error) in
+            if error == nil {
+                
+                DispatchQueue.main.async {
+                    let alert = NSAlert()
+                    alert.messageText = "New connection saved to iCloud"
+                    alert.alertStyle = NSAlert.Style.informational
+                    alert.addButton(withTitle: "OK")
+                    alert.runModal()
+                    self.dismissSheet()
+                }
+                
+                
+            } else {
+                
+                DispatchQueue.main.async {
+                    let alert = NSAlert()
+                    alert.messageText = error!.localizedDescription
+                    alert.alertStyle = NSAlert.Style.critical
+                    alert.addButton(withTitle: "OK")
+                    alert.runModal()
+                    self.dismissSheet()
+                }
+            }
+        }
     }
     
     func updateConnection(connection: Connection) {

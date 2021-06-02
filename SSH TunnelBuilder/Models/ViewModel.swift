@@ -10,14 +10,13 @@ import CloudKit
 
 class ViewModel: NSObject {
     
-    let container: CKContainer
     let privateDB: CKDatabase
     private(set) var connections: [Connection] = []
+    static var highestConnectionId: Int = 0
     
     override init() {
         
-        container = CKContainer.default()
-        privateDB = container.privateCloudDatabase
+        privateDB = CKContainer.default().privateCloudDatabase
         
     }
     
@@ -48,6 +47,13 @@ class ViewModel: NSObject {
                 Connection(record: $0, database: self.privateDB)
             }
             
+            for connection in self.connections {
+                
+                if connection.connectionId > ViewModel.highestConnectionId {
+                    ViewModel.highestConnectionId = connection.connectionId
+                
+                }
+            }
             DispatchQueue.main.async {
                 completion(nil)
                 
