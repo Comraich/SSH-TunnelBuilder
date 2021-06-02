@@ -110,14 +110,14 @@ class ViewController: NSViewController, NSComboBoxDataSource {
             
         }
         
-//        let connection = viewModel.connections[connectionComboBox.indexOfSelectedItem]
+        let connection = viewModel.connections[connectionComboBox.indexOfSelectedItem]
         
-//        if connection.privateKey == "" && connection.password == "" {
-//            let storyboard = NSStoryboard(name: "PasswordPrompt", bundle: nil)
-//            let passwordPromptVcontroller = storyboard.instantiateController(withIdentifier: "PasswordPromptID")
-//            presentAsSheet(passwordPromptVcontroller as! NSViewController)
-//            return
-//        }
+        if connection.privateKey == "" && connection.password == "" {
+            let storyboard = NSStoryboard(name: "PasswordPrompt", bundle: nil)
+            let passwordPromptVcontroller = storyboard.instantiateController(withIdentifier: "PasswordPromptID")
+            presentAsSheet(passwordPromptVcontroller as! NSViewController)
+            return
+        }
         
         openConnection(password: nil)
         
