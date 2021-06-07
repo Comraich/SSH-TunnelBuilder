@@ -151,7 +151,7 @@
                                                             <rect key="frame" x="18" y="0.0" width="143" height="17"/>
                                                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                             <subviews>
-                                                                <textField identifier="sshHostCell" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="FfI-fT-whd">
+                                                                <textField identifier="sshHostCellLabel" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="FfI-fT-whd">
                                                                     <rect key="frame" x="0.0" y="1" width="143" height="16"/>
                                                                     <textFieldCell key="cell" lineBreakMode="truncatingTail" sendsActionOnEndEditing="YES" title="SSH Host" id="3GV-xE-kwr">
                                                                         <font key="font" usesAppearanceFont="YES"/>
@@ -187,7 +187,7 @@
                                                             <rect key="frame" x="178" y="0.0" width="62" height="17"/>
                                                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                             <subviews>
-                                                                <textField identifier="localPortCell" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="bCX-Jm-cSs">
+                                                                <textField identifier="localPortCellLabel" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="bCX-Jm-cSs">
                                                                     <rect key="frame" x="1" y="1" width="60" height="16"/>
                                                                     <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                                                     <textFieldCell key="cell" lineBreakMode="truncatingTail" sendsActionOnEndEditing="YES" title="Lport" id="ydp-Nw-0kM">
@@ -219,7 +219,7 @@
                                                             <rect key="frame" x="257" y="0.0" width="160" height="17"/>
                                                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                             <subviews>
-                                                                <textField identifier="remoteServerCell" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Yib-vV-IRh">
+                                                                <textField identifier="remoteServerCellLabel" horizontalHuggingPriority="251" verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Yib-vV-IRh">
                                                                     <rect key="frame" x="1" y="1" width="158" height="16"/>
                                                                     <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                                                     <textFieldCell key="cell" lineBreakMode="truncatingTail" sendsActionOnEndEditing="YES" title="Remote Server" id="cJq-ia-FSS">
@@ -279,12 +279,12 @@
                                                     </textFieldCell>
                                                     <tableColumnResizingMask key="resizingMask" resizeWithTable="YES" userResizable="YES"/>
                                                     <prototypeCellViews>
-                                                        <tableCellView identifier="closeCell" id="QlO-cQ-D1T">
+                                                        <tableCellView identifier="closeCell" misplaced="YES" id="QlO-cQ-D1T">
                                                             <rect key="frame" x="525" y="0.0" width="44" height="17"/>
                                                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                             <subviews>
                                                                 <button identifier="closeButton" verticalHuggingPriority="750" translatesAutoresizingMaskIntoConstraints="NO" id="IFA-Cs-3xw" customClass="CloseButton" customModule="SSH_TunnelBuilder" customModuleProvider="target">
-                                                                    <rect key="frame" x="3" y="0.0" width="41" height="18"/>
+                                                                    <rect key="frame" x="3" y="0.0" width="42" height="18"/>
                                                                     <buttonCell key="cell" type="inline" title="Close" bezelStyle="inline" alignment="center" borderStyle="border" identifier="closeButton" inset="2" id="cqp-cx-i0M">
                                                                         <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                                                         <font key="font" metaFont="smallSystemBold"/>
