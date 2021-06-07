@@ -112,11 +112,22 @@ class ViewController: NSViewController, NSComboBoxDataSource {
         
         let connection = viewModel.connections[connectionComboBox.indexOfSelectedItem]
         
+        if activeConnections[connection.connectionId] != nil {
+                    let alert = NSAlert()
+                                alert.messageText = "This connection is already active"
+                                alert.alertStyle = NSAlert.Style.critical
+                                alert.addButton(withTitle: "OK")
+                                alert.runModal()
+                                return
+                    
+                }
+        
         if connection.privateKey == "" && connection.password == "" {
             let storyboard = NSStoryboard(name: "PasswordPrompt", bundle: nil)
             let passwordPromptVcontroller = storyboard.instantiateController(withIdentifier: "PasswordPromptID")
             presentAsSheet(passwordPromptVcontroller as! NSViewController)
             return
+            
         }
         
         openConnection(password: nil)
