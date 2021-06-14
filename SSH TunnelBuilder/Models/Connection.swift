@@ -11,7 +11,7 @@ import CloudKit
 class Connection {
     
     static let recordType = "Connection"
-    private var id: CKRecord.ID?
+    var id: CKRecord.ID?
     var connectionId: Int
     var connectionName: String
     var sshHost: String
@@ -71,4 +71,3 @@ struct TableViewConnectionRecords {
         
     }
 }
-

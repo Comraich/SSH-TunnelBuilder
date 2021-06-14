@@ -227,6 +227,7 @@ Gw
                         <outlet property="sshHostField" destination="3d6-OF-vW6" id="oxf-Iy-AsX"/>
                         <outlet property="sshHostPortField" destination="uxD-MU-HL2" id="GUH-1a-8pc"/>
                         <outlet property="sshPrivateKeyField" destination="BEa-Ez-oUd" id="SEU-HP-ALz"/>
+                        <outlet property="titleLabel" destination="atO-NO-sh8" id="I3T-Bi-k0L"/>
                         <outlet property="usernameField" destination="k70-za-FAq" id="D03-lF-AZ6"/>
                     </connections>
                 </viewController>

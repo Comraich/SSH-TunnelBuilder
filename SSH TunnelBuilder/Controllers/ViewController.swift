@@ -15,11 +15,22 @@ class ViewController: NSViewController, NSComboBoxDataSource {
     var viewModel = ViewModel()
     var activeConnections = Dictionary<Int, TableViewConnectionRecords>()
     
-    @IBAction func presentNewConnectionSheet(_ sender: NSMenuItem) {
+    @objc func presentNewConnectionSheet(_ sender: NSMenuItem) {
         
         let storyboard = NSStoryboard(name: "Connection", bundle: nil)
         let newConnectionViewController = storyboard.instantiateController(withIdentifier: "ConnectionPromptId")
         presentAsSheet(newConnectionViewController as! NSViewController)
+        
+    }
+    
+    @objc func presentEditConnectionSheet(_ sender: NSMenuItem) {
+        
+        let connectionId = Int(sender.identifier!.rawValue)
+        let storyboard = NSStoryboard(name: "Connection", bundle: nil)
+        let editConnectionViewController = storyboard.instantiateController(withIdentifier: "ConnectionPromptId") as! ConnectionViewController
+        let connection = viewModel.getConnection(connectionId: connectionId!)
+        editConnectionViewController.setConnection(connection: connection)
+        presentAsSheet(editConnectionViewController)
         
     }
     
@@ -33,7 +44,7 @@ class ViewController: NSViewController, NSComboBoxDataSource {
         
         connectionComboBox.usesDataSource = true
         connectionComboBox.dataSource = self
-        
+    
     }
     
     override func viewWillAppear() {
@@ -63,6 +74,7 @@ class ViewController: NSViewController, NSComboBoxDataSource {
     }
 
     @objc private func refresh() {
+        
         viewModel.refresh { error in
             if let error = error {
                 let alert = NSAlert()
@@ -71,8 +83,14 @@ class ViewController: NSViewController, NSComboBoxDataSource {
                 alert.addButton(withTitle: "OK")
                 alert.runModal()
                 return
+                
+            } else {
+                
+                self.setupEditMenu()
+                
             }
         }
+        
         tableView.reloadData()
     }
     
@@ -184,6 +202,35 @@ class ViewController: NSViewController, NSComboBoxDataSource {
             }
         }
     }
+    
+    func createEditMenuItems() -> [NSMenuItem] {
+        
+        var editConnectionsArray = [NSMenuItem]()
+        
+        for connection in viewModel.connections {
+            
+            let newItem: NSMenuItem = NSMenuItem(title: connection.connectionName, action: #selector(presentEditConnectionSheet), keyEquivalent: "")
+            newItem.identifier = NSUserInterfaceItemIdentifier(rawValue: String(connection.connectionId))
+            editConnectionsArray.append(newItem)
+            
+        }
+        
+        return editConnectionsArray
+        
+    }
+    
+    func setupEditMenu() {
+        
+        guard let mainMenu = (NSApp.delegate as? AppDelegate)?.fileMenu else { return }
+        guard let editMenuItem = mainMenu.item(withTitle: "Edit Connection") else { return }
+        
+        editMenuItem.submenu?.removeAllItems()
+        
+        let editConnectionItems = createEditMenuItems()
+        editConnectionItems.forEach { editMenuItem.submenu?.addItem($0) }
+        
+    }
+    
 }
 
 extension ViewController: NSTableViewDataSource {

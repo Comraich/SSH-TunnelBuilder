@@ -60,4 +60,18 @@ class ViewModel: NSObject {
             }
         }
     }
+    
+    func getConnection(connectionId: Int) -> Connection? {
+        
+        for connection in connections {
+            
+            if connection.connectionId == connectionId {
+                return connection
+            }
+        }
+        
+        return nil
+        
+    }
+    
 }

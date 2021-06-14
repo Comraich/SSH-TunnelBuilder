@@ -10,6 +10,7 @@ import CloudKit
 
 class ConnectionViewController: NSViewController {
     
+    @IBOutlet var titleLabel: NSTextField!
     @IBOutlet var connectionNameField: NSTextField!
     @IBOutlet var sshHostField: NSTextField!
     @IBOutlet var sshHostPortField: NSTextField!
@@ -23,10 +24,10 @@ class ConnectionViewController: NSViewController {
     var connection: Connection?
     let privateDB = CKContainer.default().privateCloudDatabase
     
-    func setConnection(connection: Connection?) {
+    override func viewDidLoad() {
         
         if let connection = connection {
-            
+        
             connectionNameField.stringValue = connection.connectionName
             sshHostField.stringValue = connection.sshHost
             sshHostPortField.stringValue = String(connection.sshHostPort)
@@ -38,8 +39,15 @@ class ConnectionViewController: NSViewController {
             sshPrivateKeyField.stringValue = connection.privateKey ?? ""
             
             commitButton.title = "Edit"
+            titleLabel.stringValue = "Edit connection"
             
         }
+    }
+    
+    func setConnection(connection: Connection?) {
+        
+        self.connection = connection
+        
     }
     
     @IBAction func commitButtonWasClicked(_ sender: NSButton) {
@@ -82,7 +90,6 @@ class ConnectionViewController: NSViewController {
                     self.dismissSheet()
                 }
                 
-                
             } else {
                 
                 DispatchQueue.main.async {
@@ -91,7 +98,6 @@ class ConnectionViewController: NSViewController {
                     alert.alertStyle = NSAlert.Style.critical
                     alert.addButton(withTitle: "OK")
                     alert.runModal()
-                    self.dismissSheet()
                 }
             }
         }
@@ -99,7 +105,56 @@ class ConnectionViewController: NSViewController {
     
     func updateConnection(connection: Connection) {
         
-    
+        NSLog("Edit Connection button was clicked.")
+        
+        connection.connectionName = self.connectionNameField.stringValue
+        connection.sshHost = self.sshHostField.stringValue
+        connection.sshHostPort = Int(self.sshHostPortField.intValue)
+        connection.localPort = Int(self.localPortField.intValue)
+        connection.remoteServer = self.remoteServerField.stringValue
+        connection.remotePort = Int(self.remotePortField.intValue)
+        connection.username = self.usernameField.stringValue
+        connection.password = self.passwordField.stringValue
+        connection.privateKey = self.sshPrivateKeyField.stringValue
+        
+        privateDB.fetch(withRecordID: connection.id!, completionHandler: { (record, error) in
+            if let record = record {
+                record.setValue(connection.connectionName, forKey: "connectionName")
+                record.setValue(connection.sshHost, forKey: "sshHost")
+                record.setValue(connection.sshHostPort, forKey: "sshHostPort")
+                record.setValue(connection.localPort, forKey: "localPort")
+                record.setValue(connection.remoteServer, forKey: "remoteServer")
+                record.setValue(connection.remotePort, forKey: "remotePort")
+                record.setValue(connection.username, forKey: "username")
+                record.setValue(connection.password, forKey: "password")
+                record.setValue(connection.privateKey, forKey: "privateKey")
+                record.setValue(connection.connectionId, forKey: "connectionId")
+                
+                self.privateDB.save(record) { (saveRecord, error) in
+                    if error == nil {
+                        
+                        DispatchQueue.main.async {
+                            let alert = NSAlert()
+                            alert.messageText = "Connection changes saved to iCloud"
+                            alert.alertStyle = NSAlert.Style.informational
+                            alert.addButton(withTitle: "OK")
+                            alert.runModal()
+                            self.dismissSheet()
+                        }
+                        
+                    } else {
+                        
+                        DispatchQueue.main.async {
+                            let alert = NSAlert()
+                            alert.messageText = error!.localizedDescription
+                            alert.alertStyle = NSAlert.Style.critical
+                            alert.addButton(withTitle: "OK")
+                            alert.runModal()
+                        }
+                    }
+                }
+            }
+        })
     }
     
     @IBAction func cancelConnectionAction(_ sender: NSButton) {
