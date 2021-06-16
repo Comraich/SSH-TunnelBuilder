@@ -79,25 +79,30 @@ class ConnectionViewController: NSViewController {
         record.setValue(Int(ViewModel.highestConnectionId + 1), forKey: "connectionId")
         
         privateDB.save(record) { (saveRecord, error) in
-            if error == nil {
+            
+            DispatchQueue.main.async {
                 
-                DispatchQueue.main.async {
+                let parentViewController = self.presentingViewController as! ViewController
+                
+                if error == nil {
+                    
                     let alert = NSAlert()
                     alert.messageText = "New connection saved to iCloud"
                     alert.alertStyle = NSAlert.Style.informational
                     alert.addButton(withTitle: "OK")
                     alert.runModal()
+                    parentViewController.refresh()
                     self.dismissSheet()
-                }
-                
-            } else {
-                
-                DispatchQueue.main.async {
+                    
+                } else {
+                    
                     let alert = NSAlert()
                     alert.messageText = error!.localizedDescription
                     alert.alertStyle = NSAlert.Style.critical
                     alert.addButton(withTitle: "OK")
                     alert.runModal()
+                    parentViewController.refresh()
+                    
                 }
             }
         }
@@ -118,44 +123,52 @@ class ConnectionViewController: NSViewController {
         connection.privateKey = self.sshPrivateKeyField.stringValue
         
         privateDB.fetch(withRecordID: connection.id!, completionHandler: { (record, error) in
-            if let record = record {
-                record.setValue(connection.connectionName, forKey: "connectionName")
-                record.setValue(connection.sshHost, forKey: "sshHost")
-                record.setValue(connection.sshHostPort, forKey: "sshHostPort")
-                record.setValue(connection.localPort, forKey: "localPort")
-                record.setValue(connection.remoteServer, forKey: "remoteServer")
-                record.setValue(connection.remotePort, forKey: "remotePort")
-                record.setValue(connection.username, forKey: "username")
-                record.setValue(connection.password, forKey: "password")
-                record.setValue(connection.privateKey, forKey: "privateKey")
-                record.setValue(connection.connectionId, forKey: "connectionId")
+            if let returnedRecord = record {
+                returnedRecord.setValue(connection.connectionName, forKey: "connectionName")
+                returnedRecord.setValue(connection.sshHost, forKey: "sshHost")
+                returnedRecord.setValue(connection.sshHostPort, forKey: "sshHostPort")
+                returnedRecord.setValue(connection.localPort, forKey: "localPort")
+                returnedRecord.setValue(connection.remoteServer, forKey: "remoteServer")
+                returnedRecord.setValue(connection.remotePort, forKey: "remotePort")
+                returnedRecord.setValue(connection.username, forKey: "username")
+                returnedRecord.setValue(connection.password, forKey: "password")
+                returnedRecord.setValue(connection.privateKey, forKey: "privateKey")
+                returnedRecord.setValue(connection.connectionId, forKey: "connectionId")
                 
-                self.privateDB.save(record) { (saveRecord, error) in
-                    if error == nil {
+                self.privateDB.save(returnedRecord) { (savedRecord, error) in
+                    
+                    DispatchQueue.main.async {
                         
-                        DispatchQueue.main.async {
+                        let parentViewController = self.presentingViewController as! ViewController
+                        
+                        if error == nil {
+                            
                             let alert = NSAlert()
-                            alert.messageText = "Connection changes saved to iCloud"
+                            let connectionName = savedRecord?.value(forKey: "connectionName")
+                            alert.messageText = "Updated connection \(connectionName!) saved to iCloud"
                             alert.alertStyle = NSAlert.Style.informational
                             alert.addButton(withTitle: "OK")
                             alert.runModal()
+                            parentViewController.refresh()
                             self.dismissSheet()
-                        }
-                        
-                    } else {
-                        
-                        DispatchQueue.main.async {
+                            
+                        } else {
+                            
                             let alert = NSAlert()
                             alert.messageText = error!.localizedDescription
                             alert.alertStyle = NSAlert.Style.critical
                             alert.addButton(withTitle: "OK")
                             alert.runModal()
+                            parentViewController.refresh()
+                            
                         }
                     }
                 }
             }
         })
     }
+    
+    
     
     @IBAction func cancelConnectionAction(_ sender: NSButton) {
       

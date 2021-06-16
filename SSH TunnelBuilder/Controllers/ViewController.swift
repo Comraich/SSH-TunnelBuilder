@@ -7,6 +7,9 @@
 
 import Cocoa
 import AppKit
+import CloudKit
+
+let privateDB = CKContainer.default().privateCloudDatabase
 
 class ViewController: NSViewController, NSComboBoxDataSource {
     
@@ -19,7 +22,7 @@ class ViewController: NSViewController, NSComboBoxDataSource {
         
         let storyboard = NSStoryboard(name: "Connection", bundle: nil)
         let newConnectionViewController = storyboard.instantiateController(withIdentifier: "ConnectionPromptId")
-        presentAsSheet(newConnectionViewController as! NSViewController)
+        presentAsSheet(newConnectionViewController as! ConnectionViewController)
         
     }
     
@@ -31,6 +34,46 @@ class ViewController: NSViewController, NSComboBoxDataSource {
         let connection = viewModel.getConnection(connectionId: connectionId!)
         editConnectionViewController.setConnection(connection: connection)
         presentAsSheet(editConnectionViewController)
+        
+    }
+    
+    @objc func deleteConnection(_ sender: NSMenuItem) {
+        
+        let connectionId = Int(sender.identifier!.rawValue)
+        let connection = viewModel.getConnection(connectionId: connectionId!)
+        privateDB.fetch(withRecordID: connection!.id!, completionHandler: { (record, error) in
+            if let returnedRecord = record {
+                privateDB.delete(withRecordID: returnedRecord.recordID, completionHandler: { (recordID, error) in
+                    
+                    DispatchQueue.main.async {
+                        
+                        if let error = error {
+                            
+                            let alert = NSAlert()
+                            alert.messageText = error.localizedDescription
+                            alert.alertStyle = NSAlert.Style.critical
+                            alert.addButton(withTitle: "OK")
+                            alert.runModal()
+                            
+                        } else {
+                            
+                            let alert = NSAlert()
+                            alert.messageText = "Connection deleted"
+                            alert.alertStyle = NSAlert.Style.informational
+                            alert.addButton(withTitle: "OK")
+                            alert.runModal()
+                            
+                        }
+                        
+                        self.refresh()
+                        
+                    }
+                })
+            }
+        })
+    }
+    
+    @IBAction func deleteAllConnections(_ sender: NSMenuItem) {
         
     }
     
@@ -73,7 +116,14 @@ class ViewController: NSViewController, NSComboBoxDataSource {
 //        }
     }
 
-    @objc private func refresh() {
+    @objc func refresh() {
+        
+        if (self.connectionComboBox.indexOfSelectedItem != -1) {
+
+            self.connectionComboBox.deselectItem(at: self.connectionComboBox.indexOfSelectedItem)
+
+        }
+        self.connectionComboBox.stringValue = ""
         
         viewModel.refresh { error in
             if let error = error {
@@ -86,7 +136,7 @@ class ViewController: NSViewController, NSComboBoxDataSource {
                 
             } else {
                 
-                self.setupEditMenu()
+                self.setupMenus()
                 
             }
         }
@@ -203,31 +253,36 @@ class ViewController: NSViewController, NSComboBoxDataSource {
         }
     }
     
-    func createEditMenuItems() -> [NSMenuItem] {
+    func createMenuItems(_ selector: Selector) -> [NSMenuItem] {
         
-        var editConnectionsArray = [NSMenuItem]()
+        var menuItems = [NSMenuItem]()
         
         for connection in viewModel.connections {
             
-            let newItem: NSMenuItem = NSMenuItem(title: connection.connectionName, action: #selector(presentEditConnectionSheet), keyEquivalent: "")
+            let newItem: NSMenuItem = NSMenuItem(title: connection.connectionName, action: selector, keyEquivalent: "")
             newItem.identifier = NSUserInterfaceItemIdentifier(rawValue: String(connection.connectionId))
-            editConnectionsArray.append(newItem)
+            menuItems.append(newItem)
             
         }
         
-        return editConnectionsArray
+        return menuItems
         
     }
     
-    func setupEditMenu() {
+    func setupMenus() {
         
         guard let mainMenu = (NSApp.delegate as? AppDelegate)?.fileMenu else { return }
         guard let editMenuItem = mainMenu.item(withTitle: "Edit Connection") else { return }
+        guard let deleteMenuItem = mainMenu.item(withTitle: "Delete Connection") else { return }
         
         editMenuItem.submenu?.removeAllItems()
+        deleteMenuItem.submenu?.removeAllItems()
         
-        let editConnectionItems = createEditMenuItems()
-        editConnectionItems.forEach { editMenuItem.submenu?.addItem($0) }
+        let editConnectionMenuItems = createMenuItems(#selector(presentEditConnectionSheet))
+        editConnectionMenuItems.forEach { editMenuItem.submenu?.addItem($0) }
+        
+        let deleteConnectionMenuItems = createMenuItems(#selector(deleteConnection))
+        deleteConnectionMenuItems.forEach { deleteMenuItem.submenu?.addItem($0) }
         
     }
     
