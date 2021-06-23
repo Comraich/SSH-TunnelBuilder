@@ -39,7 +39,7 @@
                                         <menuItem title="New Connection" id="9bi-U9-jrp" userLabel="New Connection">
                                             <modifierMask key="keyEquivalentModifierMask"/>
                                             <connections>
-                                                <action selector="presentNewConnectionSheet:" target="Ady-hI-5gd" id="VpY-qg-0TV"/>
+                                                <action selector="presentNewConnectionSheet:" target="Ady-hI-5gd" id="Agv-zW-wx0"/>
                                             </connections>
                                         </menuItem>
                                         <menuItem title="Edit Connection" id="9Xs-KZ-iUM" userLabel="Edit Connection">
@@ -52,6 +52,9 @@
                                         </menuItem>
                                         <menuItem title="Close All Connections" id="s5c-E9-A9f">
                                             <modifierMask key="keyEquivalentModifierMask"/>
+                                            <connections>
+                                                <action selector="closeAllConnections:" target="Ady-hI-5gd" id="o8o-xl-4te"/>
+                                            </connections>
                                         </menuItem>
                                         <menuItem isSeparatorItem="YES" id="3A3-Id-jEm"/>
                                         <menuItem title="Import Connection List" id="hfs-0D-pOZ" userLabel="Import Conection List">
@@ -326,20 +329,6 @@
                                     <autoresizingMask key="autoresizingMask"/>
                                 </tableHeaderView>
                             </scrollView>
-                            <comboBox identifier="connectionComboBox" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Y0m-pX-xd1">
-                                <rect key="frame" x="20" y="224" width="512" height="25"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                <comboBoxCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" borderStyle="bezel" drawsBackground="YES" completes="NO" numberOfVisibleItems="5" id="eWs-Vv-68j">
-                                    <font key="font" metaFont="system"/>
-                                    <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
-                                    <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
-                                    <objectValues>
-                                        <string>Item 1</string>
-                                        <string>Item 2</string>
-                                        <string>Item 3</string>
-                                    </objectValues>
-                                </comboBoxCell>
-                            </comboBox>
                             <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="ga8-7n-zg2">
                                 <rect key="frame" x="20" y="204" width="139" height="16"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
@@ -360,6 +349,15 @@
                                     <action selector="connectButtonClicked:" target="XfG-lQ-9wD" id="1mi-gx-4qS"/>
                                 </connections>
                             </button>
+                            <comboBox identifier="connectionComboBox" autoresizesSubviews="NO" verticalHuggingPriority="750" id="Y0m-pX-xd1">
+                                <rect key="frame" x="20" y="224" width="512" height="25"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                                <comboBoxCell key="cell" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" borderStyle="bezel" drawsBackground="YES" completes="NO" usesDataSource="YES" numberOfVisibleItems="5" id="eWs-Vv-68j">
+                                    <font key="font" metaFont="system"/>
+                                    <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
+                                    <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
+                                </comboBoxCell>
+                            </comboBox>
                         </subviews>
                     </view>
                     <connections>

@@ -73,10 +73,6 @@ class ViewController: NSViewController, NSComboBoxDataSource {
         })
     }
     
-    @IBAction func deleteAllConnections(_ sender: NSMenuItem) {
-        
-    }
-    
     override func viewDidLoad() {
         
         super.viewDidLoad()
@@ -231,6 +227,19 @@ class ViewController: NSViewController, NSComboBoxDataSource {
         }
         
         activeConnections.removeValue(forKey: sender.connectionId!)
+        tableView.reloadData()
+        
+    }
+    
+    @objc @IBAction func closeAllConnections(_ sender: NSMenuItem) {
+        
+        for connection in activeConnections {
+            let sshClient = connection.value.sshClient
+            sshClient?.disconnect()
+            
+        }
+        
+        activeConnections.removeAll()
         tableView.reloadData()
         
     }
