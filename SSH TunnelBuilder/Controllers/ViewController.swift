@@ -78,7 +78,7 @@ class ViewController: NSViewController, NSComboBoxDataSource {
                     
                     if self.numberOfItems(in: self.connectionComboBox) == 0 {
                         let alert = NSAlert()
-                        alert.messageText = "You have not created any connection definitions yet. Go to File -> Create new connection or File -> Import connections to get started."
+                        alert.messageText = "You do not have any connections defined. Go to File -> Create new connection or File -> Import connections to get started."
                         alert.alertStyle = NSAlert.Style.informational
                         alert.addButton(withTitle: "OK")
                         alert.runModal()
