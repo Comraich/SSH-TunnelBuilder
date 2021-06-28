@@ -9,7 +9,7 @@ import Cocoa
 import AppKit
 import CloudKit
 
-class ViewController: NSViewController, NSComboBoxDataSource {
+class ViewController: NSViewController {
     
     // MARK: Global variables
     @IBOutlet var tableView: NSTableView!
@@ -49,7 +49,6 @@ class ViewController: NSViewController, NSComboBoxDataSource {
         self.view.window?.styleMask.remove(NSWindow.StyleMask.resizable)
         self.view.window?.title = "SSH TunnelBuilder"
         
-
     }
 
     @objc func refresh() {
@@ -100,6 +99,60 @@ class ViewController: NSViewController, NSComboBoxDataSource {
             
         }
     }
+
+    func checkIcloudAccountStatus() {
+            
+            CKContainer.default().accountStatus { accountStatus, error in
+                if accountStatus == .noAccount {
+                    DispatchQueue.main.async {
+                        let message = "This app uses iCloud to store your connection settings. Please sign in to iCloud in System Preferences."
+                        let alert = NSAlert()
+                        alert.alertStyle = NSAlert.Style.critical
+                        alert.messageText = message
+                        alert.addButton(withTitle: "OK")
+                        alert.runModal()
+                        return
+                        
+                    }
+                }
+            }
+        }
+    
+    // MARK: Setup Application menu
+    func createMenuItems(_ selector: Selector) -> [NSMenuItem] {
+        
+        var menuItems = [NSMenuItem]()
+        
+        for connection in viewModel.connections {
+            
+            let newItem: NSMenuItem = NSMenuItem(title: connection.connectionName, action: selector, keyEquivalent: "")
+            newItem.identifier = NSUserInterfaceItemIdentifier(rawValue: String(connection.connectionId))
+            menuItems.append(newItem)
+            
+        }
+        
+        return menuItems
+        
+    }
+    
+    func setupMenus() {
+        
+        guard let mainMenu = (NSApp.delegate as? AppDelegate)?.fileMenu else { return }
+        guard let editMenuItem = mainMenu.item(withTitle: "Edit Connection") else { return }
+        guard let deleteMenuItem = mainMenu.item(withTitle: "Delete Connection") else { return }
+        
+        editMenuItem.submenu?.removeAllItems()
+        deleteMenuItem.submenu?.removeAllItems()
+        
+        let editConnectionMenuItems = createMenuItems(#selector(presentEditConnectionSheet))
+        editConnectionMenuItems.forEach { editMenuItem.submenu?.addItem($0) }
+        
+        let deleteConnectionMenuItems = createMenuItems(#selector(deleteConnection))
+        deleteConnectionMenuItems.forEach { deleteMenuItem.submenu?.addItem($0) }
+        
+    }
+
+    // MARK: Create / Edit / Delete Connection definitions
     @objc func presentNewConnectionSheet(_ sender: NSMenuItem) {
         
         let storyboard = NSStoryboard(name: "Connection", bundle: nil)
@@ -155,20 +208,7 @@ class ViewController: NSViewController, NSComboBoxDataSource {
         })
     }
     
-
-    
-    func numberOfItems(in connectionComboBox: NSComboBox) -> Int {
-        
-        return viewModel.connections.count
-        
-    }
-    
-    func comboBox(_ connectionComboBox: NSComboBox, objectValueForItemAt index: Int) -> Any? {
-        
-        return viewModel.connections[index].connectionName
-        
-    }
-    
+    // MARK: Open and Close connections
     @IBAction func connectButtonClicked(_ sender: NSButton) {
         
         if connectionComboBox.indexOfSelectedItem == -1 {
@@ -194,6 +234,8 @@ class ViewController: NSViewController, NSComboBoxDataSource {
                     
                 }
         
+        // Private key support not yet added... But we still need to check if a password is present.
+        // The private key exists in the data model, so the check for both has been added.
         if connection.privateKey == "" && connection.password == "" {
             let storyboard = NSStoryboard(name: "PasswordPrompt", bundle: nil)
             let passwordPromptVcontroller = storyboard.instantiateController(withIdentifier: "PasswordPromptID")
@@ -251,60 +293,9 @@ class ViewController: NSViewController, NSComboBoxDataSource {
         tableView.reloadData()
         
     }
-    
-    func checkIcloudAccountStatus() {
-        
-        CKContainer.default().accountStatus { accountStatus, error in
-            if accountStatus == .noAccount {
-                DispatchQueue.main.async {
-                    let message = "This app uses iCloud to store your connection settings. Please sign in to iCloud in System Preferences."
-                    let alert = NSAlert()
-                    alert.alertStyle = NSAlert.Style.critical
-                    alert.messageText = message
-                    alert.addButton(withTitle: "OK")
-                    alert.runModal()
-                    return
-                    
-                }
-            }
-        }
-    }
-    
-    func createMenuItems(_ selector: Selector) -> [NSMenuItem] {
-        
-        var menuItems = [NSMenuItem]()
-        
-        for connection in viewModel.connections {
-            
-            let newItem: NSMenuItem = NSMenuItem(title: connection.connectionName, action: selector, keyEquivalent: "")
-            newItem.identifier = NSUserInterfaceItemIdentifier(rawValue: String(connection.connectionId))
-            menuItems.append(newItem)
-            
-        }
-        
-        return menuItems
-        
-    }
-    
-    func setupMenus() {
-        
-        guard let mainMenu = (NSApp.delegate as? AppDelegate)?.fileMenu else { return }
-        guard let editMenuItem = mainMenu.item(withTitle: "Edit Connection") else { return }
-        guard let deleteMenuItem = mainMenu.item(withTitle: "Delete Connection") else { return }
-        
-        editMenuItem.submenu?.removeAllItems()
-        deleteMenuItem.submenu?.removeAllItems()
-        
-        let editConnectionMenuItems = createMenuItems(#selector(presentEditConnectionSheet))
-        editConnectionMenuItems.forEach { editMenuItem.submenu?.addItem($0) }
-        
-        let deleteConnectionMenuItems = createMenuItems(#selector(deleteConnection))
-        deleteConnectionMenuItems.forEach { deleteMenuItem.submenu?.addItem($0) }
-        
-    }
-    
 }
 
+// MARK: NSTableViewDataSource extension
 extension ViewController: NSTableViewDataSource {
     
     func numberOfRows(in tableView: NSTableView) -> Int {
@@ -313,6 +304,7 @@ extension ViewController: NSTableViewDataSource {
     }
 }
 
+//MARK: NSTableViewDelegate extension
 extension ViewController: NSTableViewDelegate {
     
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
@@ -364,6 +356,22 @@ extension ViewController: NSTableViewDelegate {
             return nil
             
         }
+        
+    }
+}
+
+// MARK: NSComboBoxDataSource extension
+extension ViewController: NSComboBoxDataSource {
+    
+    func numberOfItems(in connectionComboBox: NSComboBox) -> Int {
+        
+        return viewModel.connections.count
+        
+    }
+    
+    func comboBox(_ connectionComboBox: NSComboBox, objectValueForItemAt index: Int) -> Any? {
+        
+        return viewModel.connections[index].connectionName
         
     }
 }
