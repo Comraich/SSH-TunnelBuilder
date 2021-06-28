@@ -62,6 +62,9 @@
                                         </menuItem>
                                         <menuItem title="Export Connection List" id="not-aY-cGv" userLabel="Export Connection List">
                                             <modifierMask key="keyEquivalentModifierMask"/>
+                                            <connections>
+                                                <action selector="exportConnectionsToJSON:" target="Ady-hI-5gd" id="WL8-wU-Vpp"/>
+                                            </connections>
                                         </menuItem>
                                         <menuItem isSeparatorItem="YES" id="0mA-XM-gk1"/>
                                         <menuItem title="Quit SSH TunnelBuilder" id="U39-nC-M9A">

@@ -8,6 +8,7 @@
 import Cocoa
 import AppKit
 import CloudKit
+import Foundation
 
 class ViewController: NSViewController {
     
@@ -292,6 +293,23 @@ class ViewController: NSViewController {
         activeConnections.removeAll()
         tableView.reloadData()
         
+    }
+    
+    //MARK: Import / Export connection definitions
+    @objc @IBAction func exportConnectionsToJSON(_ sender: NSMenuItem) {
+        
+        let jsonData = viewModel.exportConnectionsToJSON()
+        
+        if let documentDirectory = FileManager.default.urls(for: .documentDirectory,
+                                                            in: .userDomainMask).first {
+            let pathWithFileName = documentDirectory.appendingPathComponent("SSH TunnelBuilder Connections.json")
+            do {
+                try jsonData!.write(to: pathWithFileName,
+                                    options: Data.WritingOptions.atomic)
+            } catch {
+                NSLog("Failed to write data to disk.")
+            }
+        }
     }
 }
 

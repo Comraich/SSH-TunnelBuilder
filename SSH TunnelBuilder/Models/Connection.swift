@@ -8,6 +8,33 @@
 import Foundation
 import CloudKit
 
+struct CodableConnection : Codable {
+    
+    var connectionId: Int?
+    var connectionName: String?
+    var sshHost: String?
+    var sshHostPort: Int?
+    var localPort: Int?
+    var remoteServer: String?
+    var remotePort: Int?
+    var username: String?
+    var password: String?
+    var privateKey: String?
+
+    enum CodingKeys: String, CodingKey {
+        case connectionId
+        case connectionName
+        case sshHost
+        case sshHostPort
+        case localPort
+        case remoteServer
+        case remotePort
+        case username
+        case password
+        case privateKey
+    }
+}
+
 class Connection {
     
     static let recordType = "Connection"
@@ -71,3 +98,4 @@ struct TableViewConnectionRecords {
         
     }
 }
+

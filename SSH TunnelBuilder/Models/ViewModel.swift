@@ -74,4 +74,38 @@ class ViewModel: NSObject {
         
     }
     
+    func exportConnectionsToJSON() -> Data? {
+        
+        var codableConnection = CodableConnection()
+        let jsonEncoder = JSONEncoder()
+        var connectionArray = [CodableConnection]()
+        
+        for connection in connections {
+            
+            codableConnection.connectionId = connection.connectionId
+            codableConnection.connectionName = connection.connectionName
+            codableConnection.sshHost = connection.sshHost
+            codableConnection.sshHostPort = connection.sshHostPort
+            codableConnection.localPort = connection.localPort
+            codableConnection.remoteServer = connection.remoteServer
+            codableConnection.remotePort = connection.remotePort
+            codableConnection.username = connection.username
+            codableConnection.password = connection.password
+            codableConnection.privateKey = connection.privateKey
+            
+            connectionArray.append(codableConnection)
+        }
+        
+        do {
+            
+            let jsonData = try jsonEncoder.encode(connectionArray)
+            return jsonData
+
+        } catch {
+            
+            NSLog("Unable to save. Odds are good that you suck.")
+            return nil
+            
+        }
+    }
 }
