@@ -9,70 +9,16 @@ import Cocoa
 import AppKit
 import CloudKit
 
-let privateDB = CKContainer.default().privateCloudDatabase
-
 class ViewController: NSViewController, NSComboBoxDataSource {
     
+    // MARK: Global variables
     @IBOutlet var tableView: NSTableView!
     @IBOutlet weak var connectionComboBox: NSComboBox!
     var viewModel = ViewModel()
     var activeConnections = Dictionary<Int, TableViewConnectionRecords>()
+    let privateDB = CKContainer.default().privateCloudDatabase
     
-    @objc func presentNewConnectionSheet(_ sender: NSMenuItem) {
-        
-        let storyboard = NSStoryboard(name: "Connection", bundle: nil)
-        let newConnectionViewController = storyboard.instantiateController(withIdentifier: "ConnectionPromptId")
-        presentAsSheet(newConnectionViewController as! ConnectionViewController)
-        
-    }
-    
-    @objc func presentEditConnectionSheet(_ sender: NSMenuItem) {
-        
-        let connectionId = Int(sender.identifier!.rawValue)
-        let storyboard = NSStoryboard(name: "Connection", bundle: nil)
-        let editConnectionViewController = storyboard.instantiateController(withIdentifier: "ConnectionPromptId") as! ConnectionViewController
-        let connection = viewModel.getConnection(connectionId: connectionId!)
-        editConnectionViewController.setConnection(connection: connection)
-        presentAsSheet(editConnectionViewController)
-        
-    }
-    
-    @objc func deleteConnection(_ sender: NSMenuItem) {
-        
-        let connectionId = Int(sender.identifier!.rawValue)
-        let connection = viewModel.getConnection(connectionId: connectionId!)
-        privateDB.fetch(withRecordID: connection!.id!, completionHandler: { (record, error) in
-            if let returnedRecord = record {
-                privateDB.delete(withRecordID: returnedRecord.recordID, completionHandler: { (recordID, error) in
-                    
-                    DispatchQueue.main.async {
-                        
-                        if let error = error {
-                            
-                            let alert = NSAlert()
-                            alert.messageText = error.localizedDescription
-                            alert.alertStyle = NSAlert.Style.critical
-                            alert.addButton(withTitle: "OK")
-                            alert.runModal()
-                            
-                        } else {
-                            
-                            let alert = NSAlert()
-                            alert.messageText = "Connection deleted"
-                            alert.alertStyle = NSAlert.Style.informational
-                            alert.addButton(withTitle: "OK")
-                            alert.runModal()
-                            
-                        }
-                        
-                        self.refresh()
-                        
-                    }
-                })
-            }
-        })
-    }
-    
+    // MARK: Application View Setup
     override func viewDidLoad() {
         
         super.viewDidLoad()
@@ -103,13 +49,7 @@ class ViewController: NSViewController, NSComboBoxDataSource {
         self.view.window?.styleMask.remove(NSWindow.StyleMask.resizable)
         self.view.window?.title = "SSH TunnelBuilder"
         
-//        if self.numberOfItems(in: connectionComboBox) == 0 {
-//            let alert = NSAlert()
-//            alert.messageText = "You have not created any connection definitions yet. Go to File -> Create new connection or File -> Import connections to get started."
-//            alert.alertStyle = NSAlert.Style.informational
-//            alert.addButton(withTitle: "OK")
-//            alert.runModal()
-//        }
+
     }
 
     @objc func refresh() {
@@ -134,10 +74,22 @@ class ViewController: NSViewController, NSComboBoxDataSource {
                 
                 self.setupMenus()
                 
+                DispatchQueue.main.async {
+                    
+                    if self.numberOfItems(in: self.connectionComboBox) == 0 {
+                        let alert = NSAlert()
+                        alert.messageText = "You have not created any connection definitions yet. Go to File -> Create new connection or File -> Import connections to get started."
+                        alert.alertStyle = NSAlert.Style.informational
+                        alert.addButton(withTitle: "OK")
+                        alert.runModal()
+                        
+                    }
+                }
             }
         }
         
         tableView.reloadData()
+        
     }
     
     override var representedObject: Any? {
@@ -148,6 +100,62 @@ class ViewController: NSViewController, NSComboBoxDataSource {
             
         }
     }
+    @objc func presentNewConnectionSheet(_ sender: NSMenuItem) {
+        
+        let storyboard = NSStoryboard(name: "Connection", bundle: nil)
+        let newConnectionViewController = storyboard.instantiateController(withIdentifier: "ConnectionPromptId")
+        presentAsSheet(newConnectionViewController as! ConnectionViewController)
+        
+    }
+    
+    @objc func presentEditConnectionSheet(_ sender: NSMenuItem) {
+        
+        let connectionId = Int(sender.identifier!.rawValue)
+        let storyboard = NSStoryboard(name: "Connection", bundle: nil)
+        let editConnectionViewController = storyboard.instantiateController(withIdentifier: "ConnectionPromptId") as! ConnectionViewController
+        let connection = viewModel.getConnection(connectionId: connectionId!)
+        editConnectionViewController.setConnection(connection: connection)
+        presentAsSheet(editConnectionViewController)
+        
+    }
+    
+    @objc func deleteConnection(_ sender: NSMenuItem) {
+        
+        let connectionId = Int(sender.identifier!.rawValue)
+        let connection = viewModel.getConnection(connectionId: connectionId!)
+        privateDB.fetch(withRecordID: connection!.id!, completionHandler: { (record, error) in
+            if let returnedRecord = record {
+                self.privateDB.delete(withRecordID: returnedRecord.recordID, completionHandler: { (recordID, error) in
+                    
+                    DispatchQueue.main.async {
+                        
+                        if let error = error {
+                            
+                            let alert = NSAlert()
+                            alert.messageText = error.localizedDescription
+                            alert.alertStyle = NSAlert.Style.critical
+                            alert.addButton(withTitle: "OK")
+                            alert.runModal()
+                            
+                        } else {
+                            
+                            let alert = NSAlert()
+                            alert.messageText = "Connection deleted"
+                            alert.alertStyle = NSAlert.Style.informational
+                            alert.addButton(withTitle: "OK")
+                            alert.runModal()
+                            
+                        }
+                        
+                        self.refresh()
+                        
+                    }
+                })
+            }
+        })
+    }
+    
+
     
     func numberOfItems(in connectionComboBox: NSComboBox) -> Int {
         
