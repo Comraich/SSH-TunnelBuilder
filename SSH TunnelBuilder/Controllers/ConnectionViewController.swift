@@ -80,30 +80,21 @@ class ConnectionViewController: NSViewController {
         
         privateDB.save(record) { (saveRecord, error) in
             
-            DispatchQueue.main.async {
+            let parentViewController = self.presentingViewController as! ViewController
+            
+            if error == nil {
                 
-                let parentViewController = self.presentingViewController as! ViewController
+                Utilities.ShowAlertBox(alertStyle: NSAlert.Style.informational,
+                                       message: "New connection saved to iCloud")
+                parentViewController.loadIcloudData()
+                self.dismissSheet()
                 
-                if error == nil {
-                    
-                    let alert = NSAlert()
-                    alert.messageText = "New connection saved to iCloud"
-                    alert.alertStyle = NSAlert.Style.informational
-                    alert.addButton(withTitle: "OK")
-                    alert.runModal()
-                    parentViewController.loadIcloudData()
-                    self.dismissSheet()
-                    
-                } else {
-                    
-                    let alert = NSAlert()
-                    alert.messageText = error!.localizedDescription
-                    alert.alertStyle = NSAlert.Style.critical
-                    alert.addButton(withTitle: "OK")
-                    alert.runModal()
-                    parentViewController.loadIcloudData()
-                    
-                }
+            } else {
+                
+                Utilities.ShowAlertBox(alertStyle: NSAlert.Style.critical,
+                                       message: error!.localizedDescription)
+                parentViewController.loadIcloudData()
+                
             }
         }
     }
@@ -137,31 +128,24 @@ class ConnectionViewController: NSViewController {
                 
                 self.privateDB.save(returnedRecord) { (savedRecord, error) in
                     
-                    DispatchQueue.main.async {
+                    let parentViewController = self.presentingViewController as! ViewController
+                    
+                    if error == nil {
                         
-                        let parentViewController = self.presentingViewController as! ViewController
+                        let connectionName = savedRecord?.value(forKey: "connectionName")
                         
-                        if error == nil {
-                            
-                            let alert = NSAlert()
-                            let connectionName = savedRecord?.value(forKey: "connectionName")
-                            alert.messageText = "Updated connection \(connectionName!) saved to iCloud"
-                            alert.alertStyle = NSAlert.Style.informational
-                            alert.addButton(withTitle: "OK")
-                            alert.runModal()
-                            parentViewController.loadIcloudData()
-                            self.dismissSheet()
-                            
-                        } else {
-                            
-                            let alert = NSAlert()
-                            alert.messageText = error!.localizedDescription
-                            alert.alertStyle = NSAlert.Style.critical
-                            alert.addButton(withTitle: "OK")
-                            alert.runModal()
-                            parentViewController.loadIcloudData()
-                            
-                        }
+                        Utilities.ShowAlertBox(alertStyle: NSAlert.Style.informational,
+                                               message: "Updated connection \(connectionName!) saved to iCloud")
+                        parentViewController.loadIcloudData()
+                        self.dismissSheet()
+                        
+                    } else {
+                        
+                        Utilities.ShowAlertBox(alertStyle: NSAlert.Style.critical,
+                                               message: error!.localizedDescription)
+                        parentViewController.loadIcloudData()
+                        
+                        
                     }
                 }
             }
