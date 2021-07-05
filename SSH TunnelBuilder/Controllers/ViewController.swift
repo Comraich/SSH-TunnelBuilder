@@ -55,11 +55,13 @@ class ViewController: NSViewController {
     @objc func loadIcloudData() {
         
         if (self.connectionComboBox.indexOfSelectedItem != -1) {
-
+            
             self.connectionComboBox.deselectItem(at: self.connectionComboBox.indexOfSelectedItem)
-
+            
         }
+        
         self.connectionComboBox.stringValue = ""
+        
         
         viewModel.refresh { error in
             if let error = error {
@@ -82,8 +84,11 @@ class ViewController: NSViewController {
             }
         }
         
-        tableView.reloadData()
-        
+        DispatchQueue.main.async {
+            
+            self.tableView.reloadData()
+            
+        }
     }
     
     override var representedObject: Any? {
@@ -169,23 +174,23 @@ class ViewController: NSViewController {
         privateDB.fetch(withRecordID: connection!.id!, completionHandler: { (record, error) in
             if let returnedRecord = record {
                 self.privateDB.delete(withRecordID: returnedRecord.recordID, completionHandler: { (_, error) in
-                        
+                    
+                    DispatchQueue.main.async {
                         if let error = error {
                             
                             Utilities.ShowAlertBox(alertStyle: NSAlert.Style.critical,
                                                    message: error.localizedDescription)
                             
                         } else {
-
+                            
                             Utilities.ShowAlertBox(alertStyle: NSAlert.Style.informational,
                                                    message: "Connection deleted")
                             
                         }
                         
                         self.loadIcloudData()
-                        
                     }
-                )
+                })
             }
         })
     }
@@ -246,12 +251,10 @@ class ViewController: NSViewController {
                 DispatchQueue.main.async {
                     
                     self.tableView.reloadData()
+                    Utilities.ShowAlertBox(alertStyle: NSAlert.Style.critical,
+                                                           message: error.localizedDescription)
                     
                 }
-                
-                Utilities.ShowAlertBox(alertStyle: NSAlert.Style.critical,
-                                       message: error.localizedDescription)
-                
             }
         }
     }

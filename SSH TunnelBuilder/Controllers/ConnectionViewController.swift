@@ -80,21 +80,24 @@ class ConnectionViewController: NSViewController {
         
         privateDB.save(record) { (saveRecord, error) in
             
-            let parentViewController = self.presentingViewController as! ViewController
-            
-            if error == nil {
+            DispatchQueue.main.async {
                 
-                Utilities.ShowAlertBox(alertStyle: NSAlert.Style.informational,
-                                       message: "New connection saved to iCloud")
-                parentViewController.loadIcloudData()
-                self.dismissSheet()
-                
-            } else {
-                
-                Utilities.ShowAlertBox(alertStyle: NSAlert.Style.critical,
-                                       message: error!.localizedDescription)
-                parentViewController.loadIcloudData()
-                
+                let parentViewController = self.presentingViewController as! ViewController
+
+                if error == nil {
+                    
+                    Utilities.ShowAlertBox(alertStyle: NSAlert.Style.informational,
+                                           message: "New connection saved to iCloud")
+                    parentViewController.loadIcloudData()
+                    self.dismissSheet()
+                    
+                } else {
+                    
+                    Utilities.ShowAlertBox(alertStyle: NSAlert.Style.critical,
+                                           message: error!.localizedDescription)
+                    parentViewController.loadIcloudData()
+                    
+                }
             }
         }
     }
@@ -128,24 +131,26 @@ class ConnectionViewController: NSViewController {
                 
                 self.privateDB.save(returnedRecord) { (savedRecord, error) in
                     
-                    let parentViewController = self.presentingViewController as! ViewController
-                    
-                    if error == nil {
+                    DispatchQueue.main.async {
                         
-                        let connectionName = savedRecord?.value(forKey: "connectionName")
+                        let parentViewController = self.presentingViewController as! ViewController
                         
-                        Utilities.ShowAlertBox(alertStyle: NSAlert.Style.informational,
-                                               message: "Updated connection \(connectionName!) saved to iCloud")
-                        parentViewController.loadIcloudData()
-                        self.dismissSheet()
-                        
-                    } else {
-                        
-                        Utilities.ShowAlertBox(alertStyle: NSAlert.Style.critical,
-                                               message: error!.localizedDescription)
-                        parentViewController.loadIcloudData()
-                        
-                        
+                        if error == nil {
+                            
+                            let connectionName = savedRecord?.value(forKey: "connectionName")
+                            
+                            Utilities.ShowAlertBox(alertStyle: NSAlert.Style.informational,
+                                                   message: "Updated connection \(connectionName!) saved to iCloud")
+                            parentViewController.loadIcloudData()
+                            self.dismissSheet()
+                            
+                        } else {
+                            
+                            Utilities.ShowAlertBox(alertStyle: NSAlert.Style.critical,
+                                                   message: error!.localizedDescription)
+                            parentViewController.loadIcloudData()
+                            
+                        }
                     }
                 }
             }

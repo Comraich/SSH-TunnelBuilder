@@ -11,13 +11,13 @@ class Utilities
 {
     static func ShowAlertBox( alertStyle: NSAlert.Style, message: String )
     {
-        DispatchQueue.main.async {
+        //DispatchQueue.main.async {
             let alert = NSAlert()
             alert.alertStyle = alertStyle
             alert.messageText = message
             alert.addButton(withTitle: "OK")
             alert.runModal()
             return
-        }
+        //}
     }
 }
