@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		F41D47A4264809AF0017AF1C /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = F41D47A3264809AF0017AF1C /* LICENSE */; };
+		F44B5A3C26939231006AE881 /* Utilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = F44B5A3B26939231006AE881 /* Utilities.swift */; };
 		F453A6E026542F8A00B375EC /* SSHClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F453A6DF26542F8A00B375EC /* SSHClient.swift */; };
 		F453A6E5265431E500B375EC /* GlueHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = F453A6E4265431E500B375EC /* GlueHandler.swift */; };
 		F453A6E72654322C00B375EC /* ConnectionParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F453A6E62654322C00B375EC /* ConnectionParser.swift */; };
@@ -30,6 +31,7 @@
 /* Begin PBXFileReference section */
 		F40F024726487B5700695288 /* en */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = en; path = en.lproj/Main.storyboard; sourceTree = "<group>"; };
 		F41D47A3264809AF0017AF1C /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		F44B5A3B26939231006AE881 /* Utilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utilities.swift; sourceTree = "<group>"; };
 		F453A6DF26542F8A00B375EC /* SSHClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHClient.swift; sourceTree = "<group>"; };
 		F453A6E4265431E500B375EC /* GlueHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlueHandler.swift; sourceTree = "<group>"; };
 		F453A6E62654322C00B375EC /* ConnectionParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionParser.swift; sourceTree = "<group>"; };
@@ -106,6 +108,7 @@
 			isa = PBXGroup;
 			children = (
 				F469D653264999230093BD80 /* CloseButton.swift */,
+				F44B5A3B26939231006AE881 /* Utilities.swift */,
 			);
 			path = Classes;
 			sourceTree = "<group>";
@@ -236,6 +239,7 @@
 				F4DFCE6726471E8600108F7D /* ViewController.swift in Sources */,
 				F453A6E92654326C00B375EC /* PortForwardingServer.swift in Sources */,
 				F4DFCE7A26472D3300108F7D /* Connection.swift in Sources */,
+				F44B5A3C26939231006AE881 /* Utilities.swift in Sources */,
 				F4DFCE7E264735FC00108F7D /* ViewModel.swift in Sources */,
 				F4DFCE6526471E8600108F7D /* AppDelegate.swift in Sources */,
 				F453A6E5265431E500B375EC /* GlueHandler.swift in Sources */,
