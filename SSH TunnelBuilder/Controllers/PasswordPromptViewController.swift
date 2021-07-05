@@ -16,7 +16,7 @@ class PasswordPromptViewController: NSViewController {
     override func viewDidLoad() {
         
         super.viewDidLoad()
-        passwordTextBox.delegate = self     // Set textbox delegate to enable connection on pressing enter
+        passwordTextBox.delegate = self
     }
     
     @IBAction func connectButtonClicked(_ sender: NSButton!) {
