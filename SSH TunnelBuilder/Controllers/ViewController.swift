@@ -168,7 +168,7 @@ class ViewController: NSViewController {
         let connection = viewModel.getConnection(connectionId: connectionId!)
         privateDB.fetch(withRecordID: connection!.id!, completionHandler: { (record, error) in
             if let returnedRecord = record {
-                self.privateDB.delete(withRecordID: returnedRecord.recordID, completionHandler: { (recordID, error) in
+                self.privateDB.delete(withRecordID: returnedRecord.recordID, completionHandler: { (_, error) in
                         
                         if let error = error {
                             
@@ -197,7 +197,7 @@ class ViewController: NSViewController {
             
             Utilities.ShowAlertBox(alertStyle: NSAlert.Style.critical,
                                    message: "You need to select a connection before connecting")
-                        return
+            return
             
         }
         
@@ -229,20 +229,31 @@ class ViewController: NSViewController {
         
         let connection = viewModel.connections[connectionComboBox.indexOfSelectedItem]
         let sshClient = SSHClient()
+        let connectionRecord = TableViewConnectionRecords(connection: connection, sshClient: sshClient)
+        self.activeConnections[connection.connectionId] = connectionRecord
+        self.tableView.reloadData()
         
         DispatchQueue.global(qos:.userInitiated).async {
             
             do {
+                
                 try sshClient.Connect(connection: connection, password: password)
+                
             } catch {
-                NSLog("Exception thrown: \(error)")
+                
+                self.activeConnections.removeValue(forKey: connection.connectionId)
+                
+                DispatchQueue.main.async {
+                    
+                    self.tableView.reloadData()
+                    
+                }
+                
+                Utilities.ShowAlertBox(alertStyle: NSAlert.Style.critical,
+                                       message: error.localizedDescription)
+                
             }
         }
-        
-        let connectionRecord = TableViewConnectionRecords(connection: connection, sshClient: sshClient)
-        activeConnections[connection.connectionId] = connectionRecord
-        tableView.reloadData()
-        
     }
     
     @IBAction func closeConnection(_ sender: CloseButton) {

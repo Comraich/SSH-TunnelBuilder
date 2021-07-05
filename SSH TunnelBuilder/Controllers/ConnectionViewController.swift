@@ -162,8 +162,11 @@ class ConnectionViewController: NSViewController {
     
     func dismissSheet() {
         
-        let parentViewController = presentingViewController as! ViewController
-                parentViewController.dismiss(self)
-        
+        DispatchQueue.main.async {
+            
+            let parentViewController = self.presentingViewController as! ViewController
+            parentViewController.dismiss(self)
+            
+        }
     }
 }
