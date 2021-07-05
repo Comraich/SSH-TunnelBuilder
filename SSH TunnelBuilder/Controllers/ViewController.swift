@@ -103,7 +103,7 @@ class ViewController: NSViewController {
 
     func checkIcloudAccountStatus() {
         
-        CKContainer.default().accountStatus { accountStatus, error in
+        CKContainer.default().accountStatus { accountStatus, _ in
             if accountStatus == .noAccount {
                 DispatchQueue.main.async {
                     let message = "This app uses iCloud to store your connection settings. Please sign in to iCloud in System Preferences."
@@ -179,7 +179,7 @@ class ViewController: NSViewController {
         let connection = viewModel.getConnection(connectionId: connectionId!)
         privateDB.fetch(withRecordID: connection!.id!, completionHandler: { (record, error) in
             if let returnedRecord = record {
-                self.privateDB.delete(withRecordID: returnedRecord.recordID, completionHandler: { (recordID, error) in
+                self.privateDB.delete(withRecordID: returnedRecord.recordID, completionHandler: { (_, error) in
                     
                     DispatchQueue.main.async {
                         
@@ -295,7 +295,7 @@ class ViewController: NSViewController {
         
     }
     
-    //MARK: Import / Export connection definitions
+    // MARK: Import / Export connection definitions
     @objc @IBAction func exportConnectionsToJSON(_ sender: NSMenuItem) {
         
         let jsonData = viewModel.exportConnectionsToJSON()
@@ -322,7 +322,7 @@ extension ViewController: NSTableViewDataSource {
     }
 }
 
-//MARK: NSTableViewDelegate extension
+// MARK: NSTableViewDelegate extension
 extension ViewController: NSTableViewDelegate {
     
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
