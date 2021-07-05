@@ -8,47 +8,20 @@
 import Foundation
 import CloudKit
 
-struct CodableConnection : Codable {
-    
-    var connectionId: Int?
-    var connectionName: String?
-    var sshHost: String?
-    var sshHostPort: Int?
-    var localPort: Int?
-    var remoteServer: String?
-    var remotePort: Int?
-    var username: String?
-    var password: String?
-    var privateKey: String?
-
-    enum CodingKeys: String, CodingKey {
-        case connectionId
-        case connectionName
-        case sshHost
-        case sshHostPort
-        case localPort
-        case remoteServer
-        case remotePort
-        case username
-        case password
-        case privateKey
-    }
-}
-
 class Connection {
     
     static let recordType = "Connection"
-    var id: CKRecord.ID?
-    var connectionId: Int
-    var connectionName: String
-    var sshHost: String
-    var sshHostPort: Int
-    var localPort: Int
-    var remoteServer: String
-    var remotePort: Int
-    var username: String
+    private let id: CKRecord.ID
+    let connectionId: Int
+    let connectionName: String
+    let sshHost: String
+    let sshHostPort: Int
+    let localPort: Int
+    let remoteServer: String
+    let remotePort: Int
+    let userName: String
     var password: String?
-    var privateKey: String?
+    var publicKey: String?
     
     init?(record: CKRecord, database: CKDatabase) {
         guard
@@ -59,7 +32,7 @@ class Connection {
             let localPort = record["localPort"] as? Int,
             let remoteServer = record["remoteServer"] as? String,
             let remotePort = record["remotePort"] as? Int,
-            let username = record["username"] as? String
+            let userName = record["userName"] as? String
         else { return nil }
         self.id = record.recordID
         self.connectionId = connectionId
@@ -69,9 +42,9 @@ class Connection {
         self.localPort = localPort
         self.remoteServer = remoteServer
         self.remotePort = remotePort
-        self.username = username
+        self.userName = userName
         self.password = record["password"] as? String
-        self.privateKey = record["privateKey"] as? String
+        self.publicKey = record["publicKey"] as? String
 
     }
 }
@@ -98,4 +71,3 @@ struct TableViewConnectionRecords {
         
     }
 }
-
