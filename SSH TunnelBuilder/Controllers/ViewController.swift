@@ -37,7 +37,7 @@ class ViewController: NSViewController {
         
         super.viewWillAppear()
         checkIcloudAccountStatus()
-        refresh()
+        loadIcloudData()
         tableView.reloadData()
         connectionComboBox.reloadData()
         
@@ -52,7 +52,7 @@ class ViewController: NSViewController {
         
     }
 
-    @objc func refresh() {
+    @objc func loadIcloudData() {
         
         if (self.connectionComboBox.indexOfSelectedItem != -1) {
 
@@ -102,22 +102,22 @@ class ViewController: NSViewController {
     }
 
     func checkIcloudAccountStatus() {
-            
-            CKContainer.default().accountStatus { accountStatus, error in
-                if accountStatus == .noAccount {
-                    DispatchQueue.main.async {
-                        let message = "This app uses iCloud to store your connection settings. Please sign in to iCloud in System Preferences."
-                        let alert = NSAlert()
-                        alert.alertStyle = NSAlert.Style.critical
-                        alert.messageText = message
-                        alert.addButton(withTitle: "OK")
-                        alert.runModal()
-                        return
-                        
-                    }
+        
+        CKContainer.default().accountStatus { accountStatus, error in
+            if accountStatus == .noAccount {
+                DispatchQueue.main.async {
+                    let message = "This app uses iCloud to store your connection settings. Please sign in to iCloud in System Preferences."
+                    let alert = NSAlert()
+                    alert.alertStyle = NSAlert.Style.critical
+                    alert.messageText = message
+                    alert.addButton(withTitle: "OK")
+                    alert.runModal()
+                    return
+                    
                 }
             }
         }
+    }
     
     // MARK: Setup Application menu
     func createMenuItems(_ selector: Selector) -> [NSMenuItem] {
@@ -157,8 +157,8 @@ class ViewController: NSViewController {
     @objc func presentNewConnectionSheet(_ sender: NSMenuItem) {
         
         let storyboard = NSStoryboard(name: "Connection", bundle: nil)
-        let newConnectionViewController = storyboard.instantiateController(withIdentifier: "ConnectionPromptId")
-        presentAsSheet(newConnectionViewController as! ConnectionViewController)
+        let connectionViewController = storyboard.instantiateController(withIdentifier: "ConnectionPromptId")
+        presentAsSheet(connectionViewController as! ConnectionViewController)
         
     }
     
@@ -166,10 +166,10 @@ class ViewController: NSViewController {
         
         let connectionId = Int(sender.identifier!.rawValue)
         let storyboard = NSStoryboard(name: "Connection", bundle: nil)
-        let editConnectionViewController = storyboard.instantiateController(withIdentifier: "ConnectionPromptId") as! ConnectionViewController
+        let connectionViewController = storyboard.instantiateController(withIdentifier: "ConnectionPromptId") as! ConnectionViewController
         let connection = viewModel.getConnection(connectionId: connectionId!)
-        editConnectionViewController.setConnection(connection: connection)
-        presentAsSheet(editConnectionViewController)
+        connectionViewController.setConnection(connection: connection)
+        presentAsSheet(connectionViewController)
         
     }
     
@@ -201,7 +201,7 @@ class ViewController: NSViewController {
                             
                         }
                         
-                        self.refresh()
+                        self.loadIcloudData()
                         
                     }
                 })

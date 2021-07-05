@@ -91,7 +91,7 @@ class ConnectionViewController: NSViewController {
                     alert.alertStyle = NSAlert.Style.informational
                     alert.addButton(withTitle: "OK")
                     alert.runModal()
-                    parentViewController.refresh()
+                    parentViewController.loadIcloudData()
                     self.dismissSheet()
                     
                 } else {
@@ -101,7 +101,7 @@ class ConnectionViewController: NSViewController {
                     alert.alertStyle = NSAlert.Style.critical
                     alert.addButton(withTitle: "OK")
                     alert.runModal()
-                    parentViewController.refresh()
+                    parentViewController.loadIcloudData()
                     
                 }
             }
@@ -149,7 +149,7 @@ class ConnectionViewController: NSViewController {
                             alert.alertStyle = NSAlert.Style.informational
                             alert.addButton(withTitle: "OK")
                             alert.runModal()
-                            parentViewController.refresh()
+                            parentViewController.loadIcloudData()
                             self.dismissSheet()
                             
                         } else {
@@ -159,7 +159,7 @@ class ConnectionViewController: NSViewController {
                             alert.alertStyle = NSAlert.Style.critical
                             alert.addButton(withTitle: "OK")
                             alert.runModal()
-                            parentViewController.refresh()
+                            parentViewController.loadIcloudData()
                             
                         }
                     }
