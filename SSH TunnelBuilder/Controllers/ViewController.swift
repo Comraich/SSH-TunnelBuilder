@@ -102,7 +102,7 @@ class ViewController: NSViewController {
 
     func checkIcloudAccountStatus() {
         
-        CKContainer.default().accountStatus { accountStatus, error in
+        CKContainer.default().accountStatus { accountStatus, _ in
             if accountStatus == .noAccount {
                 
                 Utilities.ShowAlertBox( alertStyle: NSAlert.Style.critical,
@@ -285,7 +285,7 @@ class ViewController: NSViewController {
         
     }
     
-    //MARK: Import / Export connection definitions
+    // MARK: Import / Export connection definitions
     @objc @IBAction func exportConnectionsToJSON(_ sender: NSMenuItem) {
         
         let jsonData = viewModel.exportConnectionsToJSON()
