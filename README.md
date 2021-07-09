@@ -8,7 +8,7 @@ This software uses the Apple Swift-NIO and Swift-NIO-SSH libraries for all of th
 
 The software has been tested and found to be functional on MacOS 10.15 (Catalina) and MacOS 11.x (Big Sur). Support for MacOS 12.x (Monteray) is planned as soon as it is released. Other versions of Mac OS may or may not work as they have not been tested and no assumption is made in this regard. Your mileage may vary. The App Store version is only available on Catalina or newer.
 
-# Export Rules
+## Export Rules
 
 SSH Tunnel Builder can be sold to customers worldwide under the unrestricted status provisions of the "ENC" export license exemption. Under ENC rules, export licenses are not required. The export control classification number (ECCN) is 5D002.
 
@@ -16,7 +16,7 @@ Unrestricted export status allows SSH Tunnel Builder export to individuals, comp
 
 These rules apply to users purchasing the software from the Mac App Store or accessing the source code on GitHub, as both Apple and GitHub are U.S companies subject to U.S. trade regulations. 
 
-# Build or Buy?
+## Build or Buy?
 
 As this is Open Source software, you are free to download, modify, build and redistribute your own versions of this software, pursuant to the terms of the MIT License.
 
