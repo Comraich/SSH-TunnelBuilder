@@ -78,7 +78,7 @@ class ConnectionViewController: NSViewController {
         record.setValue(sshPrivateKeyField.stringValue, forKey: "privateKey")
         record.setValue(Int(ViewModel.highestConnectionId + 1), forKey: "connectionId")
         
-        privateDB.save(record) { (saveRecord, error) in
+        privateDB.save(record) { (_, error) in
             
             DispatchQueue.main.async {
                 
