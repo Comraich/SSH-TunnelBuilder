@@ -64,7 +64,6 @@ class ConnectionViewController: NSViewController {
     
     func createNewConnection() {
         
-        NSLog("Add Connection button was clicked.")
         let record = CKRecord(recordType: "Connection")
         
         record.setValue(connectionNameField.stringValue, forKey: "connectionName")
@@ -103,8 +102,6 @@ class ConnectionViewController: NSViewController {
     }
     
     func updateConnection(connection: Connection) {
-        
-        NSLog("Edit Connection button was clicked.")
         
         connection.connectionName = self.connectionNameField.stringValue
         connection.sshHost = self.sshHostField.stringValue
