@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		F41D47A4264809AF0017AF1C /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = F41D47A3264809AF0017AF1C /* LICENSE */; };
+		F44B5A3E26939396006AE881 /* Utilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = F44B5A3D26939396006AE881 /* Utilities.swift */; };
 		F453A6E026542F8A00B375EC /* SSHClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F453A6DF26542F8A00B375EC /* SSHClient.swift */; };
 		F453A6E5265431E500B375EC /* GlueHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = F453A6E4265431E500B375EC /* GlueHandler.swift */; };
 		F453A6E72654322C00B375EC /* ConnectionParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = F453A6E62654322C00B375EC /* ConnectionParser.swift */; };
@@ -29,8 +30,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		F40F024726487B5700695288 /* en */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = en; path = en.lproj/Main.storyboard; sourceTree = "<group>"; };
 		F41D47A3264809AF0017AF1C /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		F44B5A3D26939396006AE881 /* Utilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utilities.swift; sourceTree = "<group>"; };
 		F453A6DF26542F8A00B375EC /* SSHClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHClient.swift; sourceTree = "<group>"; };
 		F453A6E4265431E500B375EC /* GlueHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlueHandler.swift; sourceTree = "<group>"; };
 		F453A6E62654322C00B375EC /* ConnectionParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionParser.swift; sourceTree = "<group>"; };
@@ -38,6 +39,7 @@
 		F453A6EA265432A300B375EC /* InteractivePasswordPromptDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractivePasswordPromptDelegate.swift; sourceTree = "<group>"; };
 		F45D8D4E2659B3530054B133 /* Connection.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = Connection.storyboard; sourceTree = "<group>"; };
 		F469D653264999230093BD80 /* CloseButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloseButton.swift; sourceTree = "<group>"; };
+		F46DE020270CA01E0068E26F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		F495B3F4265A69F500674032 /* ConnectionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionViewController.swift; sourceTree = "<group>"; };
 		F4B9AFFA264D4DAA00939094 /* CloudKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CloudKit.framework; path = System/Library/Frameworks/CloudKit.framework; sourceTree = SDKROOT; };
 		F4DFCE6126471E8600108F7D /* SSH TunnelBuilder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "SSH TunnelBuilder.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -110,6 +112,7 @@
 			isa = PBXGroup;
 			children = (
 				F469D653264999230093BD80 /* CloseButton.swift */,
+				F44B5A3D26939396006AE881 /* Utilities.swift */,
 			);
 			path = Classes;
 			sourceTree = "<group>";
@@ -186,7 +189,7 @@
 			isa = PBXProject;
 			attributes = {
 				LastSwiftUpdateCheck = 1250;
-				LastUpgradeCheck = 1250;
+				LastUpgradeCheck = 1300;
 				TargetAttributes = {
 					F4DFCE6026471E8500108F7D = {
 						CreatedOnToolsVersion = 12.5;
@@ -199,6 +202,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				Base,
 			);
 			mainGroup = F4DFCE5826471E8500108F7D;
 			packageReferences = (
@@ -239,6 +243,7 @@
 				F4DFCE6726471E8600108F7D /* ViewController.swift in Sources */,
 				F453A6E92654326C00B375EC /* PortForwardingServer.swift in Sources */,
 				F4DFCE7A26472D3300108F7D /* Connection.swift in Sources */,
+				F44B5A3E26939396006AE881 /* Utilities.swift in Sources */,
 				F4DFCE7E264735FC00108F7D /* ViewModel.swift in Sources */,
 				F495B3F5265A69F500674032 /* ConnectionViewController.swift in Sources */,
 				F4DFCE6526471E8600108F7D /* AppDelegate.swift in Sources */,
@@ -254,7 +259,7 @@
 		F4DFCE6A26471E8700108F7D /* Main.storyboard */ = {
 			isa = PBXVariantGroup;
 			children = (
-				F40F024726487B5700695288 /* en */,
+				F46DE020270CA01E0068E26F /* Base */,
 			);
 			name = Main.storyboard;
 			sourceTree = "<group>";
@@ -313,7 +318,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -368,7 +373,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
@@ -383,6 +388,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "SSH TunnelBuilder/SSH_TunnelBuilder.entitlements";
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = 64GECYFVCN;
@@ -404,6 +410,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "SSH TunnelBuilder/SSH_TunnelBuilder.entitlements";
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = 64GECYFVCN;

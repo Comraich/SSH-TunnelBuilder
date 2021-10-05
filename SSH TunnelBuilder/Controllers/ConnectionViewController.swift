@@ -64,7 +64,6 @@ class ConnectionViewController: NSViewController {
     
     func createNewConnection() {
         
-        NSLog("Add Connection button was clicked.")
         let record = CKRecord(recordType: "Connection")
         
         record.setValue(connectionNameField.stringValue, forKey: "connectionName")
@@ -78,29 +77,23 @@ class ConnectionViewController: NSViewController {
         record.setValue(sshPrivateKeyField.stringValue, forKey: "privateKey")
         record.setValue(Int(ViewModel.highestConnectionId + 1), forKey: "connectionId")
         
-        privateDB.save(record) { (saveRecord, error) in
+        privateDB.save(record) { (_, error) in
             
             DispatchQueue.main.async {
                 
                 let parentViewController = self.presentingViewController as! ViewController
-                
+
                 if error == nil {
                     
-                    let alert = NSAlert()
-                    alert.messageText = "New connection saved to iCloud"
-                    alert.alertStyle = NSAlert.Style.informational
-                    alert.addButton(withTitle: "OK")
-                    alert.runModal()
+                    Utilities.ShowAlertBox(alertStyle: NSAlert.Style.informational,
+                                           message: "New connection saved to iCloud")
                     parentViewController.loadIcloudData()
                     self.dismissSheet()
                     
                 } else {
                     
-                    let alert = NSAlert()
-                    alert.messageText = error!.localizedDescription
-                    alert.alertStyle = NSAlert.Style.critical
-                    alert.addButton(withTitle: "OK")
-                    alert.runModal()
+                    Utilities.ShowAlertBox(alertStyle: NSAlert.Style.critical,
+                                           message: error!.localizedDescription)
                     parentViewController.loadIcloudData()
                     
                 }
@@ -109,8 +102,6 @@ class ConnectionViewController: NSViewController {
     }
     
     func updateConnection(connection: Connection) {
-        
-        NSLog("Edit Connection button was clicked.")
         
         connection.connectionName = self.connectionNameField.stringValue
         connection.sshHost = self.sshHostField.stringValue
@@ -143,22 +134,17 @@ class ConnectionViewController: NSViewController {
                         
                         if error == nil {
                             
-                            let alert = NSAlert()
                             let connectionName = savedRecord?.value(forKey: "connectionName")
-                            alert.messageText = "Updated connection \(connectionName!) saved to iCloud"
-                            alert.alertStyle = NSAlert.Style.informational
-                            alert.addButton(withTitle: "OK")
-                            alert.runModal()
+                            
+                            Utilities.ShowAlertBox(alertStyle: NSAlert.Style.informational,
+                                                   message: "Updated connection \(connectionName!) saved to iCloud")
                             parentViewController.loadIcloudData()
                             self.dismissSheet()
                             
                         } else {
                             
-                            let alert = NSAlert()
-                            alert.messageText = error!.localizedDescription
-                            alert.alertStyle = NSAlert.Style.critical
-                            alert.addButton(withTitle: "OK")
-                            alert.runModal()
+                            Utilities.ShowAlertBox(alertStyle: NSAlert.Style.critical,
+                                                   message: error!.localizedDescription)
                             parentViewController.loadIcloudData()
                             
                         }
@@ -178,8 +164,11 @@ class ConnectionViewController: NSViewController {
     
     func dismissSheet() {
         
-        let parentViewController = presentingViewController as! ViewController
-                parentViewController.dismiss(self)
-        
+        DispatchQueue.main.async {
+            
+            let parentViewController = self.presentingViewController as! ViewController
+            parentViewController.dismiss(self)
+            
+        }
     }
 }

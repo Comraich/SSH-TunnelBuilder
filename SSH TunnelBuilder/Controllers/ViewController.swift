@@ -55,41 +55,40 @@ class ViewController: NSViewController {
     @objc func loadIcloudData() {
         
         if (self.connectionComboBox.indexOfSelectedItem != -1) {
-
+            
             self.connectionComboBox.deselectItem(at: self.connectionComboBox.indexOfSelectedItem)
-
+            
         }
+        
         self.connectionComboBox.stringValue = ""
+        
         
         viewModel.refresh { error in
             if let error = error {
-                let alert = NSAlert()
-                alert.messageText = error.localizedDescription
-                alert.alertStyle = NSAlert.Style.critical
-                alert.addButton(withTitle: "OK")
-                alert.runModal()
+                
+                Utilities.ShowAlertBox( alertStyle: NSAlert.Style.critical,
+                                        message: error.localizedDescription )
                 return
                 
             } else {
                 
                 self.setupMenus()
                 
-                DispatchQueue.main.async {
+                if self.numberOfItems(in: self.connectionComboBox) == 0 {
                     
-                    if self.numberOfItems(in: self.connectionComboBox) == 0 {
-                        let alert = NSAlert()
-                        alert.messageText = "You do not have any connections defined. Go to File -> Create new connection or File -> Import connections to get started."
-                        alert.alertStyle = NSAlert.Style.informational
-                        alert.addButton(withTitle: "OK")
-                        alert.runModal()
-                        
-                    }
+                    Utilities.ShowAlertBox( alertStyle: NSAlert.Style.informational,
+                                            message: "You do not have any connections defined. Go to File -> Create new connection or File -> Import connections to get started." )
+                    
                 }
+                
             }
         }
         
-        tableView.reloadData()
-        
+        DispatchQueue.main.async {
+            
+            self.tableView.reloadData()
+            
+        }
     }
     
     override var representedObject: Any? {
@@ -105,16 +104,11 @@ class ViewController: NSViewController {
         
         CKContainer.default().accountStatus { accountStatus, _ in
             if accountStatus == .noAccount {
-                DispatchQueue.main.async {
-                    let message = "This app uses iCloud to store your connection settings. Please sign in to iCloud in System Preferences."
-                    let alert = NSAlert()
-                    alert.alertStyle = NSAlert.Style.critical
-                    alert.messageText = message
-                    alert.addButton(withTitle: "OK")
-                    alert.runModal()
-                    return
-                    
-                }
+                
+                Utilities.ShowAlertBox( alertStyle: NSAlert.Style.critical,
+                                        message: "This app uses iCloud to store your connection settings. Please sign in to iCloud in System Preferences.")
+                return
+                
             }
         }
     }
@@ -182,27 +176,19 @@ class ViewController: NSViewController {
                 self.privateDB.delete(withRecordID: returnedRecord.recordID, completionHandler: { (_, error) in
                     
                     DispatchQueue.main.async {
-                        
                         if let error = error {
                             
-                            let alert = NSAlert()
-                            alert.messageText = error.localizedDescription
-                            alert.alertStyle = NSAlert.Style.critical
-                            alert.addButton(withTitle: "OK")
-                            alert.runModal()
+                            Utilities.ShowAlertBox(alertStyle: NSAlert.Style.critical,
+                                                   message: error.localizedDescription)
                             
                         } else {
                             
-                            let alert = NSAlert()
-                            alert.messageText = "Connection deleted"
-                            alert.alertStyle = NSAlert.Style.informational
-                            alert.addButton(withTitle: "OK")
-                            alert.runModal()
+                            Utilities.ShowAlertBox(alertStyle: NSAlert.Style.informational,
+                                                   message: "Connection deleted")
                             
                         }
                         
                         self.loadIcloudData()
-                        
                     }
                 })
             }
@@ -214,24 +200,19 @@ class ViewController: NSViewController {
         
         if connectionComboBox.indexOfSelectedItem == -1 {
             
-            let alert = NSAlert()
-                        alert.messageText = "You need to select a connection before connecting"
-                        alert.alertStyle = NSAlert.Style.critical
-                        alert.addButton(withTitle: "OK")
-                        alert.runModal()
-                        return
+            Utilities.ShowAlertBox(alertStyle: NSAlert.Style.critical,
+                                   message: "You need to select a connection before connecting")
+            return
             
         }
         
         let connection = viewModel.connections[connectionComboBox.indexOfSelectedItem]
         
         if activeConnections[connection.connectionId] != nil {
-                    let alert = NSAlert()
-                                alert.messageText = "This connection is already active"
-                                alert.alertStyle = NSAlert.Style.critical
-                                alert.addButton(withTitle: "OK")
-                                alert.runModal()
-                                return
+
+            Utilities.ShowAlertBox(alertStyle: NSAlert.Style.critical,
+                                   message: "This connection is already active")
+            return
                     
                 }
         
@@ -253,20 +234,29 @@ class ViewController: NSViewController {
         
         let connection = viewModel.connections[connectionComboBox.indexOfSelectedItem]
         let sshClient = SSHClient()
+        let connectionRecord = TableViewConnectionRecords(connection: connection, sshClient: sshClient)
+        self.activeConnections[connection.connectionId] = connectionRecord
+        self.tableView.reloadData()
         
         DispatchQueue.global(qos:.userInitiated).async {
             
             do {
+                
                 try sshClient.Connect(connection: connection, password: password)
+                
             } catch {
-                NSLog("Exception thrown: \(error)")
+                
+                self.activeConnections.removeValue(forKey: connection.connectionId)
+                
+                DispatchQueue.main.async {
+                    
+                    self.tableView.reloadData()
+                    Utilities.ShowAlertBox(alertStyle: NSAlert.Style.critical,
+                                                           message: error.localizedDescription)
+                    
+                }
             }
         }
-        
-        let connectionRecord = TableViewConnectionRecords(connection: connection, sshClient: sshClient)
-        activeConnections[connection.connectionId] = connectionRecord
-        tableView.reloadData()
-        
     }
     
     @IBAction func closeConnection(_ sender: CloseButton) {
