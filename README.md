@@ -23,4 +23,3 @@ As this is Open Source software, you are free to download, modify, build and red
 In order to build this software, you will need access to a Mac computer (with either an Intel or Apple Silicon chip) and a supported version of Xcode.
 
 If you do not wish to create your own build of this software, a prebuilt version of it can be purchased from the Mac App Store on supported versions of Mac OS. If you for some reason do not wish to purchase the software from the App Store (Bulk/site licenses, custom versions etc), please contact us at sales@comraich.no 
-
