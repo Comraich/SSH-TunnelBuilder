@@ -6,7 +6,7 @@ Connection definitions are stored in iCloud, allowing for easy transfer of conne
 
 This software uses the Apple Swift-NIO and Swift-NIO-SSH libraries for all of the SSH specific implementation. 
 
-The software has been tested and found to be functional on MacOS 10.15 (Catalina) and MacOS 11.x (Big Sur). Support for MacOS 12.x (Monteray) is planned as soon as it is released. Other versions of Mac OS may or may not work as they have not been tested and no assumption is made in this regard. Your mileage may vary. The App Store version is only available on Catalina or newer.
+The software has been tested and found to be functional on MacOS 10.15 (Catalina), MacOS 11.x (Big Sur) and MacOS 12.x (Monteray) Beta. Other versions of Mac OS may or may not work as they have not been tested and no assumption is made in this regard. Your mileage may vary. The App Store version is only available on Catalina or newer.
 
 ## Export Rules
 
@@ -20,6 +20,6 @@ These rules apply to users purchasing the software from the Mac App Store or acc
 
 As this is Open Source software, you are free to download, modify, build and redistribute your own versions of this software, pursuant to the terms of the MIT License.
 
-In order to build this software, you will need access to a Mac computer (with either an Intel or Apple Silicon chip) and a supported version of Xcode.
+In order to build this software, you will need access to a Apple Macintosh computer (with either an Intel or Apple Silicon chip) running MacOS 10.15 (Catalina) or later, and a supported version of Xcode.
 
 If you do not wish to create your own build of this software, a prebuilt version of it can be purchased from the Mac App Store on supported versions of Mac OS. If you for some reason do not wish to purchase the software from the App Store (Bulk/site licenses, custom versions etc), please contact us at sales@comraich.no 
