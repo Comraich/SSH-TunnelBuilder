@@ -19,7 +19,7 @@ class ConnectionViewController: NSViewController {
     @IBOutlet var remotePortField: NSTextField!
     @IBOutlet var usernameField: NSTextField!
     @IBOutlet var passwordField: NSTextField!
-    @IBOutlet var sshPrivateKeyField: NSTextField!
+    // @IBOutlet var sshPrivateKeyField: NSTextField! // To be implemented in a future version
     @IBOutlet var commitButton: NSButton!
     var connection: Connection?
     let privateDB = CKContainer.default().privateCloudDatabase
@@ -36,7 +36,7 @@ class ConnectionViewController: NSViewController {
             remotePortField.stringValue = String(connection.remotePort)
             usernameField.stringValue = connection.username
             passwordField.stringValue = connection.password ?? ""
-            sshPrivateKeyField.stringValue = connection.privateKey ?? ""
+            // sshPrivateKeyField.stringValue = connection.privateKey ?? ""
             
             commitButton.title = "Edit"
             titleLabel.stringValue = "Edit connection"
@@ -74,7 +74,7 @@ class ConnectionViewController: NSViewController {
         record.setValue(remotePortField.intValue, forKey: "remotePort")
         record.setValue(usernameField.stringValue, forKey: "username")
         record.setValue(passwordField.stringValue, forKey: "password")
-        record.setValue(sshPrivateKeyField.stringValue, forKey: "privateKey")
+        // record.setValue(sshPrivateKeyField.stringValue, forKey: "privateKey")
         record.setValue(Int(ViewModel.highestConnectionId + 1), forKey: "connectionId")
         
         privateDB.save(record) { (_, error) in
@@ -111,7 +111,7 @@ class ConnectionViewController: NSViewController {
         connection.remotePort = Int(self.remotePortField.intValue)
         connection.username = self.usernameField.stringValue
         connection.password = self.passwordField.stringValue
-        connection.privateKey = self.sshPrivateKeyField.stringValue
+        // connection.privateKey = self.sshPrivateKeyField.stringValue
         
         privateDB.fetch(withRecordID: connection.id!, completionHandler: { (record, error) in
             if let returnedRecord = record {
@@ -123,7 +123,7 @@ class ConnectionViewController: NSViewController {
                 returnedRecord.setValue(connection.remotePort, forKey: "remotePort")
                 returnedRecord.setValue(connection.username, forKey: "username")
                 returnedRecord.setValue(connection.password, forKey: "password")
-                returnedRecord.setValue(connection.privateKey, forKey: "privateKey")
+                // returnedRecord.setValue(connection.privateKey, forKey: "privateKey")
                 returnedRecord.setValue(connection.connectionId, forKey: "connectionId")
                 
                 self.privateDB.save(returnedRecord) { (savedRecord, error) in

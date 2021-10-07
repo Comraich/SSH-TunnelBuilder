@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.Storyboard.XIB" version="3.0" toolsVersion="18122" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
+<document type="com.apple.InterfaceBuilder3.Cocoa.Storyboard.XIB" version="3.0" toolsVersion="19162" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="18122"/>
+        <deployment identifier="macosx"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="19162"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
@@ -10,11 +11,11 @@
             <objects>
                 <viewController storyboardIdentifier="ConnectionPromptId" id="bU7-R8-ocO" customClass="ConnectionViewController" customModule="SSH_TunnelBuilder" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" id="tOy-S4-hL0">
-                        <rect key="frame" x="0.0" y="0.0" width="450" height="464"/>
+                        <rect key="frame" x="0.0" y="0.0" width="450" height="330"/>
                         <autoresizingMask key="autoresizingMask"/>
                         <subviews>
                             <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="atO-NO-sh8">
-                                <rect key="frame" x="18" y="428" width="414" height="16"/>
+                                <rect key="frame" x="18" y="294" width="414" height="16"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" lineBreakMode="clipping" alignment="center" title="New connection" id="3BG-2m-iXi">
                                     <font key="font" usesAppearanceFont="YES"/>
@@ -23,7 +24,7 @@
                                 </textFieldCell>
                             </textField>
                             <textField verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="lxl-b3-VtK">
-                                <rect key="frame" x="176" y="399" width="254" height="21"/>
+                                <rect key="frame" x="176" y="265" width="254" height="21"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" borderStyle="bezel" placeholderString="Connection name" drawsBackground="YES" id="e0b-JD-IvV">
                                     <font key="font" metaFont="system"/>
@@ -32,7 +33,7 @@
                                 </textFieldCell>
                             </textField>
                             <textField verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="3d6-OF-vW6">
-                                <rect key="frame" x="176" y="368" width="254" height="21"/>
+                                <rect key="frame" x="176" y="234" width="254" height="21"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" borderStyle="bezel" placeholderString="SSH host name (IP or FQDN)" drawsBackground="YES" id="eGX-Yt-vYi">
                                     <font key="font" metaFont="system"/>
@@ -41,7 +42,7 @@
                                 </textFieldCell>
                             </textField>
                             <textField verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="uxD-MU-HL2">
-                                <rect key="frame" x="176" y="337" width="50" height="21"/>
+                                <rect key="frame" x="176" y="203" width="50" height="21"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" title="22" drawsBackground="YES" id="fv1-FN-OiH">
                                     <numberFormatter key="formatter" formatterBehavior="default10_4" numberStyle="decimal" formatWidth="-1" minimumIntegerDigits="1" maximumIntegerDigits="2000000000" maximumFractionDigits="3" id="KZa-jG-4V9"/>
@@ -51,7 +52,7 @@
                                 </textFieldCell>
                             </textField>
                             <textField verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="oyu-lS-dXN">
-                                <rect key="frame" x="176" y="306" width="50" height="21"/>
+                                <rect key="frame" x="176" y="172" width="50" height="21"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" drawsBackground="YES" id="KUv-O0-h6W">
                                     <numberFormatter key="formatter" formatterBehavior="default10_4" numberStyle="decimal" formatWidth="-1" minimumIntegerDigits="1" maximumIntegerDigits="2000000000" maximumFractionDigits="3" id="byp-pY-FdC"/>
@@ -61,7 +62,7 @@
                                 </textFieldCell>
                             </textField>
                             <textField verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="gGt-uu-4If">
-                                <rect key="frame" x="176" y="275" width="254" height="21"/>
+                                <rect key="frame" x="176" y="141" width="254" height="21"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" borderStyle="bezel" placeholderString="Remote server name (IP or FQDN)" drawsBackground="YES" id="Epg-Ph-vyB">
                                     <font key="font" metaFont="system"/>
@@ -70,7 +71,7 @@
                                 </textFieldCell>
                             </textField>
                             <textField verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="xFh-b7-hPX">
-                                <rect key="frame" x="176" y="244" width="50" height="21"/>
+                                <rect key="frame" x="176" y="110" width="50" height="21"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" drawsBackground="YES" id="nVK-if-Wxj">
                                     <numberFormatter key="formatter" formatterBehavior="default10_4" numberStyle="decimal" formatWidth="-1" minimumIntegerDigits="1" maximumIntegerDigits="2000000000" maximumFractionDigits="3" id="bT2-Pi-ciw"/>
@@ -80,7 +81,7 @@
                                 </textFieldCell>
                             </textField>
                             <textField verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="k70-za-FAq">
-                                <rect key="frame" x="176" y="213" width="254" height="21"/>
+                                <rect key="frame" x="176" y="79" width="254" height="21"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" borderStyle="bezel" placeholderString="SSH Username" drawsBackground="YES" id="amq-Q8-sYq">
                                     <font key="font" metaFont="system"/>
@@ -89,7 +90,7 @@
                                 </textFieldCell>
                             </textField>
                             <secureTextField verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="dF1-b5-Gx8">
-                                <rect key="frame" x="176" y="182" width="254" height="21"/>
+                                <rect key="frame" x="176" y="48" width="254" height="21"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <secureTextFieldCell key="cell" scrollable="YES" lineBreakMode="clipping" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" borderStyle="bezel" placeholderString="SSH Password" drawsBackground="YES" usesSingleLineMode="YES" id="nTR-MX-7hA">
                                     <font key="font" metaFont="system"/>
@@ -100,15 +101,6 @@
                                     </allowedInputSourceLocales>
                                 </secureTextFieldCell>
                             </secureTextField>
-                            <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="BEa-Ez-oUd">
-                                <rect key="frame" x="176" y="48" width="254" height="124"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                <textFieldCell key="cell" selectable="YES" editable="YES" sendsActionOnEndEditing="YES" state="on" borderStyle="bezel" placeholderString="SSH Private Key" drawsBackground="YES" id="naI-uT-5D4">
-                                    <font key="font" metaFont="system"/>
-                                    <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
-                                    <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
-                                </textFieldCell>
-                            </textField>
                             <button verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="DGF-mL-Uh8">
                                 <rect key="frame" x="362" y="13" width="75" height="32"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
@@ -121,7 +113,7 @@
                                 </connections>
                             </button>
                             <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="VMG-FY-4VE">
-                                <rect key="frame" x="30" y="402" width="138" height="16"/>
+                                <rect key="frame" x="30" y="268" width="138" height="16"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="Connection Name:" id="tgT-5s-bEb">
                                     <font key="font" metaFont="system"/>
@@ -130,7 +122,7 @@
                                 </textFieldCell>
                             </textField>
                             <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="sNZ-MT-efW">
-                                <rect key="frame" x="32" y="371" width="138" height="16"/>
+                                <rect key="frame" x="32" y="237" width="138" height="16"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="SSH Host:" id="SNL-AO-Dbp">
                                     <font key="font" metaFont="system"/>
@@ -139,7 +131,7 @@
                                 </textFieldCell>
                             </textField>
                             <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="Icw-tr-qk3">
-                                <rect key="frame" x="32" y="340" width="138" height="16"/>
+                                <rect key="frame" x="32" y="206" width="138" height="16"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="SSH Host Port:" id="EvJ-wS-sLW">
                                     <font key="font" metaFont="system"/>
@@ -148,7 +140,7 @@
                                 </textFieldCell>
                             </textField>
                             <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="JlM-Rg-TKb">
-                                <rect key="frame" x="32" y="309" width="138" height="16"/>
+                                <rect key="frame" x="32" y="175" width="138" height="16"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="Local Forwarded Port:" id="Vu3-nc-qkW">
                                     <font key="font" metaFont="system"/>
@@ -157,7 +149,7 @@
                                 </textFieldCell>
                             </textField>
                             <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="ZQp-sc-7MT">
-                                <rect key="frame" x="32" y="278" width="138" height="16"/>
+                                <rect key="frame" x="32" y="144" width="138" height="16"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="Remote Server:" id="oFy-iE-dV8">
                                     <font key="font" metaFont="system"/>
@@ -166,7 +158,7 @@
                                 </textFieldCell>
                             </textField>
                             <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="VPY-Rw-JgP">
-                                <rect key="frame" x="32" y="247" width="138" height="16"/>
+                                <rect key="frame" x="32" y="113" width="138" height="16"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="Remote Port:" id="8c8-7o-uRp">
                                     <font key="font" metaFont="system"/>
@@ -175,7 +167,7 @@
                                 </textFieldCell>
                             </textField>
                             <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="if9-Y5-y25">
-                                <rect key="frame" x="32" y="216" width="138" height="16"/>
+                                <rect key="frame" x="32" y="82" width="138" height="16"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="SSH Username:" id="TvT-Xt-Ty3">
                                     <font key="font" metaFont="system"/>
@@ -184,18 +176,9 @@
                                 </textFieldCell>
                             </textField>
                             <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="sEV-p4-bxs">
-                                <rect key="frame" x="32" y="185" width="138" height="16"/>
+                                <rect key="frame" x="32" y="51" width="138" height="16"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
                                 <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="SSH Password:" id="CL7-7u-Tx2">
-                                    <font key="font" metaFont="system"/>
-                                    <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
-                                    <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
-                                </textFieldCell>
-                            </textField>
-                            <textField horizontalHuggingPriority="251" verticalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="0ju-GE-WBd">
-                                <rect key="frame" x="32" y="154" width="138" height="16"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                                <textFieldCell key="cell" lineBreakMode="clipping" alignment="right" title="SSH Private Key: " id="B6a-gl-zxt">
                                     <font key="font" metaFont="system"/>
                                     <color key="textColor" name="labelColor" catalog="System" colorSpace="catalog"/>
                                     <color key="backgroundColor" name="textBackgroundColor" catalog="System" colorSpace="catalog"/>
@@ -226,14 +209,13 @@ Gw
                         <outlet property="remoteServerField" destination="gGt-uu-4If" id="GCZ-pY-OQj"/>
                         <outlet property="sshHostField" destination="3d6-OF-vW6" id="oxf-Iy-AsX"/>
                         <outlet property="sshHostPortField" destination="uxD-MU-HL2" id="GUH-1a-8pc"/>
-                        <outlet property="sshPrivateKeyField" destination="BEa-Ez-oUd" id="SEU-HP-ALz"/>
                         <outlet property="titleLabel" destination="atO-NO-sh8" id="I3T-Bi-k0L"/>
                         <outlet property="usernameField" destination="k70-za-FAq" id="D03-lF-AZ6"/>
                     </connections>
                 </viewController>
                 <customObject id="9uD-mB-xHs" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
             </objects>
-            <point key="canvasLocation" x="128" y="213"/>
+            <point key="canvasLocation" x="128" y="146"/>
         </scene>
     </scenes>
 </document>
