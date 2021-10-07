@@ -91,7 +91,7 @@ class ViewModel: NSObject {
             codableConnection.remotePort = connection.remotePort
             codableConnection.username = connection.username
             codableConnection.password = connection.password
-            codableConnection.privateKey = connection.privateKey
+            // codableConnection.privateKey = connection.privateKey
             
             connectionArray.append(codableConnection)
         }

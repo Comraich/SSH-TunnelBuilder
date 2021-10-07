@@ -19,7 +19,7 @@ struct CodableConnection : Codable {
     var remotePort: Int?
     var username: String?
     var password: String?
-    var privateKey: String?
+    // var privateKey: String?
 
     enum CodingKeys: String, CodingKey {
         case connectionId
@@ -31,7 +31,7 @@ struct CodableConnection : Codable {
         case remotePort
         case username
         case password
-        case privateKey
+        // case privateKey
     }
 }
 
@@ -48,7 +48,7 @@ class Connection {
     var remotePort: Int
     var username: String
     var password: String?
-    var privateKey: String?
+    // var privateKey: String?
     
     init?(record: CKRecord, database: CKDatabase) {
         guard
@@ -71,7 +71,7 @@ class Connection {
         self.remotePort = remotePort
         self.username = username
         self.password = record["password"] as? String
-        self.privateKey = record["privateKey"] as? String
+        // self.privateKey = record["privateKey"] as? String
 
     }
 }

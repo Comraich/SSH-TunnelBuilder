@@ -27,11 +27,11 @@ final class InteractivePasswordPromptDelegate: NIOSSHClientUserAuthenticationDel
     
     private var privateKey: String?
 
-    init(username: String?, password: String?, privateKey: String?) {
+    init(username: String?, password: String?) {
         self.queue = DispatchQueue(label: "io.swiftnio.ssh.InteractivePasswordPromptDelegate")
         self.username = username
         self.password = password
-        self.privateKey = privateKey
+        self.privateKey = ""
     }
 
     func nextAuthenticationType(availableMethods: NIOSSHAvailableUserAuthenticationMethods, nextChallengePromise: EventLoopPromise<NIOSSHUserAuthenticationOffer?>) {

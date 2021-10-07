@@ -218,7 +218,7 @@ class ViewController: NSViewController {
         
         // Private key support not yet added... But we still need to check if a password is present.
         // The private key exists in the data model, so the check for both has been added.
-        if connection.privateKey == "" && connection.password == "" {
+        if connection.password == "" {
             let storyboard = NSStoryboard(name: "PasswordPrompt", bundle: nil)
             let passwordPromptVcontroller = storyboard.instantiateController(withIdentifier: "PasswordPromptID")
             presentAsSheet(passwordPromptVcontroller as! NSViewController)
@@ -286,21 +286,21 @@ class ViewController: NSViewController {
     }
     
     // MARK: Import / Export connection definitions
-    @objc @IBAction func exportConnectionsToJSON(_ sender: NSMenuItem) {
-        
-        let jsonData = viewModel.exportConnectionsToJSON()
-        
-        if let documentDirectory = FileManager.default.urls(for: .documentDirectory,
-                                                            in: .userDomainMask).first {
-            let pathWithFileName = documentDirectory.appendingPathComponent("SSH TunnelBuilder Connections.json")
-            do {
-                try jsonData!.write(to: pathWithFileName,
-                                    options: Data.WritingOptions.atomic)
-            } catch {
-                NSLog("Failed to write data to disk.")
-            }
-        }
-    }
+//    @objc @IBAction func exportConnectionsToJSON(_ sender: NSMenuItem) {
+//
+//        let jsonData = viewModel.exportConnectionsToJSON()
+//
+//        if let documentDirectory = FileManager.default.urls(for: .documentDirectory,
+//                                                            in: .userDomainMask).first {
+//            let pathWithFileName = documentDirectory.appendingPathComponent("SSH TunnelBuilder Connections.json")
+//            do {
+//                try jsonData!.write(to: pathWithFileName,
+//                                    options: Data.WritingOptions.atomic)
+//            } catch {
+//                NSLog("Failed to write data to disk.")
+//            }
+//        }
+//    }
 }
 
 // MARK: NSTableViewDataSource extension

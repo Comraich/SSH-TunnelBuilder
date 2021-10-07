@@ -16,7 +16,7 @@
 		F453A6EB265432A300B375EC /* InteractivePasswordPromptDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F453A6EA265432A300B375EC /* InteractivePasswordPromptDelegate.swift */; };
 		F45D8D4F2659B3530054B133 /* Connection.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = F45D8D4E2659B3530054B133 /* Connection.storyboard */; };
 		F469D654264999230093BD80 /* CloseButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F469D653264999230093BD80 /* CloseButton.swift */; };
-		F469D6592649D2090093BD80 /* NIOSSH in Frameworks */ = {isa = PBXBuildFile; productRef = F469D6582649D2090093BD80 /* NIOSSH */; };
+		F469D6592649D2090093BD80 /* NIOSSH in Frameworks */ = {isa = PBXBuildFile; productRef = F469D6582649D2090093BD80 /* NIOSSH */; settings = {ATTRIBUTES = (Required, ); }; };
 		F495B3F5265A69F500674032 /* ConnectionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F495B3F4265A69F500674032 /* ConnectionViewController.swift */; };
 		F4B9AFFB264D4DAA00939094 /* CloudKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F4B9AFFA264D4DAA00939094 /* CloudKit.framework */; };
 		F4DFCE6526471E8600108F7D /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4DFCE6426471E8600108F7D /* AppDelegate.swift */; };
@@ -270,6 +270,7 @@
 		F4DFCE6F26471E8700108F7D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALLOW_TARGET_PLATFORM_SPECIALIZATION = YES;
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
@@ -321,16 +322,20 @@
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
-				ONLY_ACTIVE_ARCH = YES;
+				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTS_MACCATALYST = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Debug;
 		};
 		F4DFCE7026471E8700108F7D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALLOW_TARGET_PLATFORM_SPECIALIZATION = YES;
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
@@ -376,9 +381,13 @@
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SUPPORTS_MACCATALYST = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;
 		};
@@ -387,10 +396,12 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = "SSH TunnelBuilder/SSH_TunnelBuilder.entitlements";
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 64GECYFVCN;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = "SSH TunnelBuilder/Info.plist";
@@ -398,6 +409,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = no.comraich.sshTunnelBuilder;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
@@ -409,10 +421,12 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = "SSH TunnelBuilder/SSH_TunnelBuilder.entitlements";
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 64GECYFVCN;
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = "SSH TunnelBuilder/Info.plist";
@@ -420,6 +434,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = no.comraich.sshTunnelBuilder;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
