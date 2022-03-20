@@ -13,6 +13,9 @@
 		F4ABBF5F27DFDF740097436A /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F4ABBF5E27DFDF740097436A /* Preview Assets.xcassets */; };
 		F4ABBF6127DFDF740097436A /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4ABBF6027DFDF740097436A /* Persistence.swift */; };
 		F4ABBF6427DFDF740097436A /* SSH_TunnelBuilder2.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = F4ABBF6227DFDF740097436A /* SSH_TunnelBuilder2.xcdatamodeld */; };
+		F4E3934F27E785C0002BBF46 /* Controllers in Resources */ = {isa = PBXBuildFile; fileRef = F4E3934E27E785C0002BBF46 /* Controllers */; };
+		F4E3935127E78678002BBF46 /* Classes in Resources */ = {isa = PBXBuildFile; fileRef = F4E3935027E78678002BBF46 /* Classes */; };
+		F4E3935327E786A6002BBF46 /* Models in Resources */ = {isa = PBXBuildFile; fileRef = F4E3935227E786A6002BBF46 /* Models */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -24,6 +27,9 @@
 		F4ABBF6027DFDF740097436A /* Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persistence.swift; sourceTree = "<group>"; };
 		F4ABBF6327DFDF740097436A /* SSH_TunnelBuilder2.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = SSH_TunnelBuilder2.xcdatamodel; sourceTree = "<group>"; };
 		F4ABBF6527DFDF740097436A /* SSH_TunnelBuilder2.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SSH_TunnelBuilder2.entitlements; sourceTree = "<group>"; };
+		F4E3934E27E785C0002BBF46 /* Controllers */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Controllers; sourceTree = "<group>"; };
+		F4E3935027E78678002BBF46 /* Classes */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Classes; sourceTree = "<group>"; };
+		F4E3935227E786A6002BBF46 /* Models */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Models; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -56,6 +62,9 @@
 		F4ABBF5627DFDF730097436A /* SSH TunnelBuilder2 */ = {
 			isa = PBXGroup;
 			children = (
+				F4E3935227E786A6002BBF46 /* Models */,
+				F4E3935027E78678002BBF46 /* Classes */,
+				F4E3934E27E785C0002BBF46 /* Controllers */,
 				F4ABBF5727DFDF730097436A /* SSH_TunnelBuilder2App.swift */,
 				F4ABBF5927DFDF730097436A /* ContentView.swift */,
 				F4ABBF5B27DFDF740097436A /* Assets.xcassets */,
@@ -133,8 +142,11 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F4E3935327E786A6002BBF46 /* Models in Resources */,
 				F4ABBF5F27DFDF740097436A /* Preview Assets.xcassets in Resources */,
+				F4E3935127E78678002BBF46 /* Classes in Resources */,
 				F4ABBF5C27DFDF740097436A /* Assets.xcassets in Resources */,
+				F4E3934F27E785C0002BBF46 /* Controllers in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
