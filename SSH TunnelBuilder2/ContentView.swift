@@ -8,30 +8,50 @@
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var connectionStore = ConnectionStore()
+
     var body: some View {
         NavigationView {
-            NavigationList()
-            MainView()
+            NavigationList(connectionStore: connectionStore)
+            MainView(connectionStore: connectionStore)
         }
     }
 }
 
+
 struct NavigationList: View {
+    @ObservedObject var connectionStore: ConnectionStore
+    
     var body: some View {
         List {
-            NavigationLink(destination: MainView()) {
-                Text("Item 1")
-            }
-            NavigationLink(destination: MainView()) {
-                Text("Item 2")
-            }
-            NavigationLink(destination: MainView()) {
-                Text("Item 3")
+            ForEach(connectionStore.connections) { connection in
+                NavigationLink(destination: MainView(connectionStore: connectionStore, connection: connection)) {
+                    Text(connection.name)
+                }
             }
         }
         .listStyle(SidebarListStyle())
-        .frame(minWidth: 150)
+        .frame(minWidth: 220)
         .navigationTitle("Navigation")
+        .toolbar {
+            Button(action: {
+                // Connect action
+            }) {
+                Text("➕")
+            }
+            
+            Button(action: {
+                // Edit action
+            }) {
+                Text("📝")
+            }
+            
+            Button(action: {
+                // Delete action
+            }) {
+                Text("❌")
+            }
+        }
     }
 }
 
@@ -41,99 +61,98 @@ enum ConnectionState {
     case connecting
 }
 
+enum MainViewMode {
+    case create
+    case edit
+    case view
+}
+
 struct MainView: View {
+    @ObservedObject var connectionStore: ConnectionStore
+    var connection: Connection?
+    
+    @State private var connectionState: ConnectionState = .disconnected
+    
+    @State private var connectionName = "Connection Name"
     @State private var serverAddress = ""
     @State private var portNumber = ""
     @State private var username = ""
     @State private var password = ""
     @State private var privateKey = ""
+    @State private var localPort = ""
+    @State private var remoteServer = ""
+    @State private var remotePort = ""
     
-    @State private var connectionState: ConnectionState = .disconnected
+    var mode: MainViewMode = .view
     
     var body: some View {
         VStack {
-            Text("Main Window")
-                .font(.largeTitle)
-                .padding()
+            if mode == .view {
+                Text(connectionName)
+                    .font(.largeTitle)
+                    .padding()
+            } else {
+                TextField("Enter connection name", text: $connectionName)
+                    .font(.largeTitle)
+                    .padding()
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+            }
             
+            HStack {
+                Text("Connection Status:")
+                Spacer()
+                connectionIndicator
+                    .padding(.trailing)
+            }
+            .padding(.horizontal)
+            
+            Spacer()
             
             VStack(alignment: .leading) {
-                HStack {
-                    Text("Server Address:")
-                    Spacer()
-                    TextField("Enter server address", text: $serverAddress)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                Group {
+                    infoRow(label: "Server Address:", value: $serverAddress)
+                    infoRow(label: "Port Number:", value: $portNumber)
+                    infoRow(label: "Username:", value: $username)
+                    infoRow(label: "Password:", value: $password)
+                    infoRow(label: "Private Key:", value: $privateKey)
+                    infoRow(label: "Local Port:", value: $localPort)
+                    infoRow(label: "Remote Server:", value: $remoteServer)
+                    infoRow(label: "Remote Port:", value: $remotePort)
                 }
-                .padding(.horizontal)
-                
-                HStack {
-                    Text("Port Number:")
-                    Spacer()
-                    TextField("Enter port number", text: $portNumber)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                }
-                .padding(.horizontal)
-                
-                HStack {
-                    Text("Username:")
-                    Spacer()
-                    TextField("Enter username", text: $username)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                }
-                .padding(.horizontal)
-                
-                HStack {
-                    Text("Password:")
-                    Spacer()
-                    SecureField("Enter password", text: $password)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                }
-                .padding(.horizontal)
-                
-                HStack {
-                    Text("Private Key:")
-                    Spacer()
-                    SecureField("Enter private key", text: $privateKey)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                }
-                .padding(.horizontal)
-                
-                HStack {
-                    Text("Connection Status:")
-                    Spacer()
-                    connectionIndicator
-                        .padding(.trailing)
-                }
-                .padding(.horizontal)
-                
-                Spacer()
                 
                 HStack {
                     Button(action: {
-                        // Connect action
+                        if mode == .view {
+                            // Connect action
+                        } else {
+                            // Save action
+                        }
                     }) {
-                        Text("Connect")
+                        Text(mode == .view ? "Connect" : "Save")
                     }
                     .padding()
                     
-                    Button(action: {
-                        // Edit action
-                    }) {
-                        Text("Edit")
-                    }
-                    .padding()
-                    
-                    Button(action: {
-                        // Delete action
-                    }) {
-                        Text("Delete")
-                    }
-                    .padding()
+                    Spacer()
                 }
                 .padding(.bottom)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+    
+    @ViewBuilder
+    private func infoRow(label: String, value: Binding<String>) -> some View {
+        HStack {
+            Text(label)
+            Spacer()
+            if mode == .view {
+                Text(value.wrappedValue)
+            } else {
+                TextField("Enter \(label.lowercased())", text: value)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+            }
+        }
+        .padding(.horizontal)
     }
     
     private var connectionIndicator: some View {
