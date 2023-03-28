@@ -8,13 +8,11 @@
 import SwiftUI
 
 @main
-struct SSH_TunnelBuilder2App: App {
-    let persistenceController = PersistenceController.shared
-
+struct SSH_Tunnelbuilder2App: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
         }
     }
 }
+
