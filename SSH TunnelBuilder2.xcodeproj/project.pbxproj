@@ -43,6 +43,26 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		F4700F8629D7696F0069DC6D /* GUI */ = {
+			isa = PBXGroup;
+			children = (
+				F4ABBF5927DFDF730097436A /* ContentView.swift */,
+				F4700F8029D7669E0069DC6D /* NavigationView.swift */,
+				F4700F8229D7670D0069DC6D /* MainView.swift */,
+				F4700F8429D768E20069DC6D /* ConnectionRow.swift */,
+			);
+			path = GUI;
+			sourceTree = "<group>";
+		};
+		F4700F8729D769A00069DC6D /* Classes */ = {
+			isa = PBXGroup;
+			children = (
+				F49EBCB129D367A500A43775 /* ConnectionStore.swift */,
+				F49EBCB329D367A900A43775 /* Connection.swift */,
+			);
+			path = Classes;
+			sourceTree = "<group>";
+		};
 		F4ABBF4B27DFDF730097436A = {
 			isa = PBXGroup;
 			children = (
@@ -62,13 +82,9 @@
 		F4ABBF5627DFDF730097436A /* SSH TunnelBuilder2 */ = {
 			isa = PBXGroup;
 			children = (
+				F4700F8729D769A00069DC6D /* Classes */,
+				F4700F8629D7696F0069DC6D /* GUI */,
 				F4ABBF5727DFDF730097436A /* SSH_TunnelBuilder2App.swift */,
-				F4ABBF5927DFDF730097436A /* ContentView.swift */,
-				F4700F8029D7669E0069DC6D /* NavigationView.swift */,
-				F4700F8229D7670D0069DC6D /* MainView.swift */,
-				F4700F8429D768E20069DC6D /* ConnectionRow.swift */,
-				F49EBCB129D367A500A43775 /* ConnectionStore.swift */,
-				F49EBCB329D367A900A43775 /* Connection.swift */,
 				F4ABBF5B27DFDF740097436A /* Assets.xcassets */,
 				F4ABBF6527DFDF740097436A /* SSH_TunnelBuilder2.entitlements */,
 				F4ABBF5D27DFDF740097436A /* Preview Content */,
