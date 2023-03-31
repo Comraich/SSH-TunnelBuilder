@@ -8,7 +8,7 @@
 import Foundation
 import CloudKit
 
-struct Connection: Identifiable, Equatable {
+struct Connection: Identifiable, Equatable, Hashable {
     let id: UUID
     let recordID: CKRecord.ID?
     let name: String
