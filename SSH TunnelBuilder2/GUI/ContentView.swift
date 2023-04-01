@@ -8,9 +8,8 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var connectionStore = ConnectionStore()
+    @ObservedObject var connectionStore: ConnectionStore
     @State private var selectedConnection: Connection?
-    // @State private var mode: MainViewMode = .create
     
     @State private var connectionName = ""
     @State private var serverAddress = ""
@@ -22,9 +21,14 @@ struct ContentView: View {
     @State private var remoteServer = ""
     @State private var remotePort = ""
     
+    init(connectionStore: ConnectionStore) {
+            self.connectionStore = connectionStore
+        }
+    
     var body: some View {
         NavigationView {
-            NavigationList(connectionStore: connectionStore, selectedConnection: $selectedConnection)
+            NavigationList(connectionStore: connectionStore, selectedConnection: $selectedConnection, mode: $connectionStore.mode)
+                .environmentObject(connectionStore)
                 .onChange(of: selectedConnection) { connection in
                     if let connection = connection {
                         connectionName = connection.name
@@ -49,6 +53,7 @@ struct ContentView: View {
                     }
                 }
             MainView(connection: selectedConnection, connectionStore: connectionStore, mode: $connectionStore.mode, connectionName: $connectionName, serverAddress: $serverAddress, portNumber: $portNumber, username: $username, password: $password, privateKey: $privateKey, localPort: $localPort, remoteServer: $remoteServer, remotePort: $remotePort, selectedConnection: $selectedConnection)
+                .environmentObject(connectionStore)
         }
     }
 }
@@ -66,8 +71,8 @@ enum MainViewMode {
     case loading
 }
 
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
-    }
-}
+//struct ContentView_Previews: PreviewProvider {
+//    static var previews: some View {
+//        ContentView()
+//    }
+//}

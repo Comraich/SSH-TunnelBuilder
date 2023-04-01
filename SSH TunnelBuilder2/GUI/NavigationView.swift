@@ -10,6 +10,7 @@ import SwiftUI
 struct NavigationList: View {
     @ObservedObject var connectionStore: ConnectionStore
     @Binding var selectedConnection: Connection?
+    @Binding var mode: MainViewMode
     
     var body: some View {
         List(connectionStore.connections) { connection in
@@ -35,7 +36,8 @@ struct NavigationList: View {
                 if selectedConnection != nil {
                     Button(action: {
                         print("Selected connection: \(String(describing: selectedConnection ?? nil))")
-                        connectionStore.mode = .edit
+                        mode = .edit
+                        selectedConnection = selectedConnection
                     }) {
                         Image(systemName: "pencil")
                     }
