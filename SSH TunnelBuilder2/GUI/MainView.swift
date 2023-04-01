@@ -9,9 +9,8 @@ import SwiftUI
 
 struct MainView: View {
     var connection: Connection?
-    @ObservedObject var connectionStore: ConnectionStore
-    @Binding var mode: MainViewMode
     
+    @EnvironmentObject var connectionStore: ConnectionStore
     @State private var connectionState: ConnectionState = .disconnected
     
     @Binding var connectionName: String
@@ -27,8 +26,8 @@ struct MainView: View {
     
     init(connection: Connection? = nil, connectionStore: ConnectionStore, mode: Binding<MainViewMode>, connectionName: Binding<String>, serverAddress: Binding<String>, portNumber: Binding<String>, username: Binding<String>, password: Binding<String>, privateKey: Binding<String>, localPort: Binding<String>, remoteServer: Binding<String>, remotePort: Binding<String>, selectedConnection: Binding<Connection?>) {
         self.connection = connection
-        self.connectionStore = connectionStore
-        _mode = mode
+        // self.connectionStore = connectionStore
+        // _mode = mode
         _connectionName = connectionName
         _serverAddress = serverAddress
         _portNumber = portNumber
@@ -42,18 +41,18 @@ struct MainView: View {
     }
     
     var body: some View {
-        if mode == .loading {
+        if connectionStore.mode == .loading {
             Text("Loading connections...")
                 .font(.largeTitle)
                 .padding()
         } else {
             VStack {
-                if mode == .create {
+                if connectionStore.mode == .create {
                     Text("New Connection")
                         .font(.largeTitle)
                         .padding()
                 }
-                if mode == .view {
+                if connectionStore.mode == .view {
                     Text(connectionName)
                         .font(.largeTitle)
                         .padding()
@@ -68,7 +67,7 @@ struct MainView: View {
                 }
                 
                 HStack {
-                    if mode == .view {
+                    if connectionStore.mode == .view {
                         Text("Connection Status:")
                         Spacer()
                         connectionIndicator
@@ -78,7 +77,7 @@ struct MainView: View {
                 }
                 .padding(.horizontal)
                 
-                if mode == .view {
+                if connectionStore.mode == .view {
                     Spacer()
                 }
                 
@@ -96,25 +95,25 @@ struct MainView: View {
                     
                     HStack {
                         Button(action: {
-                            if mode == .create {
+                            if connectionStore.mode == .create {
                                 connectionStore.createConnection(name: connectionName, serverAddress: serverAddress, portNumber: portNumber, username: username, password: password, privateKey: privateKey, localPort: localPort, remoteServer: remoteServer, remotePort: remotePort)
-                                mode = .view
-                            } else if mode == .view {
+                                connectionStore.mode = .view
+                            } else if connectionStore.mode == .view {
                                 // Connect action
-                            } else if mode == .edit {
+                            } else if connectionStore.mode == .edit {
                                 if let connection = connection {
                                     let updatedConnection = Connection(id: connection.id, recordID: connection.recordID, name: $connectionName.wrappedValue, serverAddress: $serverAddress.wrappedValue, portNumber: $portNumber.wrappedValue, username: $username.wrappedValue, password: $password.wrappedValue, privateKey: $privateKey.wrappedValue, localPort: $localPort.wrappedValue, remoteServer: $remoteServer.wrappedValue, remotePort: $remotePort.wrappedValue)
                                     connectionStore.saveConnection(updatedConnection, recordID: connection.recordID)
-                                    mode = .view
+                                    connectionStore.mode = .view
                                 }
                             }
                         }) {
-                            Text(mode == .create ? "Create" : mode == .view ? "Connect" : "Save")
+                            Text(connectionStore.mode == .create ? "Create" : connectionStore.mode == .view ? "Connect" : "Save")
                         }
                         .padding()
                         
                         Spacer()
-                        if mode == .edit {
+                        if connectionStore.mode == .edit {
                             Text("Edit mode")
                         }
                     }
@@ -124,7 +123,7 @@ struct MainView: View {
             }
             .toolbar {
                 ToolbarItemGroup {
-                    if mode == .create {
+                    if connectionStore.mode == .create {
                         Button(action: {
                             connectionStore.mode = .view
                             if let firstConnection = connectionStore.connections.first {
@@ -144,7 +143,7 @@ struct MainView: View {
         HStack {
             Text(label)
             Spacer()
-            if mode == .view {
+            if connectionStore.mode == .view {
                 if isSecure {
                     if value.wrappedValue.isEmpty {
                         Text("")
@@ -200,6 +199,6 @@ struct MainView: View {
     }
     
     func changeMode(to newMode: MainViewMode) {
-        self.mode = newMode
+        connectionStore.mode = newMode
     }
 }

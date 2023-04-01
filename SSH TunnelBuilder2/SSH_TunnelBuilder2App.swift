@@ -8,10 +8,12 @@
 import SwiftUI
 
 @main
-struct SSH_Tunnelbuilder2App: App {
+struct SSH_TunnelBuilder2App: App {
+    @StateObject private var connectionStore = ConnectionStore()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(connectionStore: connectionStore)
         }
     }
 }
