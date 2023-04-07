@@ -14,7 +14,11 @@ struct NavigationList: View {
     
     var body: some View {
         List(connectionStore.connections) { connection in
-            NavigationLink(destination: mainViewForConnection(connection), tag: connection, selection: $selectedConnection) {
+            NavigationLink(
+                destination: mainViewForConnection(connection: connection),
+                tag: connection,
+                selection: $selectedConnection
+            ) {
                 ConnectionRow(connection: connection, isSelected: selectedConnection == connection)
             }
         }
@@ -35,9 +39,11 @@ struct NavigationList: View {
             ToolbarItem(placement: .automatic) {
                 if selectedConnection != nil {
                     Button(action: {
-                        print("Selected connection: \(String(describing: selectedConnection ?? nil))")
                         mode = .edit
                         selectedConnection = selectedConnection
+                        if let connection = selectedConnection {
+                            connectionStore.updateTempConnection(with: connection)
+                        }
                     }) {
                         Image(systemName: "pencil")
                     }
@@ -46,10 +52,10 @@ struct NavigationList: View {
             }
             
             ToolbarItem(placement: .automatic) {
-                if let selectedConnection = selectedConnection {
+                if selectedConnection != nil {
                     Button(action: {
                         // Delete action
-                        connectionStore.deleteConnection(selectedConnection)
+                        connectionStore.deleteConnection(selectedConnection!)
                         self.selectedConnection = nil
                     }) {
                         Image(systemName: "trash")
@@ -64,19 +70,18 @@ struct NavigationList: View {
         connectionStore.deleteConnection(connection)
     }
     
-    func mainViewForConnection(_ connection: Connection) -> some View {
-        MainView(connection: connection,
-                 connectionStore: connectionStore,
-                 mode: Binding.constant(.view),
-                 connectionName: Binding.constant(connection.name),
-                 serverAddress: Binding.constant(connection.serverAddress),
-                 portNumber: Binding.constant(connection.portNumber),
-                 username: Binding.constant(connection.username),
-                 password: Binding.constant(connection.password),
-                 privateKey: Binding.constant(connection.privateKey),
-                 localPort: Binding.constant(connection.localPort),
-                 remoteServer: Binding.constant(connection.remoteServer),
-                 remotePort: Binding.constant(connection.remotePort),
-                 selectedConnection: Binding.constant(connection.self))
+    private func mainViewForConnection(connection: Connection) -> some View {
+        MainView(connectionName: .constant(connection.name),
+                 serverAddress: .constant(connection.serverAddress),
+                 portNumber: .constant(connection.portNumber),
+                 username: .constant(connection.username),
+                 password: .constant(connection.password),
+                 privateKey: .constant(connection.privateKey),
+                 localPort: .constant(connection.localPort),
+                 remoteServer: .constant(connection.remoteServer),
+                 remotePort: .constant(connection.remotePort),
+                 selectedConnection: .constant(connection),
+                 tempConnection: .constant(connectionStore.tempConnection))
+            .environmentObject(connectionStore)
     }
 }

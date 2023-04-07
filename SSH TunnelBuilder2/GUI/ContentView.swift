@@ -30,29 +30,31 @@ struct ContentView: View {
             NavigationList(connectionStore: connectionStore, selectedConnection: $selectedConnection, mode: $connectionStore.mode)
                 .environmentObject(connectionStore)
                 .onChange(of: selectedConnection) { connection in
-                    if let connection = connection {
-                        connectionName = connection.name
-                        serverAddress = connection.serverAddress
-                        portNumber = connection.portNumber
-                        username = connection.username
-                        password = connection.password
-                        privateKey = connection.privateKey
-                        localPort = connection.localPort
-                        remoteServer = connection.remoteServer
-                        remotePort = connection.remotePort
-                    } else {
-                        connectionName = ""
-                        serverAddress = ""
-                        portNumber = ""
-                        username = ""
-                        password = ""
-                        privateKey = ""
-                        localPort = ""
-                        remoteServer = ""
-                        remotePort = ""
+                    if connectionStore.mode != .edit {
+                        if let connection = connection {
+                            connectionName = connection.name
+                            serverAddress = connection.serverAddress
+                            portNumber = connection.portNumber
+                            username = connection.username
+                            password = connection.password
+                            privateKey = connection.privateKey
+                            localPort = connection.localPort
+                            remoteServer = connection.remoteServer
+                            remotePort = connection.remotePort
+                        } else {
+                            connectionName = ""
+                            serverAddress = ""
+                            portNumber = ""
+                            username = ""
+                            password = ""
+                            privateKey = ""
+                            localPort = ""
+                            remoteServer = ""
+                            remotePort = ""
+                        }
                     }
                 }
-            MainView(connection: selectedConnection, connectionStore: connectionStore, mode: $connectionStore.mode, connectionName: $connectionName, serverAddress: $serverAddress, portNumber: $portNumber, username: $username, password: $password, privateKey: $privateKey, localPort: $localPort, remoteServer: $remoteServer, remotePort: $remotePort, selectedConnection: $selectedConnection)
+            MainView(connectionName: $connectionName, serverAddress: $serverAddress, portNumber: $portNumber, username: $username, password: $password, privateKey: $privateKey, localPort: $localPort, remoteServer: $remoteServer, remotePort: $remotePort, selectedConnection: $selectedConnection, tempConnection: $connectionStore.tempConnection)
                 .environmentObject(connectionStore)
         }
     }

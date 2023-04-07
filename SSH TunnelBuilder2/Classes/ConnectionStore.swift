@@ -10,8 +10,10 @@ import CloudKit
 class ConnectionStore: ObservableObject {
     @Published var mode: MainViewMode = .loading
     @Published var connections: [Connection] = []
+    @Published var tempConnection: Connection?
     private let container = CKContainer.default()
-    private let publicDB = CKContainer.default().publicCloudDatabase
+    // private let publicDB = CKContainer.default().publicCloudDatabase
+    private let database = CKContainer.default().privateCloudDatabase
     private var customZone: CKRecordZone?
     private let customZoneName = "ConnectionZone"
     
@@ -24,6 +26,8 @@ class ConnectionStore: ObservableObject {
     @Published var localPort = ""
     @Published var remoteServer = ""
     @Published var remotePort = ""
+    
+
 
     init() {
         createCustomZone { result in
@@ -31,7 +35,6 @@ class ConnectionStore: ObservableObject {
             case .success():
                 DispatchQueue.main.async {
                 }
-                print("Created custom zone successfully")
                 self.fetchConnections(cursor: nil)
             case .failure(let error):
                 print("Failed to create custom zone: \(error.localizedDescription)")
@@ -86,7 +89,7 @@ class ConnectionStore: ObservableObject {
                 print("Fetching more connections")
                 self.fetchConnections(cursor: cursor)
             } else {
-                print("Fetched connections successfully.")
+
             }
             
             DispatchQueue.main.async {
@@ -100,53 +103,75 @@ class ConnectionStore: ObservableObject {
 
     func createConnection(name: String, serverAddress: String, portNumber: String, username: String, password: String, privateKey: String, localPort: String, remoteServer: String, remotePort: String) {
         let newConnection = Connection(name: name, serverAddress: serverAddress, portNumber: portNumber, username: username, password: password, privateKey: privateKey, localPort: localPort, remoteServer: remoteServer, remotePort: remotePort)
-        print("Creating connection: \(newConnection)")
         saveConnection(newConnection)
     }
     
-    func saveConnection(_ connection: Connection, recordID: CKRecord.ID? = nil) {
+    func updateTempConnection(with connection: Connection) {
+        tempConnection = Connection(id: connection.id, name: connection.name, serverAddress: connection.serverAddress, portNumber: connection.portNumber, username: connection.username, password: connection.password, privateKey: connection.privateKey, localPort: connection.localPort, remoteServer: connection.remoteServer, remotePort: connection.remotePort)
+    }
+
+    func saveConnection(_ connection: Connection, connectionToUpdate: Connection? = nil) {
         let record: CKRecord
         
-        if let recordID = recordID {
-            record = CKRecord(recordType: "Connection", recordID: recordID)
-        } else {
-            record = CKRecord(recordType: "Connection")
-        }
-
-        record["uuid"] = connection.id.uuidString as CKRecordValue
-        record["name"] = connection.name as CKRecordValue
-        record["serverAddress"] = connection.serverAddress as CKRecordValue
-        record["portNumber"] = connection.portNumber as CKRecordValue
-        record["username"] = connection.username as CKRecordValue
-        record["password"] = connection.password as CKRecordValue
-        record["privateKey"] = connection.privateKey as CKRecordValue
-        record["localPort"] = connection.localPort as CKRecordValue
-        record["remoteServer"] = connection.remoteServer as CKRecordValue
-        record["remotePort"] = connection.remotePort as CKRecordValue
-        
-        CKContainer.default().privateCloudDatabase.save(record) { [weak self] savedRecord, error in
-            if let error = error {
-                print("Error saving connection: \(error.localizedDescription)")
-                return
-            }
-            
-            guard let savedRecord = savedRecord else { return }
-            
-            DispatchQueue.main.async {
-                if let connection = self?.recordToConnection(record: savedRecord) {
-                    print("Connection saved: \(connection)")
-                    if let recordID = recordID {
-                        if let index = self?.connections.firstIndex(where: { $0.recordID?.recordName == recordID.recordName }) {
-                            self?.connections[index] = connection
+        if let connectionToUpdate = connectionToUpdate, let recordID = connectionToUpdate.recordID {
+            // Update existing connection
+            database.fetch(withRecordID: recordID) { fetchedRecord, error in
+                if let error = error {
+                    print("Error fetching record for update: \(error)")
+                    return
+                }
+                
+                if let fetchedRecord = fetchedRecord {
+                    fetchedRecord["name"] = connection.name
+                    fetchedRecord["serverAddress"] = connection.serverAddress
+                    fetchedRecord["portNumber"] = connection.portNumber
+                    fetchedRecord["username"] = connection.username
+                    fetchedRecord["password"] = connection.password
+                    fetchedRecord["privateKey"] = connection.privateKey
+                    fetchedRecord["localPort"] = connection.localPort
+                    fetchedRecord["remoteServer"] = connection.remoteServer
+                    fetchedRecord["remotePort"] = connection.remotePort
+                    
+                    self.database.save(fetchedRecord) { savedRecord, error in
+                        if let error = error {
+                            print("Error updating connection: \(error)")
+                            return
                         }
-                    } else {
-                        self?.connections.append(connection)
+                        
+                        DispatchQueue.main.async {
+                            if let index = self.connections.firstIndex(where: { $0.id == connection.id }) {
+                                self.connections[index] = Connection(record: fetchedRecord)
+                            }
+                        }
                     }
+                }
+            }
+        } else {
+            // Create new connection
+            record = CKRecord(recordType: "Connection")
+            record["name"] = connection.name
+            record["serverAddress"] = connection.serverAddress
+            record["portNumber"] = connection.portNumber
+            record["username"] = connection.username
+            record["password"] = connection.password
+            record["privateKey"] = connection.privateKey
+            record["localPort"] = connection.localPort
+            record["remoteServer"] = connection.remoteServer
+            record["remotePort"] = connection.remotePort
+            
+            database.save(record) { savedRecord, error in
+                if let error = error {
+                    print("Error saving connection: \(error)")
+                    return
+                }
+                
+                DispatchQueue.main.async {
+                    self.connections.append(Connection(record: savedRecord!))
                 }
             }
         }
     }
-    
+
     func deleteConnection(_ connection: Connection) {
         guard let recordID = connection.recordID else { return }
         
@@ -175,18 +200,6 @@ class ConnectionStore: ObservableObject {
               let remoteServer = record["remoteServer"] as? String,
               let remotePort = record["remotePort"] as? String else {
             return nil
-        }
-        
-        if let id = record["uuid"] as? String {
-            print("Fetched uuid: \(id)")
-        } else {
-            print("Missing uuid")
-        }
-
-        if let name = record["name"] as? String {
-            print("Fetched name: \(name)")
-        } else {
-            print("Missing name")
         }
 
         return Connection(id: uuid, recordID: record.recordID, name: name, serverAddress: serverAddress, portNumber: portNumber, username: username, password: password, privateKey: privateKey, localPort: localPort, remoteServer: remoteServer, remotePort: remotePort)
