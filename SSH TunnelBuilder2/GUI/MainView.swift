@@ -8,10 +8,9 @@
 import SwiftUI
 
 struct MainView: View {
-    var connection: Connection?
-    
     @EnvironmentObject var connectionStore: ConnectionStore
     @State private var connectionState: ConnectionState = .disconnected
+    @Environment(\.connection) private var connection
     
     @Binding var connectionName: String
     @Binding var serverAddress: String
@@ -24,21 +23,7 @@ struct MainView: View {
     @Binding var remotePort: String
     @Binding var selectedConnection: Connection?
     
-    init(connection: Connection? = nil, connectionStore: ConnectionStore, mode: Binding<MainViewMode>, connectionName: Binding<String>, serverAddress: Binding<String>, portNumber: Binding<String>, username: Binding<String>, password: Binding<String>, privateKey: Binding<String>, localPort: Binding<String>, remoteServer: Binding<String>, remotePort: Binding<String>, selectedConnection: Binding<Connection?>) {
-        self.connection = connection
-        // self.connectionStore = connectionStore
-        // _mode = mode
-        _connectionName = connectionName
-        _serverAddress = serverAddress
-        _portNumber = portNumber
-        _username = username
-        _password = password
-        _privateKey = privateKey
-        _localPort = localPort
-        _remoteServer = remoteServer
-        _remotePort = remotePort
-        _selectedConnection = selectedConnection
-    }
+    @Binding var tempConnection: Connection?
     
     var body: some View {
         if connectionStore.mode == .loading {
@@ -47,25 +32,8 @@ struct MainView: View {
                 .padding()
         } else {
             VStack {
-                if connectionStore.mode == .create {
-                    Text("New Connection")
-                        .font(.largeTitle)
-                        .padding()
-                }
-                if connectionStore.mode == .view {
-                    Text(connectionName)
-                        .font(.largeTitle)
-                        .padding()
-                } else {
-                    HStack {
-                        Text("Connection name:")
-                        Spacer()
-                        TextField("Enter connection name", text: $connectionName)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                    }
+                connectionNameRow(label: "Connection Name:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.name ?? "" }, set: { newValue in connectionStore.tempConnection?.name = newValue }) : $connectionName)
                     .padding()
-                }
-                
                 HStack {
                     if connectionStore.mode == .view {
                         Text("Connection Status:")
@@ -83,14 +51,14 @@ struct MainView: View {
                 
                 VStack(alignment: .leading) {
                     Group {
-                        infoRow(label: "Server Address:", value: $serverAddress)
-                        infoRow(label: "Port Number:", value: $portNumber)
-                        infoRow(label: "Username:", value: $username)
-                        infoRow(label: "Password:", value: $password, isSecure: true)
-                        infoRow(label: "Private Key:", value: $privateKey, isSecure: true)
-                        infoRow(label: "Local Port:", value: $localPort)
-                        infoRow(label: "Remote Server:", value: $remoteServer)
-                        infoRow(label: "Remote Port:", value: $remotePort)
+                        infoRow(label: "Server Address:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.serverAddress ?? "" }, set: { newValue in connectionStore.tempConnection?.serverAddress = newValue }) : $serverAddress)
+                        infoRow(label: "Port Number:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.portNumber ?? "" }, set: { newValue in connectionStore.tempConnection?.portNumber = newValue }) : $portNumber)
+                        infoRow(label: "User Name:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.username ?? "" }, set: { newValue in connectionStore.tempConnection?.username = newValue }) : $username)
+                        infoRow(label: "Password:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.password ?? "" }, set: { newValue in connectionStore.tempConnection?.password = newValue }) : $password, isSecure: true)
+                        infoRow(label: "Private Key:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.privateKey ?? "" }, set: { newValue in connectionStore.tempConnection?.privateKey = newValue }) : $privateKey, isSecure: true)
+                        infoRow(label: "Local Port:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.localPort ?? "" }, set: { newValue in connectionStore.tempConnection?.localPort = newValue }) : $localPort)
+                        infoRow(label: "Remote Server:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.remoteServer ?? "" }, set: { newValue in connectionStore.tempConnection?.remoteServer = newValue }) : $remoteServer)
+                        infoRow(label: "Remote Port:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.remotePort ?? "" }, set: { newValue in connectionStore.tempConnection?.remotePort = newValue }) : $remotePort)
                     }
                     
                     HStack {
@@ -101,9 +69,9 @@ struct MainView: View {
                             } else if connectionStore.mode == .view {
                                 // Connect action
                             } else if connectionStore.mode == .edit {
-                                if let connection = connection {
-                                    let updatedConnection = Connection(id: connection.id, recordID: connection.recordID, name: $connectionName.wrappedValue, serverAddress: $serverAddress.wrappedValue, portNumber: $portNumber.wrappedValue, username: $username.wrappedValue, password: $password.wrappedValue, privateKey: $privateKey.wrappedValue, localPort: $localPort.wrappedValue, remoteServer: $remoteServer.wrappedValue, remotePort: $remotePort.wrappedValue)
-                                    connectionStore.saveConnection(updatedConnection, recordID: connection.recordID)
+                                if let tempConnection = connectionStore.tempConnection {
+                                    connectionStore.saveConnection(tempConnection, connectionToUpdate: selectedConnection)
+                                    selectedConnection = tempConnection
                                     connectionStore.mode = .view
                                 }
                             }
@@ -111,11 +79,6 @@ struct MainView: View {
                             Text(connectionStore.mode == .create ? "Create" : connectionStore.mode == .view ? "Connect" : "Save")
                         }
                         .padding()
-                        
-                        Spacer()
-                        if connectionStore.mode == .edit {
-                            Text("Edit mode")
-                        }
                     }
                     .padding(.bottom)
                 }
@@ -137,7 +100,7 @@ struct MainView: View {
             }
         }
     }
-
+    
     @ViewBuilder
     private func infoRow(label: String, value: Binding<String>, isSecure: Bool = false) -> some View {
         HStack {
@@ -164,8 +127,25 @@ struct MainView: View {
             }
         }
         .padding(.horizontal)
+        .id(UUID().uuidString + "\(connectionStore.mode)")
     }
     
+    private func connectionNameRow(label: String, value: Binding<String>) -> some View {
+        HStack {
+            Text(label)
+                .font(.largeTitle)
+            Spacer()
+            if connectionStore.mode == .view {
+                Text(value.wrappedValue)
+                    .font(.largeTitle)
+            } else {
+                TextField("Enter connection name", text: value)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    // .font(.largeTitle)
+            }
+        }
+    }
+
     private var connectionIndicator: some View {
         HStack(spacing: 4) {
             Circle()
@@ -200,5 +180,27 @@ struct MainView: View {
     
     func changeMode(to newMode: MainViewMode) {
         connectionStore.mode = newMode
+    }
+    
+    private func customBinding(for keyPath: ReferenceWritableKeyPath<Connection, String>) -> Binding<String> {
+        Binding<String>(
+            get: { tempConnection?[keyPath: keyPath] ?? "" },
+            set: { newValue in tempConnection?[keyPath: keyPath] = newValue }
+        )
+    }
+    
+    func updateTempConnection(connection: Connection) {
+        tempConnection = connection
+    }
+}
+
+struct ConnectionEnvironmentKey: EnvironmentKey {
+    static var defaultValue: Connection? = nil
+}
+
+extension EnvironmentValues {
+    var connection: Connection? {
+        get { self[ConnectionEnvironmentKey.self] }
+        set { self[ConnectionEnvironmentKey.self] = newValue }
     }
 }
