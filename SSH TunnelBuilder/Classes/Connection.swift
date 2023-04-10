@@ -15,6 +15,10 @@ class Connection: Identifiable, Equatable, Hashable, ObservableObject {
     @Published var remoteServer: String
     @Published var remotePort: String
     
+    @Published var bytesSent: Int64 = 0
+    @Published var bytesReceived: Int64 = 0
+    @Published var isActive: Bool = false
+    
     init(id: UUID = UUID(),
          recordID: CKRecord.ID? = nil,
          name: String,

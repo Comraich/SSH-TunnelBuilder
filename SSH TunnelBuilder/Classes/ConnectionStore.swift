@@ -19,8 +19,6 @@ class ConnectionStore: ObservableObject {
     @Published var localPort = ""
     @Published var remoteServer = ""
     @Published var remotePort = ""
-    
-
 
     init() {
         createCustomZone { result in
