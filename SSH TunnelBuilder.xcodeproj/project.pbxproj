@@ -12,7 +12,7 @@
 		F4700F8529D768E20069DC6D /* ConnectionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4700F8429D768E20069DC6D /* ConnectionRow.swift */; };
 		F49EBCB229D367A500A43775 /* ConnectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49EBCB129D367A500A43775 /* ConnectionStore.swift */; };
 		F49EBCB429D367A900A43775 /* Connection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49EBCB329D367A900A43775 /* Connection.swift */; };
-		F4ABBF5827DFDF730097436A /* SSH_TunnelBuilder2App.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4ABBF5727DFDF730097436A /* SSH_TunnelBuilder2App.swift */; };
+		F4ABBF5827DFDF730097436A /* SSH_TunnelBuilderApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4ABBF5727DFDF730097436A /* SSH_TunnelBuilderApp.swift */; };
 		F4ABBF5A27DFDF730097436A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4ABBF5927DFDF730097436A /* ContentView.swift */; };
 		F4ABBF5C27DFDF740097436A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F4ABBF5B27DFDF740097436A /* Assets.xcassets */; };
 		F4ABBF5F27DFDF740097436A /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F4ABBF5E27DFDF740097436A /* Preview Assets.xcassets */; };
@@ -24,12 +24,12 @@
 		F4700F8429D768E20069DC6D /* ConnectionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionRow.swift; sourceTree = "<group>"; };
 		F49EBCB129D367A500A43775 /* ConnectionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionStore.swift; sourceTree = "<group>"; };
 		F49EBCB329D367A900A43775 /* Connection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Connection.swift; sourceTree = "<group>"; };
-		F4ABBF5427DFDF730097436A /* SSH TunnelBuilder2.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "SSH TunnelBuilder2.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		F4ABBF5727DFDF730097436A /* SSH_TunnelBuilder2App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSH_TunnelBuilder2App.swift; sourceTree = "<group>"; };
+		F4ABBF5427DFDF730097436A /* SSH TunnelBuilder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "SSH TunnelBuilder.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F4ABBF5727DFDF730097436A /* SSH_TunnelBuilderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSH_TunnelBuilderApp.swift; sourceTree = "<group>"; };
 		F4ABBF5927DFDF730097436A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.swift; };
 		F4ABBF5B27DFDF740097436A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F4ABBF5E27DFDF740097436A /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
-		F4ABBF6527DFDF740097436A /* SSH_TunnelBuilder2.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SSH_TunnelBuilder2.entitlements; sourceTree = "<group>"; };
+		F4ABBF6527DFDF740097436A /* SSH_TunnelBuilder.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SSH_TunnelBuilder.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -66,7 +66,7 @@
 		F4ABBF4B27DFDF730097436A = {
 			isa = PBXGroup;
 			children = (
-				F4ABBF5627DFDF730097436A /* SSH TunnelBuilder2 */,
+				F4ABBF5627DFDF730097436A /* SSH TunnelBuilder */,
 				F4ABBF5527DFDF730097436A /* Products */,
 			);
 			sourceTree = "<group>";
@@ -74,22 +74,22 @@
 		F4ABBF5527DFDF730097436A /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				F4ABBF5427DFDF730097436A /* SSH TunnelBuilder2.app */,
+				F4ABBF5427DFDF730097436A /* SSH TunnelBuilder.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		F4ABBF5627DFDF730097436A /* SSH TunnelBuilder2 */ = {
+		F4ABBF5627DFDF730097436A /* SSH TunnelBuilder */ = {
 			isa = PBXGroup;
 			children = (
 				F4700F8729D769A00069DC6D /* Classes */,
 				F4700F8629D7696F0069DC6D /* GUI */,
-				F4ABBF5727DFDF730097436A /* SSH_TunnelBuilder2App.swift */,
+				F4ABBF5727DFDF730097436A /* SSH_TunnelBuilderApp.swift */,
 				F4ABBF5B27DFDF740097436A /* Assets.xcassets */,
-				F4ABBF6527DFDF740097436A /* SSH_TunnelBuilder2.entitlements */,
+				F4ABBF6527DFDF740097436A /* SSH_TunnelBuilder.entitlements */,
 				F4ABBF5D27DFDF740097436A /* Preview Content */,
 			);
-			path = "SSH TunnelBuilder2";
+			path = "SSH TunnelBuilder";
 			sourceTree = "<group>";
 		};
 		F4ABBF5D27DFDF740097436A /* Preview Content */ = {
@@ -103,9 +103,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		F4ABBF5327DFDF730097436A /* SSH TunnelBuilder2 */ = {
+		F4ABBF5327DFDF730097436A /* SSH TunnelBuilder */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = F4ABBF6827DFDF740097436A /* Build configuration list for PBXNativeTarget "SSH TunnelBuilder2" */;
+			buildConfigurationList = F4ABBF6827DFDF740097436A /* Build configuration list for PBXNativeTarget "SSH TunnelBuilder" */;
 			buildPhases = (
 				F4ABBF5027DFDF730097436A /* Sources */,
 				F4ABBF5127DFDF730097436A /* Frameworks */,
@@ -115,9 +115,9 @@
 			);
 			dependencies = (
 			);
-			name = "SSH TunnelBuilder2";
+			name = "SSH TunnelBuilder";
 			productName = "SSH TunnelBuilder2";
-			productReference = F4ABBF5427DFDF730097436A /* SSH TunnelBuilder2.app */;
+			productReference = F4ABBF5427DFDF730097436A /* SSH TunnelBuilder.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -135,7 +135,7 @@
 					};
 				};
 			};
-			buildConfigurationList = F4ABBF4F27DFDF730097436A /* Build configuration list for PBXProject "SSH TunnelBuilder2" */;
+			buildConfigurationList = F4ABBF4F27DFDF730097436A /* Build configuration list for PBXProject "SSH TunnelBuilder" */;
 			compatibilityVersion = "Xcode 13.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -148,7 +148,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				F4ABBF5327DFDF730097436A /* SSH TunnelBuilder2 */,
+				F4ABBF5327DFDF730097436A /* SSH TunnelBuilder */,
 			);
 		};
 /* End PBXProject section */
@@ -176,7 +176,7 @@
 				F4ABBF5A27DFDF730097436A /* ContentView.swift in Sources */,
 				F4700F8129D7669E0069DC6D /* NavigationView.swift in Sources */,
 				F49EBCB229D367A500A43775 /* ConnectionStore.swift in Sources */,
-				F4ABBF5827DFDF730097436A /* SSH_TunnelBuilder2App.swift in Sources */,
+				F4ABBF5827DFDF730097436A /* SSH_TunnelBuilderApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -305,14 +305,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "SSH TunnelBuilder2/SSH_TunnelBuilder2.entitlements";
+				CODE_SIGN_ENTITLEMENTS = "SSH TunnelBuilder/SSH_TunnelBuilder.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Distribution";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_ASSET_PATHS = "\"SSH TunnelBuilder2/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"SSH TunnelBuilder/Preview Content\"";
 				DEVELOPMENT_TEAM = 64GECYFVCN;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -338,14 +338,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "SSH TunnelBuilder2/SSH_TunnelBuilder2.entitlements";
+				CODE_SIGN_ENTITLEMENTS = "SSH TunnelBuilder/SSH_TunnelBuilder.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Distribution";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_ASSET_PATHS = "\"SSH TunnelBuilder2/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"SSH TunnelBuilder/Preview Content\"";
 				DEVELOPMENT_TEAM = 64GECYFVCN;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -369,7 +369,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		F4ABBF4F27DFDF730097436A /* Build configuration list for PBXProject "SSH TunnelBuilder2" */ = {
+		F4ABBF4F27DFDF730097436A /* Build configuration list for PBXProject "SSH TunnelBuilder" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				F4ABBF6627DFDF740097436A /* Debug */,
@@ -378,7 +378,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		F4ABBF6827DFDF740097436A /* Build configuration list for PBXNativeTarget "SSH TunnelBuilder2" */ = {
+		F4ABBF6827DFDF740097436A /* Build configuration list for PBXNativeTarget "SSH TunnelBuilder" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				F4ABBF6927DFDF740097436A /* Debug */,

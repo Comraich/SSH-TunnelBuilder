@@ -1,10 +1,3 @@
-//
-//  MainView.swift
-//  SSH TunnelBuilder2
-//
-//  Created by Simon Bruce-Cassidy on 31/03/2023.
-//
-
 import SwiftUI
 
 struct MainView: View {
