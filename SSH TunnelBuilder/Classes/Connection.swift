@@ -1,10 +1,3 @@
-//
-//  Connection.swift
-//  SSH TunnelBuilder2
-//
-//  Created by Simon Bruce-Cassidy on 28/03/2023.
-//
-
 import Foundation
 import CloudKit
 import Combine
