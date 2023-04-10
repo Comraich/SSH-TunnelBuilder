@@ -120,7 +120,6 @@ struct MainView: View {
             }
         }
         .padding(.horizontal)
-        .id(UUID().uuidString + "\(connectionStore.mode)")
     }
     
     private func connectionNameRow(label: String, value: Binding<String>) -> some View {

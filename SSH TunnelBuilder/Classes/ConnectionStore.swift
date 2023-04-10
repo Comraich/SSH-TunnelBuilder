@@ -6,7 +6,6 @@ class ConnectionStore: ObservableObject {
     @Published var connections: [Connection] = []
     @Published var tempConnection: Connection?
     private let container = CKContainer.default()
-    // private let publicDB = CKContainer.default().publicCloudDatabase
     private let database = CKContainer.default().privateCloudDatabase
     private var customZone: CKRecordZone?
     private let customZoneName = "ConnectionZone"
