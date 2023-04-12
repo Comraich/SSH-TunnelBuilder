@@ -192,7 +192,7 @@ struct MainView: View {
 }
 
 struct ConnectionEnvironmentKey: EnvironmentKey {
-    static var defaultValue: Connection? = nil
+    static var defaultValue: Connection?
 }
 
 extension EnvironmentValues {

@@ -37,7 +37,7 @@ class ConnectionStore: ObservableObject {
         let customZone = CKRecordZone(zoneName: customZoneName)
         
         let createZoneOperation = CKModifyRecordZonesOperation(recordZonesToSave: [customZone], recordZoneIDsToDelete: nil)
-        createZoneOperation.modifyRecordZonesCompletionBlock = { savedZones, deletedZoneIDs, error in
+        createZoneOperation.modifyRecordZonesCompletionBlock = { savedZones, _, error in
             if let error = error {
                 print("Error creating custom zone: \(error.localizedDescription)")
                 print("Detailed error: \(error)")
@@ -123,7 +123,7 @@ class ConnectionStore: ObservableObject {
                     fetchedRecord["remoteServer"] = connection.remoteServer
                     fetchedRecord["remotePort"] = connection.remotePort
                     
-                    self.database.save(fetchedRecord) { savedRecord, error in
+                    self.database.save(fetchedRecord) { _, error in
                         if let error = error {
                             print("Error updating connection: \(error)")
                             return
