@@ -33,7 +33,7 @@ struct NavigationList: View {
                 if selectedConnection != nil {
                     Button(action: {
                         mode = .edit
-                        selectedConnection = selectedConnection
+                        // selectedConnection = selectedConnection
                         if let connection = selectedConnection {
                             connectionStore.updateTempConnection(with: connection)
                         }

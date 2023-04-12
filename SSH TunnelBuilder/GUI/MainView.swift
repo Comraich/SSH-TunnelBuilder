@@ -37,13 +37,13 @@ struct MainView: View {
                     
                 }
                 .padding(.horizontal)
-                if let connection = selectedConnection {
-                    DataCounterView(connection: connection)
-                        .padding()
-                } else {
-                    Text("")
-                }
                 if connectionStore.mode == .view {
+                    if let connection = selectedConnection {
+                        DataCounterView(connection: connection)
+                            .padding()
+                    } else {
+                        Text("")
+                    }
                     Spacer()
                 }
                 
