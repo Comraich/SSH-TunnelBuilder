@@ -25,6 +25,7 @@ class ConnectionStore: ObservableObject {
             switch result {
             case .success():
                 DispatchQueue.main.async {
+                    // Nothing to dispatch
                 }
                 self.fetchConnections(cursor: nil)
             case .failure(let error):
@@ -102,66 +103,130 @@ class ConnectionStore: ObservableObject {
     }
 
     func saveConnection(_ connection: Connection, connectionToUpdate: Connection? = nil) {
-        let record: CKRecord
+        if let connectionToUpdate = connectionToUpdate {
+            updateConnection(connection, connectionToUpdate: connectionToUpdate)
+        } else {
+            createConnection(connection)
+        }
+    }
+
+    func updateConnection(_ connection: Connection, connectionToUpdate: Connection) {
+        guard let recordID = connectionToUpdate.recordID else { return }
         
-        if let connectionToUpdate = connectionToUpdate, let recordID = connectionToUpdate.recordID {
-            // Update existing connection
-            database.fetch(withRecordID: recordID) { fetchedRecord, error in
-                if let error = error {
-                    print("Error fetching record for update: \(error)")
-                    return
-                }
+        database.fetch(withRecordID: recordID) { fetchedRecord, error in
+            if let error = error {
+                print("Error fetching record for update: \(error)")
+                return
+            }
+            
+            if let fetchedRecord = fetchedRecord {
+                self.updateRecordFields(fetchedRecord, withConnection: connection)
                 
-                if let fetchedRecord = fetchedRecord {
-                    fetchedRecord["name"] = connection.name
-                    fetchedRecord["serverAddress"] = connection.serverAddress
-                    fetchedRecord["portNumber"] = connection.portNumber
-                    fetchedRecord["username"] = connection.username
-                    fetchedRecord["password"] = connection.password
-                    fetchedRecord["privateKey"] = connection.privateKey
-                    fetchedRecord["localPort"] = connection.localPort
-                    fetchedRecord["remoteServer"] = connection.remoteServer
-                    fetchedRecord["remotePort"] = connection.remotePort
+                self.database.save(fetchedRecord) { _, error in
+                    if let error = error {
+                        print("Error updating connection: \(error)")
+                        return
+                    }
                     
-                    self.database.save(fetchedRecord) { _, error in
-                        if let error = error {
-                            print("Error updating connection: \(error)")
-                            return
-                        }
-                        
-                        DispatchQueue.main.async {
-                            if let index = self.connections.firstIndex(where: { $0.id == connection.id }) {
-                                self.connections[index] = Connection(record: fetchedRecord)
-                            }
+                    DispatchQueue.main.async {
+                        if let index = self.connections.firstIndex(where: { $0.id == connection.id }) {
+                            self.connections[index] = Connection(record: fetchedRecord)
                         }
                     }
                 }
             }
-        } else {
-            // Create new connection
-            record = CKRecord(recordType: "Connection")
-            record["name"] = connection.name
-            record["serverAddress"] = connection.serverAddress
-            record["portNumber"] = connection.portNumber
-            record["username"] = connection.username
-            record["password"] = connection.password
-            record["privateKey"] = connection.privateKey
-            record["localPort"] = connection.localPort
-            record["remoteServer"] = connection.remoteServer
-            record["remotePort"] = connection.remotePort
+        }
+    }
+
+    func createConnection(_ connection: Connection) {
+        let record = CKRecord(recordType: "Connection")
+        updateRecordFields(record, withConnection: connection)
+        
+        database.save(record) { savedRecord, error in
+            if let error = error {
+                print("Error saving connection: \(error)")
+                return
+            }
             
-            database.save(record) { savedRecord, error in
-                if let error = error {
-                    print("Error saving connection: \(error)")
-                    return
-                }
-                
-                DispatchQueue.main.async {
-                    self.connections.append(Connection(record: savedRecord!))
-                }
+            DispatchQueue.main.async {
+                self.connections.append(Connection(record: savedRecord!))
             }
         }
     }
+
+    func updateRecordFields(_ record: CKRecord, withConnection connection: Connection) {
+        record["name"] = connection.name
+        record["serverAddress"] = connection.serverAddress
+        record["portNumber"] = connection.portNumber
+        record["username"] = connection.username
+        record["password"] = connection.password
+        record["privateKey"] = connection.privateKey
+        record["localPort"] = connection.localPort
+        record["remoteServer"] = connection.remoteServer
+        record["remotePort"] = connection.remotePort
+    }
+
+//    func saveConnection(_ connection: Connection, connectionToUpdate: Connection? = nil) {
+//        let record: CKRecord
+//
+//        if let connectionToUpdate = connectionToUpdate, let recordID = connectionToUpdate.recordID {
+//            // Update existing connection
+//            database.fetch(withRecordID: recordID) { fetchedRecord, error in
+//                if let error = error {
+//                    print("Error fetching record for update: \(error)")
+//                    return
+//                }
+//
+//                if let fetchedRecord = fetchedRecord {
+//                    fetchedRecord["name"] = connection.name
+//                    fetchedRecord["serverAddress"] = connection.serverAddress
+//                    fetchedRecord["portNumber"] = connection.portNumber
+//                    fetchedRecord["username"] = connection.username
+//                    fetchedRecord["password"] = connection.password
+//                    fetchedRecord["privateKey"] = connection.privateKey
+//                    fetchedRecord["localPort"] = connection.localPort
+//                    fetchedRecord["remoteServer"] = connection.remoteServer
+//                    fetchedRecord["remotePort"] = connection.remotePort
+//
+//                    self.database.save(fetchedRecord) { _, error in
+//                        if let error = error {
+//                            print("Error updating connection: \(error)")
+//                            return
+//                        }
+//
+//                        DispatchQueue.main.async {
+//                            if let index = self.connections.firstIndex(where: { $0.id == connection.id }) {
+//                                self.connections[index] = Connection(record: fetchedRecord)
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        } else {
+//            // Create new connection
+//            record = CKRecord(recordType: "Connection")
+//            record["name"] = connection.name
+//            record["serverAddress"] = connection.serverAddress
+//            record["portNumber"] = connection.portNumber
+//            record["username"] = connection.username
+//            record["password"] = connection.password
+//            record["privateKey"] = connection.privateKey
+//            record["localPort"] = connection.localPort
+//            record["remoteServer"] = connection.remoteServer
+//            record["remotePort"] = connection.remotePort
+//
+//            database.save(record) { savedRecord, error in
+//                if let error = error {
+//                    print("Error saving connection: \(error)")
+//                    return
+//                }
+//
+//                DispatchQueue.main.async {
+//                    self.connections.append(Connection(record: savedRecord!))
+//                }
+//            }
+//        }
+//    }
 
     func deleteConnection(_ connection: Connection) {
         guard let recordID = connection.recordID else { return }
