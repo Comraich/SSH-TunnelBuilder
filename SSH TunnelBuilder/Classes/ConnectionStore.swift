@@ -35,9 +35,9 @@ class ConnectionStore: ObservableObject {
     }
 
     func createCustomZone(completion: @escaping (Result<Void, Error>) -> Void) {
-        let customZone = CKRecordZone(zoneName: customZoneName)
+        let newZone = CKRecordZone(zoneName: customZoneName)
         
-        let createZoneOperation = CKModifyRecordZonesOperation(recordZonesToSave: [customZone], recordZoneIDsToDelete: nil)
+        let createZoneOperation = CKModifyRecordZonesOperation(recordZonesToSave: [newZone], recordZoneIDsToDelete: nil)
         createZoneOperation.modifyRecordZonesCompletionBlock = { savedZones, _, error in
             if let error = error {
                 print("Error creating custom zone: \(error.localizedDescription)")
