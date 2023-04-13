@@ -25,7 +25,7 @@ struct MainView: View {
                 .padding()
         } else {
             VStack {
-                connectionNameRow(label: "Connection Name:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.name ?? "" }, set: { newValue in connectionStore.tempConnection?.name = newValue }) : $connectionName)
+                connectionNameRow(label: "Connection Name:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.connectionInfo.name ?? "" }, set: { newValue in connectionStore.tempConnection?.connectionInfo.name = newValue }) : $connectionName)
                     .padding()
                 HStack {
                     if connectionStore.mode == .view {
@@ -49,14 +49,14 @@ struct MainView: View {
                 
                 VStack(alignment: .leading) {
                     Group {
-                        infoRow(label: "Server Address:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.serverAddress ?? "" }, set: { newValue in connectionStore.tempConnection?.serverAddress = newValue }) : $serverAddress)
-                        infoRow(label: "Port Number:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.portNumber ?? "" }, set: { newValue in connectionStore.tempConnection?.portNumber = newValue }) : $portNumber)
-                        infoRow(label: "User Name:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.username ?? "" }, set: { newValue in connectionStore.tempConnection?.username = newValue }) : $username)
-                        infoRow(label: "Password:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.password ?? "" }, set: { newValue in connectionStore.tempConnection?.password = newValue }) : $password, isSecure: true)
-                        infoRow(label: "Private Key:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.privateKey ?? "" }, set: { newValue in connectionStore.tempConnection?.privateKey = newValue }) : $privateKey, isSecure: true)
-                        infoRow(label: "Local Port:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.localPort ?? "" }, set: { newValue in connectionStore.tempConnection?.localPort = newValue }) : $localPort)
-                        infoRow(label: "Remote Server:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.remoteServer ?? "" }, set: { newValue in connectionStore.tempConnection?.remoteServer = newValue }) : $remoteServer)
-                        infoRow(label: "Remote Port:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.remotePort ?? "" }, set: { newValue in connectionStore.tempConnection?.remotePort = newValue }) : $remotePort)
+                        infoRow(label: "Server Address:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.connectionInfo.serverAddress ?? "" }, set: { newValue in connectionStore.tempConnection?.connectionInfo.serverAddress = newValue }) : $serverAddress)
+                        infoRow(label: "Port Number:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.connectionInfo.portNumber ?? "" }, set: { newValue in connectionStore.tempConnection?.connectionInfo.portNumber = newValue }) : $portNumber)
+                        infoRow(label: "User Name:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.connectionInfo.username ?? "" }, set: { newValue in connectionStore.tempConnection?.connectionInfo.username = newValue }) : $username)
+                        infoRow(label: "Password:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.connectionInfo.password ?? "" }, set: { newValue in connectionStore.tempConnection?.connectionInfo.password = newValue }) : $password, isSecure: true)
+                        infoRow(label: "Private Key:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.connectionInfo.privateKey ?? "" }, set: { newValue in connectionStore.tempConnection?.connectionInfo.privateKey = newValue }) : $privateKey, isSecure: true)
+                        infoRow(label: "Local Port:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.tunnelInfo.localPort ?? "" }, set: { newValue in connectionStore.tempConnection?.tunnelInfo.localPort = newValue }) : $localPort)
+                        infoRow(label: "Remote Server:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.tunnelInfo.remoteServer ?? "" }, set: { newValue in connectionStore.tempConnection?.tunnelInfo.remoteServer = newValue }) : $remoteServer)
+                        infoRow(label: "Remote Port:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.tunnelInfo.remotePort ?? "" }, set: { newValue in connectionStore.tempConnection?.tunnelInfo.remotePort = newValue }) : $remotePort)
                     }
                     
                     HStack {

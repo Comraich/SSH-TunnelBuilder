@@ -5,7 +5,7 @@ struct ConnectionRow: View {
     let isSelected: Bool
     
     var body: some View {
-        Text(connection.name)
+        Text(connection.connectionInfo.name)
             .background(isSelected ? Color.blue.opacity(0.3) : Color.clear)
             .cornerRadius(5)
     }

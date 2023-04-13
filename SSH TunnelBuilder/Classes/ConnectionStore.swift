@@ -94,12 +94,14 @@ class ConnectionStore: ObservableObject {
     }
 
     func createConnection(name: String, serverAddress: String, portNumber: String, username: String, password: String, privateKey: String, localPort: String, remoteServer: String, remotePort: String) {
-        let newConnection = Connection(name: name, serverAddress: serverAddress, portNumber: portNumber, username: username, password: password, privateKey: privateKey, localPort: localPort, remoteServer: remoteServer, remotePort: remotePort)
+        let connectionInfo = ConnectionInfo(name: name, serverAddress: serverAddress, portNumber: portNumber, username: username, password: password, privateKey: privateKey)
+        let tunnelInfo = TunnelInfo(localPort: localPort, remoteServer: remoteServer, remotePort: remotePort)
+        let newConnection = Connection(connectionInfo: connectionInfo, tunnelInfo: tunnelInfo)
         saveConnection(newConnection)
     }
     
     func updateTempConnection(with connection: Connection) {
-        tempConnection = Connection(id: connection.id, name: connection.name, serverAddress: connection.serverAddress, portNumber: connection.portNumber, username: connection.username, password: connection.password, privateKey: connection.privateKey, localPort: connection.localPort, remoteServer: connection.remoteServer, remotePort: connection.remotePort)
+        var tempConnectionInfo = ConnectionInfo(name: connection.connectionInfo.name, serverAddress: connection.connectionInfo.serverAddress, portNumber: connection.connectionInfo.password, username: connection.connectionInfo.username, password: connection.connectionInfo.password, privateKey: connection.connectionInfo.privateKey)
     }
 
     func saveConnection(_ connection: Connection, connectionToUpdate: Connection? = nil) {
@@ -155,78 +157,16 @@ class ConnectionStore: ObservableObject {
     }
 
     func updateRecordFields(_ record: CKRecord, withConnection connection: Connection) {
-        record["name"] = connection.name
-        record["serverAddress"] = connection.serverAddress
-        record["portNumber"] = connection.portNumber
-        record["username"] = connection.username
-        record["password"] = connection.password
-        record["privateKey"] = connection.privateKey
-        record["localPort"] = connection.localPort
-        record["remoteServer"] = connection.remoteServer
-        record["remotePort"] = connection.remotePort
+        record["name"] = connection.connectionInfo.name
+        record["serverAddress"] = connection.connectionInfo.serverAddress
+        record["portNumber"] = connection.connectionInfo.portNumber
+        record["username"] = connection.connectionInfo.username
+        record["password"] = connection.connectionInfo.password
+        record["privateKey"] = connection.connectionInfo.privateKey
+        record["localPort"] = connection.tunnelInfo.localPort
+        record["remoteServer"] = connection.tunnelInfo.remoteServer
+        record["remotePort"] = connection.tunnelInfo.remotePort
     }
-
-//    func saveConnection(_ connection: Connection, connectionToUpdate: Connection? = nil) {
-//        let record: CKRecord
-//
-//        if let connectionToUpdate = connectionToUpdate, let recordID = connectionToUpdate.recordID {
-//            // Update existing connection
-//            database.fetch(withRecordID: recordID) { fetchedRecord, error in
-//                if let error = error {
-//                    print("Error fetching record for update: \(error)")
-//                    return
-//                }
-//
-//                if let fetchedRecord = fetchedRecord {
-//                    fetchedRecord["name"] = connection.name
-//                    fetchedRecord["serverAddress"] = connection.serverAddress
-//                    fetchedRecord["portNumber"] = connection.portNumber
-//                    fetchedRecord["username"] = connection.username
-//                    fetchedRecord["password"] = connection.password
-//                    fetchedRecord["privateKey"] = connection.privateKey
-//                    fetchedRecord["localPort"] = connection.localPort
-//                    fetchedRecord["remoteServer"] = connection.remoteServer
-//                    fetchedRecord["remotePort"] = connection.remotePort
-//
-//                    self.database.save(fetchedRecord) { _, error in
-//                        if let error = error {
-//                            print("Error updating connection: \(error)")
-//                            return
-//                        }
-//
-//                        DispatchQueue.main.async {
-//                            if let index = self.connections.firstIndex(where: { $0.id == connection.id }) {
-//                                self.connections[index] = Connection(record: fetchedRecord)
-//                            }
-//                        }
-//                    }
-//                }
-//            }
-//        } else {
-//            // Create new connection
-//            record = CKRecord(recordType: "Connection")
-//            record["name"] = connection.name
-//            record["serverAddress"] = connection.serverAddress
-//            record["portNumber"] = connection.portNumber
-//            record["username"] = connection.username
-//            record["password"] = connection.password
-//            record["privateKey"] = connection.privateKey
-//            record["localPort"] = connection.localPort
-//            record["remoteServer"] = connection.remoteServer
-//            record["remotePort"] = connection.remotePort
-//
-//            database.save(record) { savedRecord, error in
-//                if let error = error {
-//                    print("Error saving connection: \(error)")
-//                    return
-//                }
-//
-//                DispatchQueue.main.async {
-//                    self.connections.append(Connection(record: savedRecord!))
-//                }
-//            }
-//        }
-//    }
 
     func deleteConnection(_ connection: Connection) {
         guard let recordID = connection.recordID else { return }
@@ -257,8 +197,11 @@ class ConnectionStore: ObservableObject {
               let remotePort = record["remotePort"] as? String else {
             return nil
         }
-
-        return Connection(id: uuid, recordID: record.recordID, name: name, serverAddress: serverAddress, portNumber: portNumber, username: username, password: password, privateKey: privateKey, localPort: localPort, remoteServer: remoteServer, remotePort: remotePort)
+        
+        let connectionInfo = ConnectionInfo(name: name, serverAddress: serverAddress, portNumber: portNumber, username: username, password: password, privateKey: privateKey)
+        let tunnelInfo = TunnelInfo(localPort: localPort, remoteServer: remoteServer, remotePort: remotePort)
+        
+        return Connection(id: uuid, recordID: record.recordID, connectionInfo: connectionInfo, tunnelInfo: tunnelInfo)
     }
 }
 

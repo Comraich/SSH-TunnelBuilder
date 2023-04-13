@@ -2,18 +2,26 @@ import Foundation
 import CloudKit
 import Combine
 
+struct ConnectionInfo {
+    var name: String
+    var serverAddress: String
+    var portNumber: String
+    var username: String
+    var password: String
+    var privateKey: String
+}
+
+struct TunnelInfo {
+    var localPort: String
+    var remoteServer: String
+    var remotePort: String
+}
+
 class Connection: Identifiable, Equatable, Hashable, ObservableObject {
     let id: UUID
     let recordID: CKRecord.ID?
-    @Published var name: String
-    @Published var serverAddress: String
-    @Published var portNumber: String
-    @Published var username: String
-    @Published var password: String
-    @Published var privateKey: String
-    @Published var localPort: String
-    @Published var remoteServer: String
-    @Published var remotePort: String
+    @Published var connectionInfo: ConnectionInfo
+    @Published var tunnelInfo: TunnelInfo
     
     @Published var bytesSent: Int64 = 0
     @Published var bytesReceived: Int64 = 0
@@ -21,41 +29,31 @@ class Connection: Identifiable, Equatable, Hashable, ObservableObject {
     
     init(id: UUID = UUID(),
          recordID: CKRecord.ID? = nil,
-         name: String,
-         serverAddress: String,
-         portNumber: String,
-         username: String,
-         password: String,
-         privateKey: String,
-         localPort: String,
-         remoteServer: String,
-         remotePort: String) {
+         connectionInfo: ConnectionInfo,
+         tunnelInfo: TunnelInfo) {
         
         self.id = id
         self.recordID = recordID
-        self.name = name
-        self.serverAddress = serverAddress
-        self.portNumber = portNumber
-        self.username = username
-        self.password = password
-        self.privateKey = privateKey
-        self.localPort = localPort
-        self.remoteServer = remoteServer
-        self.remotePort = remotePort
+        self.connectionInfo = connectionInfo
+        self.tunnelInfo = tunnelInfo
     }
     
     init(record: CKRecord) {
         self.recordID = record.recordID
         self.id = UUID(uuidString: record.recordID.recordName) ?? UUID()
-        self.name = record["name"] as? String ?? ""
-        self.serverAddress = record["serverAddress"] as? String ?? ""
-        self.portNumber = record["portNumber"] as? String ?? ""
-        self.username = record["username"] as? String ?? ""
-        self.password = record["password"] as? String ?? ""
-        self.privateKey = record["privateKey"] as? String ?? ""
-        self.localPort = record["localPort"] as? String ?? ""
-        self.remoteServer = record["remoteServer"] as? String ?? ""
-        self.remotePort = record["remotePort"] as? String ?? ""
+        
+        let name = record["name"] as? String ?? ""
+        let serverAddress = record["serverAddress"] as? String ?? ""
+        let portNumber = record["portNumber"] as? String ?? ""
+        let username = record["username"] as? String ?? ""
+        let password = record["password"] as? String ?? ""
+        let privateKey = record["privateKey"] as? String ?? ""
+        self.connectionInfo = ConnectionInfo(name: name, serverAddress: serverAddress, portNumber: portNumber, username: username, password: password, privateKey: privateKey)
+        
+        let localPort = record["localPort"] as? String ?? ""
+        let remoteServer = record["remoteServer"] as? String ?? ""
+        let remotePort = record["remotePort"] as? String ?? ""
+        self.tunnelInfo = TunnelInfo(localPort: localPort, remoteServer: remoteServer, remotePort: remotePort)
     }
     
     // Identifiable comfirmity

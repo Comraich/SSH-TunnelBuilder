@@ -64,15 +64,15 @@ struct NavigationList: View {
     }
     
     private func mainViewForConnection(connection: Connection) -> some View {
-        MainView(connectionName: .constant(connection.name),
-                 serverAddress: .constant(connection.serverAddress),
-                 portNumber: .constant(connection.portNumber),
-                 username: .constant(connection.username),
-                 password: .constant(connection.password),
-                 privateKey: .constant(connection.privateKey),
-                 localPort: .constant(connection.localPort),
-                 remoteServer: .constant(connection.remoteServer),
-                 remotePort: .constant(connection.remotePort),
+        MainView(connectionName: .constant(connection.connectionInfo.name),
+                 serverAddress: .constant(connection.connectionInfo.serverAddress),
+                 portNumber: .constant(connection.connectionInfo.portNumber),
+                 username: .constant(connection.connectionInfo.username),
+                 password: .constant(connection.connectionInfo.password),
+                 privateKey: .constant(connection.connectionInfo.privateKey),
+                 localPort: .constant(connection.tunnelInfo.localPort),
+                 remoteServer: .constant(connection.tunnelInfo.remoteServer),
+                 remotePort: .constant(connection.tunnelInfo.remotePort),
                  selectedConnection: .constant(connection),
                  tempConnection: .constant(connectionStore.tempConnection))
             .environmentObject(connectionStore)

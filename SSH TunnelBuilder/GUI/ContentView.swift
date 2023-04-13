@@ -25,15 +25,15 @@ struct ContentView: View {
                 .onChange(of: selectedConnection) { connection in
                     if connectionStore.mode != .edit {
                         if let connection = connection {
-                            connectionName = connection.name
-                            serverAddress = connection.serverAddress
-                            portNumber = connection.portNumber
-                            username = connection.username
-                            password = connection.password
-                            privateKey = connection.privateKey
-                            localPort = connection.localPort
-                            remoteServer = connection.remoteServer
-                            remotePort = connection.remotePort
+                            connectionName = connection.connectionInfo.name
+                            serverAddress = connection.connectionInfo.serverAddress
+                            portNumber = connection.connectionInfo.portNumber
+                            username = connection.connectionInfo.username
+                            password = connection.connectionInfo.password
+                            privateKey = connection.connectionInfo.privateKey
+                            localPort = connection.tunnelInfo.localPort
+                            remoteServer = connection.tunnelInfo.remoteServer
+                            remotePort = connection.tunnelInfo.remotePort
                         } else {
                             connectionName = ""
                             serverAddress = ""
