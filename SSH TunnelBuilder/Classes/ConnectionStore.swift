@@ -175,15 +175,15 @@ class ConnectionStore: ObservableObject {
     }
 
     func updateRecordFields(_ record: CKRecord, withConnection connection: Connection, encodeData: Bool) {
-        record["name"] = connection.connectionInfo.name.data(using: .utf8)
-        record["serverAddress"] = connection.connectionInfo.serverAddress.data(using: .utf8)
-        record["portNumber"] = connection.connectionInfo.portNumber
-        record["username"] = connection.connectionInfo.username.data(using: .utf8)
-        record["password"] = connection.connectionInfo.password.data(using: .utf8)
-        record["privateKey"] = connection.connectionInfo.privateKey.data(using: .utf8)
-        record["localPort"] = String(connection.tunnelInfo.localPort)
-        record["remoteServer"] = connection.tunnelInfo.remoteServer.data(using: .utf8)
-        record["remotePort"] = String(connection.tunnelInfo.remotePort)
+        record["name"] = connection.connectionInfo.name.toBase64()
+        record["serverAddress"] = connection.connectionInfo.serverAddress.toBase64()
+        record["portNumber"] = connection.connectionInfo.portNumber.toBase64()
+        record["username"] = connection.connectionInfo.username.toBase64()
+        record["password"] = connection.connectionInfo.password.toBase64()
+        record["privateKey"] = connection.connectionInfo.privateKey.toBase64()
+        record["localPort"] = connection.tunnelInfo.localPort.toBase64()
+        record["remoteServer"] = connection.tunnelInfo.remoteServer.toBase64()
+        record["remotePort"] = connection.tunnelInfo.remotePort.toBase64()
     }
 
     func deleteConnection(_ connection: Connection) {
