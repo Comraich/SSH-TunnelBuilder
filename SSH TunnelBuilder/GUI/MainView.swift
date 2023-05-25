@@ -62,7 +62,9 @@ struct MainView: View {
                     HStack {
                         Button(action: {
                             if connectionStore.mode == .create {
-                                connectionStore.createConnection(name: connectionName, serverAddress: serverAddress, portNumber: portNumber, username: username, password: password, privateKey: privateKey, localPort: localPort, remoteServer: remoteServer, remotePort: remotePort)
+                                let connectionInfo = ConnectionInfo(name: connectionName, serverAddress: serverAddress, portNumber: portNumber, username: username, password: password, privateKey: privateKey)
+                                let tunnelInfo = TunnelInfo(localPort: localPort, remoteServer: remoteServer, remotePort: remotePort)
+                                connectionStore.newConnection(connectionInfo: connectionInfo, tunnelInfo: tunnelInfo)
                                 connectionStore.mode = .view
                             } else if connectionStore.mode == .view {
                                 // Connect action

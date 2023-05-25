@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		F422C57129E454A7007306BC /* SSH_TunnelBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F422C57029E454A7007306BC /* SSH_TunnelBuilderTests.swift */; };
 		F422C57A29E46B2B007306BC /* DataCounterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F422C57929E46B2B007306BC /* DataCounterView.swift */; };
 		F4700F8129D7669E0069DC6D /* NavigationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4700F8029D7669E0069DC6D /* NavigationView.swift */; };
 		F4700F8329D7670D0069DC6D /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4700F8229D7670D0069DC6D /* MainView.swift */; };
@@ -32,7 +31,6 @@
 
 /* Begin PBXFileReference section */
 		F422C56E29E454A7007306BC /* SSH TunnelBuilderTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "SSH TunnelBuilderTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		F422C57029E454A7007306BC /* SSH_TunnelBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSH_TunnelBuilderTests.swift; sourceTree = "<group>"; };
 		F422C57929E46B2B007306BC /* DataCounterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataCounterView.swift; sourceTree = "<group>"; };
 		F4700F8029D7669E0069DC6D /* NavigationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationView.swift; sourceTree = "<group>"; };
 		F4700F8229D7670D0069DC6D /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
@@ -68,7 +66,6 @@
 		F422C56F29E454A7007306BC /* SSH TunnelBuilderTests */ = {
 			isa = PBXGroup;
 			children = (
-				F422C57029E454A7007306BC /* SSH_TunnelBuilderTests.swift */,
 			);
 			path = "SSH TunnelBuilderTests";
 			sourceTree = "<group>";
@@ -233,7 +230,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F422C57129E454A7007306BC /* SSH_TunnelBuilderTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
