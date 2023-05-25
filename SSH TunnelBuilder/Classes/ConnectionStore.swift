@@ -149,7 +149,7 @@ class ConnectionStore: ObservableObject {
         
         record["uuid"] = connection.id.uuidString
         
-        database.save(record) { savedRecord, error in
+        database.save(record) { _, error in
             if let error = error {
                 print("Error saving connection: \(error)")
                 return
