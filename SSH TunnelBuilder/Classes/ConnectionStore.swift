@@ -132,9 +132,13 @@ class ConnectionStore: ObservableObject {
                         return
                     }
                     
-                    DispatchQueue.main.async {
+                     DispatchQueue.main.async {
                         if let index = self.connections.firstIndex(where: { $0.id == connection.id }) {
-                            self.connections[index] = Connection(record: fetchedRecord)
+                            
+                            if let newConnect = self.recordToConnection(record: fetchedRecord)
+                            {
+                                self.connections[index] = newConnect
+                            }
                         }
                     }
                 }

@@ -37,24 +37,24 @@ class Connection: Identifiable, Equatable, Hashable, ObservableObject {
         self.connectionInfo = connectionInfo
         self.tunnelInfo = tunnelInfo
     }
-    
-    init(record: CKRecord) {
-        self.recordID = record.recordID
-        self.id = UUID(uuidString: record.recordID.recordName) ?? UUID()
-        
-        let name = record["name"] as? String ?? ""
-        let serverAddress = record["serverAddress"] as? String ?? ""
-        let portNumber = record["portNumber"] as? String ?? ""
-        let username = record["username"] as? String ?? ""
-        let password = record["password"] as? String ?? ""
-        let privateKey = record["privateKey"] as? String ?? ""
-        self.connectionInfo = ConnectionInfo(name: name, serverAddress: serverAddress, portNumber: portNumber, username: username, password: password, privateKey: privateKey)
-        
-        let localPort = record["localPort"] as? String ?? ""
-        let remoteServer = record["remoteServer"] as? String ?? ""
-        let remotePort = record["remotePort"] as? String ?? ""
-        self.tunnelInfo = TunnelInfo(localPort: localPort, remoteServer: remoteServer, remotePort: remotePort)
-    }
+
+//    init(record: CKRecord) {
+//        self.recordID = record.recordID
+//        self.id = UUID(uuidString: record.recordID.recordName) ?? UUID()
+//        
+//        let name = record["name"] as? String ?? ""
+//        let serverAddress = record["serverAddress"] as? String ?? ""
+//        let portNumber = record["portNumber"] as? String ?? ""
+//        let username = record["username"] as? String ?? ""
+//        let password = record["password"] as? String ?? ""
+//        let privateKey = record["privateKey"] as? String ?? ""
+//        self.connectionInfo = ConnectionInfo(name: name, serverAddress: serverAddress, portNumber: portNumber, username: username, password: password, privateKey: privateKey)
+//        
+//        let localPort = record["localPort"] as? String ?? ""
+//        let remoteServer = record["remoteServer"] as? String ?? ""
+//        let remotePort = record["remotePort"] as? String ?? ""
+//        self.tunnelInfo = TunnelInfo(localPort: localPort, remoteServer: remoteServer, remotePort: remotePort)
+//    }
     
     // Identifiable comfirmity
     static func == (lhs: Connection, rhs: Connection) -> Bool {
