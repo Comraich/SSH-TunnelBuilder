@@ -20,7 +20,7 @@ struct DataCounterView: View {
                 }
                 Spacer()
                 VStack {
-                    if connection.isActive {
+                    if connection.isConnecting {
                         ProgressView()
                     }
                 }

@@ -26,6 +26,7 @@ class Connection: Identifiable, Equatable, Hashable, ObservableObject {
     @Published var bytesSent: Int64 = 0
     @Published var bytesReceived: Int64 = 0
     @Published var isActive: Bool = false
+    @Published var isConnecting: Bool = false
     
     init(id: UUID = UUID(),
          recordID: CKRecord.ID? = nil,
@@ -66,5 +67,4 @@ class Connection: Identifiable, Equatable, Hashable, ObservableObject {
         hasher.combine(id)
     }
 }
-
 

@@ -2,8 +2,6 @@ import SwiftUI
 
 struct MainView: View {
     @EnvironmentObject var connectionStore: ConnectionStore
-    @State private var connectionState: ConnectionState = .disconnected
-    @Environment(\.connection) private var connection
     
     @Binding var connectionName: String
     @Binding var serverAddress: String
@@ -27,11 +25,31 @@ struct MainView: View {
             VStack {
                 connectionNameRow(label: "Connection Name:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.connectionInfo.name ?? "" }, set: { newValue in connectionStore.tempConnection?.connectionInfo.name = newValue }) : $connectionName)
                     .padding()
+                
+                if let notice = connectionStore.migrationNotice {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.blue)
+                        Text(notice)
+                            .foregroundColor(.primary)
+                        Spacer()
+                        Button(action: { connectionStore.migrationNotice = nil }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(8)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(8)
+                    .padding([.horizontal, .top])
+                }
+                
                 HStack {
-                    if connectionStore.mode == .view {
+                    if connectionStore.mode == .view, let connection = selectedConnection {
                         Text("Connection Status:")
                         Spacer()
-                        connectionIndicator
+                        ConnectionIndicatorView(connection: connection)
                             .padding(.trailing)
                     }
                     
@@ -60,25 +78,29 @@ struct MainView: View {
                     }
                     
                     HStack {
-                        Button(action: {
-                            if connectionStore.mode == .create {
-                                let connectionInfo = ConnectionInfo(name: connectionName, serverAddress: serverAddress, portNumber: portNumber, username: username, password: password, privateKey: privateKey)
-                                let tunnelInfo = TunnelInfo(localPort: localPort, remoteServer: remoteServer, remotePort: remotePort)
-                                connectionStore.newConnection(connectionInfo: connectionInfo, tunnelInfo: tunnelInfo)
-                                connectionStore.mode = .view
-                            } else if connectionStore.mode == .view {
-                                // Connect action
-                            } else if connectionStore.mode == .edit {
-                                if let tempConnection = connectionStore.tempConnection {
-                                    connectionStore.saveConnection(tempConnection, connectionToUpdate: selectedConnection)
-                                    selectedConnection = tempConnection
+                        if connectionStore.mode == .view, let connection = selectedConnection {
+                            ConnectButtonView(connection: connection)
+                                .environmentObject(connectionStore)
+                                .padding()
+                        } else {
+                            Button(action: {
+                                if connectionStore.mode == .create {
+                                    let connectionInfo = ConnectionInfo(name: connectionName, serverAddress: serverAddress, portNumber: portNumber, username: username, password: password, privateKey: privateKey)
+                                    let tunnelInfo = TunnelInfo(localPort: localPort, remoteServer: remoteServer, remotePort: remotePort)
+                                    connectionStore.newConnection(connectionInfo: connectionInfo, tunnelInfo: tunnelInfo)
                                     connectionStore.mode = .view
+                                } else if connectionStore.mode == .edit {
+                                    if let tempConnection = connectionStore.tempConnection {
+                                        connectionStore.saveConnection(tempConnection, connectionToUpdate: selectedConnection)
+                                        selectedConnection = tempConnection
+                                        connectionStore.mode = .view
+                                    }
                                 }
+                            }) {
+                                Text(connectionStore.mode == .create ? "Create" : "Save")
                             }
-                        }) {
-                            Text(connectionStore.mode == .create ? "Create" : connectionStore.mode == .view ? "Connect" : "Save")
+                            .padding()
                         }
-                        .padding()
                     }
                     .padding(.bottom)
                 }
@@ -145,51 +167,166 @@ struct MainView: View {
         }
     }
 
-    private var connectionIndicator: some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(connectionStateColor)
-                .frame(width: 10, height: 10)
-            
-            Text(connectionStateText)
-        }
-    }
-    
-    private var connectionStateText: String {
-        switch connectionState {
-        case .connected:
-            return "Connected"
-        case .disconnected:
-            return "Disconnected"
-        case .connecting:
-            return "Connecting..."
-        }
-    }
-    
-    private var connectionStateColor: Color {
-        switch connectionState {
-        case .connected:
-            return .green
-        case .disconnected:
-            return .red
-        case .connecting:
-            return .orange
-        }
-    }
-    
     func changeMode(to newMode: MainViewMode) {
         connectionStore.mode = newMode
+    } 
+}
+
+struct ConnectionIndicatorView: View {
+    @ObservedObject var connection: Connection
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(connection.isActive ? Color.green : Color.red)
+                .frame(width: 10, height: 10)
+            Text(connection.isActive ? "Connected" : "Disconnected")
+        }
+    }
+}
+
+struct ConnectButtonView: View {
+    @ObservedObject var connection: Connection
+    @EnvironmentObject var connectionStore: ConnectionStore
+    @State private var showCredentialsSheet: Bool = false
+    @State private var tempPassword: String = ""
+    @State private var tempPrivateKey: String = ""
+    @State private var saveCredentials: Bool = false
+    @State private var pemError: String? = nil
+
+    var body: some View {
+        Button(action: {
+            if connection.isActive {
+                connectionStore.disconnect(connection)
+            } else {
+                let hasPassword = !connection.connectionInfo.password.isEmpty
+                let hasKey = !connection.connectionInfo.privateKey.isEmpty
+                if !(hasPassword || hasKey) {
+                    showCredentialsSheet = true
+                    return
+                }
+                connectionStore.connect(connection)
+            }
+        }) {
+            Text(connection.isActive ? "Disconnect" : "Connect")
+        }
+        .sheet(isPresented: $showCredentialsSheet) {
+            HStack {
+                Spacer()
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Enter Credentials")
+                        .font(.title2).bold()
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Password")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        SecureField("Enter password", text: $tempPassword)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Private Key (PEM)")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        TextEditor(text: $tempPrivateKey)
+                            .frame(minHeight: 140)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(Color.secondary.opacity(0.2))
+                            )
+                            .font(.body.monospaced())
+                            .accessibilityLabel("Private Key (PEM)")
+                    }
+
+                    if let pemError = pemError {
+                        Text(pemError)
+                            .foregroundColor(.red)
+                            .font(.footnote)
+                    }
+
+                    Toggle("Save credentials to this connection", isOn: $saveCredentials)
+
+                    Text("Provide either a password or a private key (PEM). If you choose not to save, the credentials will be used for this session only.")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+
+                    HStack {
+                        Spacer()
+                        Button("Cancel") { showCredentialsSheet = false }
+                        Button("Connect") {
+                            // Require at least one credential
+                            let providedPassword = !tempPassword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            let providedKey = !tempPrivateKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            guard providedPassword || providedKey else { return }
+
+                            // Reset previous error
+                            pemError = nil
+
+                            // If a key is provided, validate common PEM structures for SSH keys
+                            if providedKey {
+                                if !isValidPEMPrivateKey(tempPrivateKey) {
+                                    pemError = "Invalid private key format. Supported: OPENSSH, RSA, EC, DSA, or PKCS#8 PRIVATE KEY."
+                                    return
+                                }
+                            }
+
+                            // Apply to the in-memory connection for this session
+                            if providedPassword { connection.connectionInfo.password = tempPassword }
+                            if providedKey { connection.connectionInfo.privateKey = tempPrivateKey }
+
+                            // Clear the alternative credential if only one provided (keeps both if both provided)
+                            if providedPassword && !providedKey { connection.connectionInfo.privateKey = "" }
+                            if providedKey && !providedPassword { connection.connectionInfo.password = "" }
+
+                            // Persist if requested
+                            if saveCredentials {
+                                connectionStore.saveConnection(connection, connectionToUpdate: connection)
+                            }
+
+                            // Start connection
+                            connectionStore.connect(connection)
+                            showCredentialsSheet = false
+                            // Reset temp state
+                            tempPassword = ""
+                            tempPrivateKey = ""
+                            saveCredentials = false
+                        }
+                        .keyboardShortcut(.defaultAction)
+                    }
+                }
+                .padding(20)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color(.windowBackgroundColor))
+                )
+                .shadow(radius: 12)
+                .frame(maxWidth: 560)
+                Spacer()
+            }
+            .frame(minWidth: 480, minHeight: 420)
+#if os(macOS)
+            .presentationSizing(.fitted)
+#endif
+        }
     }
     
-    private func customBinding(for keyPath: ReferenceWritableKeyPath<Connection, String>) -> Binding<String> {
-        Binding<String>(
-            get: { tempConnection?[keyPath: keyPath] ?? "" },
-            set: { newValue in tempConnection?[keyPath: keyPath] = newValue }
-        )
-    }
-    
-    func updateTempConnection(connection: Connection) {
-        tempConnection = connection
+    private func isValidPEMPrivateKey(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let tokens = [
+            "OPENSSH PRIVATE KEY",
+            "RSA PRIVATE KEY",
+            "EC PRIVATE KEY",
+            "DSA PRIVATE KEY",
+            "ED25519 PRIVATE KEY",
+            "PRIVATE KEY" // PKCS#8
+        ]
+        for token in tokens {
+            if trimmed.contains("-----BEGIN \(token)-----") && trimmed.contains("-----END \(token)-----") {
+                return true
+            }
+        }
+        return false
     }
 }
 

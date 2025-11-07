@@ -22,9 +22,9 @@ struct ContentView: View {
         NavigationView {
             NavigationList(connectionStore: connectionStore, selectedConnection: $selectedConnection, mode: $connectionStore.mode)
                 .environmentObject(connectionStore)
-                .onChange(of: selectedConnection) { connection in
+                .onChange(of: selectedConnection) { oldValue, newValue in
                     if connectionStore.mode != .edit {
-                        if let connection = connection {
+                        if let connection = newValue {
                             connectionName = connection.connectionInfo.name
                             serverAddress = connection.connectionInfo.serverAddress
                             portNumber = connection.connectionInfo.portNumber
