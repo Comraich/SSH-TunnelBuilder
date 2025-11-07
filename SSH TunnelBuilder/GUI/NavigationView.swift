@@ -6,13 +6,13 @@ struct NavigationList: View {
     @Binding var mode: MainViewMode
     
     var body: some View {
-        List(connectionStore.connections) { connection in
-            NavigationLink(
-                destination: mainViewForConnection(connection: connection),
-                tag: connection,
-                selection: $selectedConnection
-            ) {
+        List(selection: $selectedConnection) {
+            ForEach(connectionStore.connections) { connection in
                 ConnectionRow(connection: connection, isSelected: selectedConnection == connection)
+                    .tag(connection)
+                    .onTapGesture {
+                        selectedConnection = connection
+                    }
             }
         }
         .listStyle(SidebarListStyle())
@@ -61,20 +61,5 @@ struct NavigationList: View {
     
     func deleteConnection(_ connection: Connection) {
         connectionStore.deleteConnection(connection)
-    }
-    
-    private func mainViewForConnection(connection: Connection) -> some View {
-        MainView(connectionName: .constant(connection.connectionInfo.name),
-                 serverAddress: .constant(connection.connectionInfo.serverAddress),
-                 portNumber: .constant(connection.connectionInfo.portNumber),
-                 username: .constant(connection.connectionInfo.username),
-                 password: .constant(connection.connectionInfo.password),
-                 privateKey: .constant(connection.connectionInfo.privateKey),
-                 localPort: .constant(connection.tunnelInfo.localPort),
-                 remoteServer: .constant(connection.tunnelInfo.remoteServer),
-                 remotePort: .constant(connection.tunnelInfo.remotePort),
-                 selectedConnection: .constant(connection),
-                 tempConnection: .constant(connectionStore.tempConnection))
-            .environmentObject(connectionStore)
     }
 }

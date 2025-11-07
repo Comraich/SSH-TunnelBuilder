@@ -11,6 +11,8 @@
 		F4700F8129D7669E0069DC6D /* NavigationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4700F8029D7669E0069DC6D /* NavigationView.swift */; };
 		F4700F8329D7670D0069DC6D /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4700F8229D7670D0069DC6D /* MainView.swift */; };
 		F4700F8529D768E20069DC6D /* ConnectionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4700F8429D768E20069DC6D /* ConnectionRow.swift */; };
+		F477999A2EBE9AA6006C572E /* NIOSSH in Frameworks */ = {isa = PBXBuildFile; productRef = F47799992EBE9AA6006C572E /* NIOSSH */; };
+		F477999C2EBE9B33006C572E /* NIOSSH in Frameworks */ = {isa = PBXBuildFile; productRef = F477999B2EBE9B33006C572E /* NIOSSH */; };
 		F49EBCB229D367A500A43775 /* ConnectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49EBCB129D367A500A43775 /* ConnectionStore.swift */; };
 		F49EBCB429D367A900A43775 /* Connection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49EBCB329D367A900A43775 /* Connection.swift */; };
 		F4ABBF5827DFDF730097436A /* SSH_TunnelBuilderApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4ABBF5727DFDF730097436A /* SSH_TunnelBuilderApp.swift */; };
@@ -18,6 +20,9 @@
 		F4ABBF5C27DFDF740097436A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F4ABBF5B27DFDF740097436A /* Assets.xcassets */; };
 		F4ABBF5F27DFDF740097436A /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F4ABBF5E27DFDF740097436A /* Preview Assets.xcassets */; };
 		F4B4CA412EBBBEF4003F7C53 /* NIOConcurrencyHelpers in Frameworks */ = {isa = PBXBuildFile; productRef = F4B4CA402EBBBEF4003F7C53 /* NIOConcurrencyHelpers */; };
+		F4B4CA462EBBCA31003F7C53 /* SSHManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4B4CA452EBBCA31003F7C53 /* SSHManager.swift */; };
+		F4B4CA492EBBCA58003F7C53 /* NIOSSH in Frameworks */ = {isa = PBXBuildFile; productRef = F4B4CA482EBBCA58003F7C53 /* NIOSSH */; };
+		F4B4CA4B2EBBD995003F7C53 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4B4CA4A2EBBD995003F7C53 /* KeychainService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -47,6 +52,8 @@
 		F4B4CA422EBBC20E003F7C53 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		F4B4CA432EBBC211003F7C53 /* NOTICE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = NOTICE.txt; sourceTree = "<group>"; };
 		F4B4CA442EBBC2AC003F7C53 /* LICENSE.TXT */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE.TXT; sourceTree = "<group>"; };
+		F4B4CA452EBBCA31003F7C53 /* SSHManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHManager.swift; sourceTree = "<group>"; };
+		F4B4CA4A2EBBD995003F7C53 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -61,6 +68,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F477999A2EBE9AA6006C572E /* NIOSSH in Frameworks */,
+				F4B4CA492EBBCA58003F7C53 /* NIOSSH in Frameworks */,
+				F477999C2EBE9B33006C572E /* NIOSSH in Frameworks */,
 				F4B4CA412EBBBEF4003F7C53 /* NIOConcurrencyHelpers in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -92,6 +102,8 @@
 			children = (
 				F49EBCB129D367A500A43775 /* ConnectionStore.swift */,
 				F49EBCB329D367A900A43775 /* Connection.swift */,
+				F4B4CA452EBBCA31003F7C53 /* SSHManager.swift */,
+				F4B4CA4A2EBBD995003F7C53 /* KeychainService.swift */,
 			);
 			path = Classes;
 			sourceTree = "<group>";
@@ -206,6 +218,7 @@
 			mainGroup = F4ABBF4B27DFDF730097436A;
 			packageReferences = (
 				F4B4CA3F2EBBBEC3003F7C53 /* XCRemoteSwiftPackageReference "swift-nio" */,
+				F4B4CA472EBBCA58003F7C53 /* XCRemoteSwiftPackageReference "swift-nio-ssh" */,
 			);
 			productRefGroup = F4ABBF5527DFDF730097436A /* Products */;
 			projectDirPath = "";
@@ -251,8 +264,10 @@
 				F49EBCB429D367A900A43775 /* Connection.swift in Sources */,
 				F4700F8529D768E20069DC6D /* ConnectionRow.swift in Sources */,
 				F4700F8329D7670D0069DC6D /* MainView.swift in Sources */,
+				F4B4CA4B2EBBD995003F7C53 /* KeychainService.swift in Sources */,
 				F4ABBF5A27DFDF730097436A /* ContentView.swift in Sources */,
 				F4700F8129D7669E0069DC6D /* NavigationView.swift in Sources */,
+				F4B4CA462EBBCA31003F7C53 /* SSHManager.swift in Sources */,
 				F422C57A29E46B2B007306BC /* DataCounterView.swift in Sources */,
 				F49EBCB229D367A500A43775 /* ConnectionStore.swift in Sources */,
 				F4ABBF5827DFDF730097436A /* SSH_TunnelBuilderApp.swift in Sources */,
@@ -453,7 +468,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.6;
 				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "no.comraich.SSH-TunnelBuilder";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -486,7 +501,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.6;
 				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "no.comraich.SSH-TunnelBuilder";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -536,13 +551,35 @@
 				minimumVersion = 2.88.0;
 			};
 		};
+		F4B4CA472EBBCA58003F7C53 /* XCRemoteSwiftPackageReference "swift-nio-ssh" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-nio-ssh.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.11.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		F47799992EBE9AA6006C572E /* NIOSSH */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F4B4CA472EBBCA58003F7C53 /* XCRemoteSwiftPackageReference "swift-nio-ssh" */;
+			productName = NIOSSH;
+		};
+		F477999B2EBE9B33006C572E /* NIOSSH */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = NIOSSH;
+		};
 		F4B4CA402EBBBEF4003F7C53 /* NIOConcurrencyHelpers */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = F4B4CA3F2EBBBEC3003F7C53 /* XCRemoteSwiftPackageReference "swift-nio" */;
 			productName = NIOConcurrencyHelpers;
+		};
+		F4B4CA482EBBCA58003F7C53 /* NIOSSH */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F4B4CA472EBBCA58003F7C53 /* XCRemoteSwiftPackageReference "swift-nio-ssh" */;
+			productName = NIOSSH;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
