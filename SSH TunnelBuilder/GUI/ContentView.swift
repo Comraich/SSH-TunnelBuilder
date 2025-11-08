@@ -22,7 +22,7 @@ struct ContentView: View {
         NavigationView {
             NavigationList(connectionStore: connectionStore, selectedConnection: $selectedConnection, mode: $connectionStore.mode)
                 .environmentObject(connectionStore)
-                .onChange(of: selectedConnection) { oldValue, newValue in
+                .onChange(of: selectedConnection) { _, newValue in
                     if connectionStore.mode != .edit {
                         if let connection = newValue {
                             connectionName = connection.connectionInfo.name
