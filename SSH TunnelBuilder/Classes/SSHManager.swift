@@ -236,11 +236,11 @@ final class SSHManager: ObservableObject {
                     ssh.createChannel(childPromise, channelType: .directTCPIP(direct)) { child, _ in
                         let sent: (Int) -> Void = { [weak self] n in
                             guard let self = self else { return }
-                            DispatchQueue.main.async { self.bytesSent += Int64(n) }
+                            DispatchQueue.main.async { self.connection.bytesSent += Int64(n) }
                         }
                         let received: (Int) -> Void = { [weak self] n in
                             guard let self = self else { return }
-                            DispatchQueue.main.async { self.bytesReceived += Int64(n) }
+                            DispatchQueue.main.async { self.connection.bytesReceived += Int64(n) }
                         }
                         return child.pipeline.addHandlers([
                             SSHToTCPRelay(peer: inbound, onBytes: received)
