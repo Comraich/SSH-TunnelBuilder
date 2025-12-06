@@ -3,6 +3,42 @@ import SwiftUI
 import AppKit
 #endif
 
+// MARK: - PEM Key Helpers (File-private)
+
+enum PEMKeyKind { case pkcs8, ec, rsa, openssh, dsa, ed25519, unknown }
+
+func keyKindDescription(_ kind: PEMKeyKind) -> String {
+    switch kind {
+    case .pkcs8: return "PKCS#8 PRIVATE KEY"
+    case .ec: return "EC PRIVATE KEY (ECDSA)"
+    case .rsa: return "RSA PRIVATE KEY"
+    case .openssh: return "OPENSSH PRIVATE KEY"
+    case .dsa: return "DSA PRIVATE KEY"
+    case .ed25519: return "ED25519 PRIVATE KEY"
+    case .unknown: return "Unknown"
+    }
+}
+
+func detectPEMKeyKind(_ text: String) -> PEMKeyKind {
+    let t = text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+    if t.contains("-----BEGIN ENCRYPTED PRIVATE KEY-----") { return .pkcs8 }
+    if t.contains("-----BEGIN PRIVATE KEY-----") { return .pkcs8 }
+    if t.contains("-----BEGIN EC PRIVATE KEY-----") { return .ec }
+    if t.contains("-----BEGIN RSA PRIVATE KEY-----") { return .rsa }
+    if t.contains("-----BEGIN OPENSSH PRIVATE KEY-----") { return .openssh }
+    if t.contains("-----BEGIN DSA PRIVATE KEY-----") { return .dsa }
+    if t.contains("ED25519 PRIVATE KEY") { return .ed25519 }
+    return .unknown
+}
+
+func isPEMEncrypted(_ text: String) -> Bool {
+    let t = text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+    if t.contains("-----BEGIN ENCRYPTED PRIVATE KEY-----") { return true }
+    if t.contains("PROC-TYPE: 4,ENCRYPTED") { return true }
+    if t.contains("DEK-INFO:") { return true }
+    return false
+}
+
 // A reusable view for displaying a shell command with a copy button.
 struct CommandHelpRow: View {
     let title: String
@@ -66,12 +102,10 @@ struct EditableFieldView: View {
 
 // A self-contained view for showing PEM private key status and warnings.
 struct PEMKeyInfoView: View {
-    enum KeyKind { case pkcs8, ec, rsa, openssh, dsa, ed25519, unknown }
-
     @Binding var keyText: String
     
     private var trimmedKey: String { keyText.trimmingCharacters(in: .whitespacesAndNewlines) }
-    private var kind: KeyKind { detectKeyKind(trimmedKey) }
+    private var kind: PEMKeyKind { detectPEMKeyKind(trimmedKey) }
     private var isEncrypted: Bool { isPEMEncrypted(trimmedKey) }
     private var isSupported: Bool { kind == .pkcs8 || kind == .ec }
     
@@ -129,38 +163,6 @@ struct PEMKeyInfoView: View {
                 Button("Copy") { copyToClipboard(genCmd) }
             }
         }
-    }
-    
-    private func keyKindDescription(_ kind: KeyKind) -> String {
-        switch kind {
-        case .pkcs8: return "PKCS#8 PRIVATE KEY"
-        case .ec: return "EC PRIVATE KEY (ECDSA)"
-        case .rsa: return "RSA PRIVATE KEY"
-        case .openssh: return "OPENSSH PRIVATE KEY"
-        case .dsa: return "DSA PRIVATE KEY"
-        case .ed25519: return "ED25519 PRIVATE KEY"
-        case .unknown: return "Unknown"
-        }
-    }
-
-    private func detectKeyKind(_ text: String) -> KeyKind {
-        let t = text.uppercased()
-        if t.contains("-----BEGIN ENCRYPTED PRIVATE KEY-----") { return .pkcs8 }
-        if t.contains("-----BEGIN PRIVATE KEY-----") { return .pkcs8 }
-        if t.contains("-----BEGIN EC PRIVATE KEY-----") { return .ec }
-        if t.contains("-----BEGIN RSA PRIVATE KEY-----") { return .rsa }
-        if t.contains("-----BEGIN OPENSSH PRIVATE KEY-----") { return .openssh }
-        if t.contains("-----BEGIN DSA PRIVATE KEY-----") { return .dsa }
-        if t.contains("ED25519 PRIVATE KEY") { return .ed25519 }
-        return .unknown
-    }
-
-    private func isPEMEncrypted(_ text: String) -> Bool {
-        let t = text.uppercased()
-        if t.contains("-----BEGIN ENCRYPTED PRIVATE KEY-----") { return true }
-        if t.contains("PROC-TYPE: 4,ENCRYPTED") { return true }
-        if t.contains("DEK-INFO:") { return true }
-        return false
     }
     
     private func copyToClipboard(_ text: String) {
@@ -310,7 +312,7 @@ struct MainView: View {
     // MARK: - Binding Helper
 
     private func formBinding(
-        createKeyPath: WritableKeyPath<ConnectionStore, String>,
+        createKeyPath: ReferenceWritableKeyPath<ConnectionStore, String>,
         editConnectionInfoKeyPath: WritableKeyPath<ConnectionInfo, String>? = nil,
         editTunnelInfoKeyPath: WritableKeyPath<TunnelInfo, String>? = nil,
         viewConnectionInfoKeyPath: KeyPath<ConnectionInfo, String>? = nil,
@@ -620,7 +622,7 @@ struct ConnectButtonView: View {
                 pemError = "Invalid private key format. Supported: OPENSSH, RSA, EC, DSA, or PKCS#8 PRIVATE KEY."
                 return
             }
-            let keyKind = detectKeyKind(tempPrivateKey)
+            let keyKind = detectPEMKeyKind(tempPrivateKey)
             if !(keyKind == .pkcs8 || keyKind == .ec) {
                 pemError = "Unsupported private key type (\(keyKindDescription(keyKind))). Supported: ECDSA (EC PRIVATE KEY) or PKCS#8 PRIVATE KEY."
                 return
@@ -648,22 +650,6 @@ struct ConnectButtonView: View {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let tokens = ["OPENSSH PRIVATE KEY", "RSA PRIVATE KEY", "EC PRIVATE KEY", "DSA PRIVATE KEY", "ED25519 PRIVATE KEY", "PRIVATE KEY"]
         return tokens.contains { trimmed.contains("-----BEGIN \($0)-----") && trimmed.contains("-----END \($0)-----") }
-    }
-    
-    // Minimal detectors needed for validation logic in handleConnect
-    private enum KeyKind { case pkcs8, ec, other }
-    private func detectKeyKind(_ text: String) -> KeyKind {
-        let t = text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        if t.contains("PRIVATE KEY") { return .pkcs8 } // Catches PKCS#8 and ENCRYPTED PKCS#8
-        if t.contains("EC PRIVATE KEY") { return .ec }
-        return .other
-    }
-    private func keyKindDescription(_ kind: PEMKeyInfoView.KeyKind) -> String {
-        switch kind {
-        case .pkcs8: return "PKCS#8"
-        case .ec: return "EC"
-        default: return "Unsupported"
-        }
     }
 }
 

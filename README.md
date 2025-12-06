@@ -1,10 +1,12 @@
 # SSH Tunnel Manager
 
-A SwiftUI app for creating, viewing, editing, and persisting SSH connection profiles (including local port forwarding) and establishing tunnels using SwiftNIO + NIOSSH. Connection records are stored in your private iCloud database via CloudKit.
+A SwiftUI app for creating, viewing, editing, and persisting SSH connection profiles (including local port forwarding) and establishing tunnels using SwiftNIO + NIOSSH. Connection records are stored in your private iCloud database via CloudKit, with sensitive credentials secured in the Keychain.
 
 ## Features
 - Create, edit, and delete SSH connection profiles
 - Store connection details in iCloud (Private Database, custom zone)
+- Securely store passwords and private keys in the Keychain
+- Automatic, one-time migration of secrets from CloudKit to Keychain for older records
 - Password or private key (PEM) authentication
 - Local port forwarding (DirectTCPIP) to a remote host:port
 - Live byte counters (sent/received) per connection
@@ -12,9 +14,10 @@ A SwiftUI app for creating, viewing, editing, and persisting SSH connection prof
 
 ## Architecture
 - Model: `Connection`, `ConnectionInfo`, `TunnelInfo`
-- Persistence: `ConnectionStore` (CloudKit custom zone, fetch/create/update/delete)
+- Persistence: `ConnectionStore` (CloudKit for metadata, Keychain for secrets)
 - Networking: `SSHManager` (SwiftNIO + NIOSSH, direct TCP/IP forwarding)
 - UI: `ContentView`, `NavigationList`, `MainView`, `DataCounterView`, `ConnectionRow`
+- Testing: Unit tests built with the Swift Testing framework.
 
 ## Requirements
 - Xcode 15+ (or newer)
@@ -32,11 +35,11 @@ A SwiftUI app for creating, viewing, editing, and persisting SSH connection prof
 
 CloudKit Notes:
 - Uses a custom private record zone: `ConnectionZone`.
-- Record type: `Connection` with fields `uuid`, `name`, `serverAddress`, `portNumber`, `username`, `password`, `privateKey`, `localPort`, `remoteServer`, `remotePort`.
-- String values are base64-encoded to preserve UTF-8; this is not encryption.
+- Record type: `Connection` with fields for connection metadata.
 
 ## Build & Run
-- Select the app scheme and Run.
+- Select the app scheme and press **Run** (⌘R).
+- To run tests, press **Test** (⌘U).
 - On first launch, the app creates the custom CloudKit zone and fetches existing connections.
 - If no records are found, the UI opens in Create mode.
 
@@ -44,11 +47,11 @@ CloudKit Notes:
 - Create: Click the + button, fill in fields, and click "Create".
 - Edit: Select a connection, click the pencil icon, modify fields, and click "Save".
 - Delete: Select a connection and click the trash icon.
-- Connect: The project includes `SSHManager` to establish a local port-forwarded tunnel. You may wire the "Connect" button to toggle connect/disconnect.
+- Connect: Select a connection and click the "Connect" button to establish a tunnel.
 
 ## Security
-- Passwords and private keys are currently stored in CloudKit as base64 strings (not encryption).
-- For production, consider Keychain storage or encrypting sensitive fields before CloudKit.
+- Passwords and private keys are securely stored in the system Keychain.
+- The app includes logic to migrate any credentials previously stored insecurely in CloudKit to the Keychain, after which they are removed from CloudKit.
 
 ## Third-Party Licenses
 This project uses third-party components:
@@ -69,26 +72,18 @@ See NOTICE.txt for attributions and licensing details.
   - If records don’t appear, try signing out/in of iCloud on the device/simulator and re-run.
 - Swift Package dependencies
   - File → Packages → Reset Package Caches, then Resolve Package Versions.
-  - Ensure your app target links the required products (e.g., NIO, NIOConcurrencyHelpers, NIOSSH) if you’re using the SSH manager.
 - Build issues
   - Product → Clean Build Folder, then rebuild.
-  - Verify the minimum Swift and Xcode versions in README match your environment.
 - SSH connectivity
   - Verify host, port, and credentials independently (e.g., using ssh in Terminal).
-  - Ensure the local port is free and remote host/port are reachable from the network.
   - Check firewall/VPN settings that may block connections.
 
 ## Roadmap
-- Wire up the Connect button to create an `SSHManager` for the selected connection and toggle connect/disconnect.
 - Add user-facing error handling for CloudKit/SSH failures.
-- Optional Keychain integration for credentials.
-- Add a `DataCounterView` to visualize traffic.
-- Add tests with Swift Testing.
+- Add more UI and logic tests.
 
 ## Contributing
 Issues and pull requests are welcome. Please describe your changes and testing steps.
 
 ## License
 See LICENSE.TXT for the full license text.
-
-##
