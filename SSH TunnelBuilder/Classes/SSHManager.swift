@@ -1,7 +1,7 @@
 import Foundation
 import NIO
 import NIOSSH
-import Crypto
+import CryptoKit
 
 // Relay from SSH child channel (SSHChannelData) to a TCP Channel (ByteBuffer)
 private final class SSHToTCPRelay: ChannelInboundHandler {
@@ -91,37 +91,54 @@ private struct AcceptAllHostKeysDelegate: NIOSSHClientServerAuthenticationDelega
     }
 }
 
-// User auth delegate supporting private key (preferred) and password authentication.
-private final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate {
+// User auth delegate supporting private key (preferred) and password fallback.
+private final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate, Sendable {
     let username: String
     let password: String?
     let privateKey: NIOSSHPrivateKey?
 
     init(username: String, password: String?, privateKeyString: String?) {
         self.username = username
-        self.password = password
-        
+        self.password = password?.isEmpty == false ? password : nil
+
         if let keyString = privateKeyString, !keyString.isEmpty {
-            // We need to determine the key type from the PEM string.
-            // We'll try common types like RSA and P256.
-            if let rsaKey = try? RSA.PrivateKey(pemRepresentation: keyString) {
-                self.privateKey = NIOSSHPrivateKey(rsaKey)
-            } else if let p256Key = try? P256.Signing.PrivateKey(pemRepresentation: keyString) {
-                self.privateKey = NIOSSHPrivateKey(p256Key)
+            // Normalize and trim
+            let normalized = keyString
+                .replacingOccurrences(of: "\r\n", with: "\n")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+
+            // Try to parse PEM/PKCS#8 using CryptoKit (ECDSA P-256/P-384/P-521)
+            if let key = FlexibleAuthDelegate.makeNIOSSHPrivateKey(fromPEM: normalized) {
+                self.privateKey = key
             } else {
-                print("Failed to parse private key PEM: Unsupported key type or invalid format.")
                 self.privateKey = nil
+                print("FlexibleAuthDelegate: Failed to parse private key. Supported here: ECDSA P-256/P-384/P-521 (PEM/PKCS#8). OpenSSH Ed25519 keys are not parsed; convert to PEM/PKCS#8 or upgrade dependencies.")
             }
         } else {
             self.privateKey = nil
         }
     }
 
+    private static func makeNIOSSHPrivateKey(fromPEM pem: String) -> NIOSSHPrivateKey? {
+        // Try ECDSA P-256 / P-384 / P-521 (PKCS#8 or SEC1 EC)
+        if let p256 = try? CryptoKit.P256.Signing.PrivateKey(pemRepresentation: pem) {
+            return NIOSSHPrivateKey(p256Key: p256)
+        }
+        if let p384 = try? CryptoKit.P384.Signing.PrivateKey(pemRepresentation: pem) {
+            return NIOSSHPrivateKey(p384Key: p384)
+        }
+        if let p521 = try? CryptoKit.P521.Signing.PrivateKey(pemRepresentation: pem) {
+            return NIOSSHPrivateKey(p521Key: p521)
+        }
+        // Ed25519 OpenSSH keys are not parsed via PEM here; conversion required.
+        return nil
+    }
+
     func nextAuthenticationType(
         availableMethods: NIOSSHAvailableUserAuthenticationMethods,
         nextChallengePromise: EventLoopPromise<NIOSSHUserAuthenticationOffer?>
     ) {
-        // Prefer public key auth if available and we have a key
+        // Prefer public key when we have one and server allows it
         if let key = self.privateKey, availableMethods.contains(.publicKey) {
             let offer = NIOSSHUserAuthenticationOffer(
                 username: username,
@@ -132,8 +149,8 @@ private final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate
             return
         }
 
-        // Fall back to password if available
-        if let password = self.password, !password.isEmpty, availableMethods.contains(.password) {
+        // Fall back to password if available and allowed
+        if let password = self.password, availableMethods.contains(.password) {
             let offer = NIOSSHUserAuthenticationOffer(
                 username: username,
                 serviceName: "ssh-connection",
@@ -142,13 +159,12 @@ private final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate
             nextChallengePromise.succeed(offer)
             return
         }
-        
-        // Signal that we have no more credentials to offer.
+
+        // No more credentials to offer
         nextChallengePromise.succeed(nil)
     }
 }
 
-@MainActor
 final class SSHManager: ObservableObject {
     let connection: Connection
     private var eventLoopGroup: MultiThreadedEventLoopGroup?
@@ -161,19 +177,21 @@ final class SSHManager: ObservableObject {
 
     init(connection: Connection) { self.connection = connection }
 
-    func connect() async {
+    func connect() async throws {
         guard !connection.isActive else { return }
         let hasPassword = !connection.connectionInfo.password.isEmpty
         let hasKey = !connection.connectionInfo.privateKey.isEmpty
         guard hasPassword || hasKey else {
-            print("SSHManager.connect: Missing credentials (no password or private key)")
-            connection.isConnecting = false
-            connection.isActive = false
-            isActive = false
+            print("SSHManager.connect: Missing credentials (provide a password or a private key)")
+            await MainActor.run {
+                connection.isConnecting = false
+                connection.isActive = false
+                isActive = false
+            }
             return
         }
 
-        connection.isConnecting = true
+        await MainActor.run { connection.isConnecting = true }
         let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
         self.eventLoopGroup = group
 
@@ -189,8 +207,10 @@ final class SSHManager: ObservableObject {
 
         let bootstrap = ClientBootstrap(group: group)
             .channelInitializer { channel in
+                let clientConfig = SSHClientConfiguration(userAuthDelegate: authDelegate,
+                                                          serverAuthDelegate: serverDelegate)
                 let sshHandler = NIOSSHHandler(
-                    role: .client(.init(userAuthDelegate: authDelegate, serverAuthDelegate: serverDelegate)),
+                    role: .client(clientConfig),
                     allocator: channel.allocator,
                     inboundChildChannelInitializer: nil
                 )
@@ -200,13 +220,17 @@ final class SSHManager: ObservableObject {
         do {
             let channel = try await bootstrap.connect(host: host, port: port).get()
             self.sshClientChannel = channel
-            self.connection.isActive = true
-            self.isActive = true
-            self.connection.isConnecting = false
+            await MainActor.run {
+                self.connection.isActive = true
+                self.isActive = true
+                self.connection.isConnecting = false
+            }
             try await startLocalListener()
         } catch {
             print("SSH connect failed: \(error)")
+            await MainActor.run { self.connection.isConnecting = false }
             await shutdown()
+            throw error // Re-throw the error for the caller to handle
         }
     }
 
@@ -214,35 +238,38 @@ final class SSHManager: ObservableObject {
         guard let group = self.eventLoopGroup, let sshChannel = self.sshClientChannel else { return }
 
         let localPort = Int(connection.tunnelInfo.localPort) ?? 0
-        let remoteHost = connection.tunnelInfo.remoteServer
-        let remotePort = Int(connection.tunnelInfo.remotePort) ?? 0
 
         let serverBootstrap = ServerBootstrap(group: group)
             .serverChannelOption(ChannelOptions.backlog, value: 8)
             .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .childChannelInitializer { [weak self] inbound in
-                guard let self else {
-                    return inbound.eventLoop.makeFailedFuture(IOError(errnoCode: ECANCELED, reason: "SSHManager deallocated"))
+                guard let strongSelf = self, let sshChannel = strongSelf.sshClientChannel else {
+                    return inbound.eventLoop.makeFailedFuture(IOError(errnoCode: ECANCELED, function: "SSHManager deallocated"))
                 }
+                let targetHost = strongSelf.connection.tunnelInfo.remoteServer
+                let targetPort = Int(strongSelf.connection.tunnelInfo.remotePort) ?? 0
+
+                guard let originator = inbound.remoteAddress else {
+                    let error = IOError(errnoCode: EADDRNOTAVAIL, function: "Inbound channel has no remote address")
+                    return inbound.eventLoop.makeFailedFuture(error)
+                }
+                
+                let childPromise = inbound.eventLoop.makePromise(of: Channel.self)
                 return sshChannel.pipeline.handler(type: NIOSSHHandler.self).flatMap { ssh in
-                    guard let originator = inbound.remoteAddress else {
-                        let error = IOError(errnoCode: EADDRNOTAVAIL, reason: "Inbound channel has no remote address")
-                        return inbound.eventLoop.makeFailedFuture(error)
-                    }
-                    
                     let direct = SSHChannelType.DirectTCPIP(
-                        targetHost: remoteHost,
-                        targetPort: remotePort,
+                        targetHost: targetHost,
+                        targetPort: targetPort,
                         originatorAddress: originator
                     )
 
-                    let childPromise = inbound.eventLoop.makePromise(of: Channel.self)
                     ssh.createChannel(childPromise, channelType: .directTCPIP(direct)) { child, _ in
-                        let sent: (Int) -> Void = { [weak self] n in
-                            Task { @MainActor in self?.handleBytesSent(n) }
+                        let sent: (Int) -> Void = { [weak strongSelf] n in
+                            guard let manager = strongSelf else { return }
+                            Task { @MainActor in manager.handleBytesSent(n) }
                         }
-                        let received: (Int) -> Void = { [weak self] n in
-                            Task { @MainActor in self?.handleBytesReceived(n) }
+                        let received: (Int) -> Void = { [weak strongSelf] n in
+                            guard let manager = strongSelf else { return }
+                            Task { @MainActor in manager.handleBytesReceived(n) }
                         }
                         return child.pipeline.addHandlers([
                             SSHToTCPRelay(peer: inbound, onBytes: received)
@@ -271,6 +298,7 @@ final class SSHManager: ObservableObject {
             }
         } catch {
             print("Local listener bind failed: \(error)")
+            await MainActor.run { self.connection.isConnecting = false }
             await self.disconnect()
             throw error // rethrow to signal connection failure
         }
@@ -281,7 +309,7 @@ final class SSHManager: ObservableObject {
     }
 
     private func shutdown() async {
-        connection.isConnecting = false
+        await MainActor.run { connection.isConnecting = false }
         
         await withTaskGroup(of: Void.self) { group in
             if let sshClientChannel {
@@ -319,12 +347,14 @@ final class SSHManager: ObservableObject {
         }
         
         // Reset state
-        self.connection.isActive = false
-        self.isActive = false
-        self.bytesSent = 0
-        self.bytesReceived = 0
-        self.connection.bytesSent = 0
-        self.connection.bytesReceived = 0
+        await MainActor.run {
+            self.connection.isActive = false
+            self.isActive = false
+            self.bytesSent = 0
+            self.bytesReceived = 0
+            self.connection.bytesSent = 0
+            self.connection.bytesReceived = 0
+        }
     }
     
     // MARK: - Main Actor State Updates

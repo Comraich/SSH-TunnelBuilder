@@ -1,10 +1,18 @@
 import Foundation
 import CloudKit
 
+// A wrapper to make error strings identifiable for SwiftUI Alerts
+struct ErrorAlert: Identifiable {
+    let id = UUID()
+    let message: String
+}
+
 class ConnectionStore: ObservableObject {
     @Published var mode: MainViewMode = .loading
     @Published var connections: [Connection] = []
     @Published var tempConnection: Connection?
+    
+    // Properties for the "Create" form
     @Published var connectionName = ""
     @Published var serverAddress = ""
     @Published var portNumber = ""
@@ -14,7 +22,10 @@ class ConnectionStore: ObservableObject {
     @Published var localPort = ""
     @Published var remoteServer = ""
     @Published var remotePort = ""
+    
     @Published var migrationNotice: String? = nil
+    @Published var cloudNotice: String? = nil
+    @Published var errorAlert: ErrorAlert? = nil
 
     private var managers: [UUID: SSHManager] = [:]
     
@@ -47,8 +58,35 @@ class ConnectionStore: ObservableObject {
                 self.fetchConnections(cursor: nil)
             case .failure(let error):
                 print("Failed to create custom zone: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self.errorAlert = ErrorAlert(message: "Failed to create iCloud zone: \(error.localizedDescription)")
+                    // Fall back to create mode so the UI doesn't stick on Loading
+                    self.mode = .create
+                    // Show a notice explaining the fallback
+                    self.cloudNotice = "CloudKit unavailable. You can create connections locally; credentials will be stored in Keychain."
+                }
             }
         }
+        // Fallback: if we're still loading after a short delay, allow creating locally
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+            guard let self = self else { return }
+            if self.mode == .loading {
+                // Switch to create mode without showing a CloudKit warning: this case may simply be an empty database on first run.
+                self.mode = .create
+            }
+        }
+    }
+    
+    func clearCreateForm() {
+        connectionName = ""
+        serverAddress = ""
+        portNumber = ""
+        username = ""
+        password = ""
+        privateKey = ""
+        localPort = ""
+        remoteServer = ""
+        remotePort = ""
     }
 
     private func manager(for connection: Connection) -> SSHManager {
@@ -60,12 +98,22 @@ class ConnectionStore: ObservableObject {
 
     func connect(_ connection: Connection) {
         let mgr = manager(for: connection)
-        mgr.connect()
+        Task {
+            do {
+                try await mgr.connect()
+            } catch {
+                await MainActor.run {
+                    self.errorAlert = ErrorAlert(message: "Connection failed: \(error.localizedDescription)")
+                }
+            }
+        }
     }
 
     func disconnect(_ connection: Connection) {
         if let mgr = managers[connection.id] {
-            mgr.disconnect()
+            Task {
+                await mgr.disconnect()
+            }
         }
     }
     
@@ -74,26 +122,21 @@ class ConnectionStore: ObservableObject {
 
         let createZoneOperation = CKModifyRecordZonesOperation(recordZonesToSave: [newZone], recordZoneIDsToDelete: nil)
 
-        // Capture the saved zone if CloudKit provides it
         createZoneOperation.perRecordZoneSaveBlock = { _, result in
             switch result {
             case .success(let savedZone):
                 self.customZone = savedZone
             case .failure(let error):
-                // We'll surface the error in the overall result block
                 print("Error saving zone (perRecordZoneSaveBlock): \(error.localizedDescription)")
             }
         }
 
-        // Final result of the operation (success/failure)
         createZoneOperation.modifyRecordZonesResultBlock = { result in
             switch result {
             case .failure(let error):
                 print("Error creating custom zone: \(error.localizedDescription)")
-                print("Detailed error: \(error)")
                 completion(.failure(error))
             case .success:
-                // If perRecordZoneSaveBlock didn't run or didn't set, fall back to local zone
                 if self.customZone == nil {
                     self.customZone = newZone
                 }
@@ -105,7 +148,15 @@ class ConnectionStore: ObservableObject {
     }
     
     func fetchConnections(cursor: CKQueryOperation.Cursor? = nil) {
-        guard let customZoneID = customZone?.zoneID else { return }
+        guard let customZoneID = customZone?.zoneID else {
+            DispatchQueue.main.async { [weak self] in
+                self?.mode = .create
+                if self?.cloudNotice == nil {
+                    self?.cloudNotice = "CloudKit not configured. Working locally with Keychain for credentials."
+                }
+            }
+            return
+        }
 
         let query = CKQuery(recordType: "Connection", predicate: NSPredicate(value: true))
         query.sortDescriptors = []
@@ -144,6 +195,9 @@ class ConnectionStore: ObservableObject {
             switch result {
             case .failure(let error):
                 print("Error fetching connections: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self?.errorAlert = ErrorAlert(message: "Failed to fetch connections: \(error.localizedDescription)")
+                }
             case .success(let cursor):
                 if let cursor = cursor {
                     print("Fetching more connections")
@@ -156,10 +210,10 @@ class ConnectionStore: ObservableObject {
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 self.mode = self.connections.isEmpty ? .create : .view
+                self.cloudNotice = nil
             }
         }
 
-        // Use the configured database instance
         database.add(queryOperation)
     }
 
@@ -169,7 +223,7 @@ class ConnectionStore: ObservableObject {
     }
     
     func updateTempConnection(with connection: Connection) {
-        self.tempConnection = connection
+        self.tempConnection = connection.copy() // Use a copy for editing
     }
 
     func saveConnection(_ connection: Connection, connectionToUpdate: Connection? = nil) {
@@ -183,9 +237,13 @@ class ConnectionStore: ObservableObject {
     func updateConnection(_ connection: Connection, connectionToUpdate: Connection) {
         guard let recordID = connectionToUpdate.recordID else { return }
         
-        database.fetch(withRecordID: recordID) { fetchedRecord, error in
+        database.fetch(withRecordID: recordID) { [weak self] fetchedRecord, error in
+            guard let self = self else { return }
             if let error = error {
                 print("Error fetching record for update: \(error)")
+                DispatchQueue.main.async {
+                    self.errorAlert = ErrorAlert(message: "Failed to save changes: \(error.localizedDescription)")
+                }
                 return
             }
             
@@ -195,14 +253,15 @@ class ConnectionStore: ObservableObject {
                 self.database.save(fetchedRecord) { _, error in
                     if let error = error {
                         print("Error updating connection: \(error)")
+                         DispatchQueue.main.async {
+                            self.errorAlert = ErrorAlert(message: "Failed to update connection: \(error.localizedDescription)")
+                        }
                         return
                     }
                     
                      DispatchQueue.main.async {
                         if let index = self.connections.firstIndex(where: { $0.id == connection.id }) {
-                            
-                            if let newConnect = self.recordToConnection(record: fetchedRecord)
-                            {
+                            if let newConnect = self.recordToConnection(record: fetchedRecord) {
                                 self.connections[index] = newConnect
                             }
                         }
@@ -219,9 +278,13 @@ class ConnectionStore: ObservableObject {
         
         record["uuid"] = connection.id.uuidString
         
-        database.save(record) { _, error in
+        database.save(record) { [weak self] _, error in
+            guard let self = self else { return }
             if let error = error {
                 print("Error saving connection: \(error)")
+                DispatchQueue.main.async {
+                    self.errorAlert = ErrorAlert(message: "Failed to save connection: \(error.localizedDescription)")
+                }
                 return
             }
             
@@ -230,9 +293,13 @@ class ConnectionStore: ObservableObject {
     }
 
     func fetchConnection(withId recordID: CKRecord.ID) {
-        database.fetch(withRecordID: recordID) { fetchedRecord, error in
+        database.fetch(withRecordID: recordID) { [weak self] fetchedRecord, error in
+            guard let self = self else { return }
             if let error = error {
                 print("Error fetching connection: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self.errorAlert = ErrorAlert(message: "Failed to fetch connection: \(error.localizedDescription)")
+                }
                 return
             }
             
@@ -246,18 +313,18 @@ class ConnectionStore: ObservableObject {
     }
 
     func updateRecordFields(_ record: CKRecord, withConnection connection: Connection) {
-        record["name"] = connection.connectionInfo.name.toBase64()
-        record["serverAddress"] = connection.connectionInfo.serverAddress.toBase64()
-        record["portNumber"] = connection.connectionInfo.portNumber.toBase64()
-        record["username"] = connection.connectionInfo.username.toBase64()
+        record["name"] = connection.connectionInfo.name
+        record["serverAddress"] = connection.connectionInfo.serverAddress
+        record["portNumber"] = connection.connectionInfo.portNumber
+        record["username"] = connection.connectionInfo.username
         // Do not store secrets in CloudKit; use Keychain instead
         record["password"] = "" // placeholder
         record["privateKey"] = "" // placeholder
         KeychainService.shared.savePassword(connection.connectionInfo.password, for: connection.id)
         KeychainService.shared.savePrivateKey(connection.connectionInfo.privateKey, for: connection.id)
-        record["localPort"] = connection.tunnelInfo.localPort.toBase64()
-        record["remoteServer"] = connection.tunnelInfo.remoteServer.toBase64()
-        record["remotePort"] = connection.tunnelInfo.remotePort.toBase64()
+        record["localPort"] = connection.tunnelInfo.localPort
+        record["remoteServer"] = connection.tunnelInfo.remoteServer
+        record["remotePort"] = connection.tunnelInfo.remotePort
     }
 
     func deleteConnection(_ connection: Connection) {
@@ -266,6 +333,9 @@ class ConnectionStore: ObservableObject {
         CKContainer.default().privateCloudDatabase.delete(withRecordID: recordID) { [weak self] deletedRecordID, error in
             if let error = error {
                 print("Error deleting connection: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self?.errorAlert = ErrorAlert(message: "Failed to delete connection: \(error.localizedDescription)")
+                }
                 return
             }
             
@@ -281,23 +351,20 @@ class ConnectionStore: ObservableObject {
     }
     
     private func migrateSecretsIfNeeded(from record: CKRecord) {
-        // Ensure we have a UUID to key the Keychain entries
         guard let id = record["uuid"] as? String, let uuid = UUID(uuidString: id) else { return }
         
-        let friendlyName: String = (record["name"] as? String)?.fromBase64() ?? "connection"
+        let friendlyName: String = (record["name"] as? String) ?? "connection"
 
         var didMigrate = false
 
-        if let encodedPassword = record["password"] as? String, !encodedPassword.isEmpty,
-           let decodedPassword = encodedPassword.fromBase64() {
-            KeychainService.shared.savePassword(decodedPassword, for: uuid)
+        if let encodedPassword = record["password"] as? String, !encodedPassword.isEmpty {
+            KeychainService.shared.savePassword(encodedPassword, for: uuid)
             record["password"] = ""
             didMigrate = true
         }
 
-        if let encodedKey = record["privateKey"] as? String, !encodedKey.isEmpty,
-           let decodedKey = encodedKey.fromBase64() {
-            KeychainService.shared.savePrivateKey(decodedKey, for: uuid)
+        if let encodedKey = record["privateKey"] as? String, !encodedKey.isEmpty {
+            KeychainService.shared.savePrivateKey(encodedKey, for: uuid)
             record["privateKey"] = ""
             didMigrate = true
         }
@@ -322,13 +389,13 @@ class ConnectionStore: ObservableObject {
     private func recordToConnection(record: CKRecord) -> Connection? {
         guard let id = record["uuid"] as? String,
               let uuid = UUID(uuidString: id),
-              let name = (record["name"] as? String)?.fromBase64(),
-              let serverAddress = (record["serverAddress"] as? String)?.fromBase64(),
-              let portNumber = (record["portNumber"] as? String)?.fromBase64(),
-              let username = (record["username"] as? String)?.fromBase64(),
-              let localPort = (record["localPort"] as? String)?.fromBase64(),
-              let remoteServer = (record["remoteServer"] as? String)?.fromBase64(),
-              let remotePort = (record["remotePort"] as? String)?.fromBase64() else {
+              let name = record["name"] as? String,
+              let serverAddress = record["serverAddress"] as? String,
+              let portNumber = record["portNumber"] as? String,
+              let username = record["username"] as? String,
+              let localPort = record["localPort"] as? String,
+              let remoteServer = record["remoteServer"] as? String,
+              let remotePort = record["remotePort"] as? String else {
             return nil
         }
         
@@ -339,16 +406,5 @@ class ConnectionStore: ObservableObject {
         let tunnelInfo = TunnelInfo(localPort: localPort, remoteServer: remoteServer, remotePort: remotePort)
 
         return Connection(id: uuid, recordID: record.recordID, connectionInfo: connectionInfo, tunnelInfo: tunnelInfo)
-    }
-}
-
-extension String {
-    func toBase64() -> String {
-        return Data(self.utf8).base64EncodedString()
-    }
-
-    func fromBase64() -> String? {
-        guard let data = Data(base64Encoded: self) else { return nil }
-        return String(data: data, encoding: .utf8)
     }
 }

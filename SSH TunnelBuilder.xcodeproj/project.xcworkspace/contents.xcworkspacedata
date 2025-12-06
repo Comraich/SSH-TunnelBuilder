@@ -4,16 +4,4 @@
    <FileRef
       location = "self:">
    </FileRef>
-   <FileRef
-      location = "group:README.md">
-   </FileRef>
-   <FileRef
-      location = "group:LICENSE.TXT">
-   </FileRef>
-   <FileRef
-      location = "group:.txt">
-   </FileRef>
-   <FileRef
-      location = "group:KeychainService.swift">
-   </FileRef>
 </Workspace>
