@@ -72,16 +72,13 @@ private final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate
         self.password = password?.isEmpty == false ? password : nil
 
         if let keyString = privateKeyString, !keyString.isEmpty {
-            // Normalize and trim
             let normalized = keyString
                 .replacingOccurrences(of: "\r\n", with: "\n")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-
-            // Try to parse PEM/PKCS#8 using CryptoKit (ECDSA P-256/P-384/P-521)
-            if let key = FlexibleAuthDelegate.makeNIOSSHPrivateKey(fromPEM: normalized) {
-                self.privateKey = key
-            } else {
-                self.privateKey = nil
+            
+            self.privateKey = FlexibleAuthDelegate.makeNIOSSHPrivateKey(fromPEM: normalized)
+            
+            if self.privateKey == nil {
                 print("FlexibleAuthDelegate: Failed to parse private key. Supported here: ECDSA P-256/P-384/P-521 (PEM/PKCS#8). OpenSSH Ed25519 keys are not parsed; convert to PEM/PKCS#8 or upgrade dependencies.")
             }
         } else {
@@ -90,17 +87,17 @@ private final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate
     }
 
     private static func makeNIOSSHPrivateKey(fromPEM pem: String) -> NIOSSHPrivateKey? {
-        // Try ECDSA P-256 / P-384 / P-521 (PKCS#8 or SEC1 EC)
-        if let p256 = try? CryptoKit.P256.Signing.PrivateKey(pemRepresentation: pem) {
-            return NIOSSHPrivateKey(p256Key: p256)
+        let keyParsers: [() -> NIOSSHPrivateKey?] = [
+            { try? CryptoKit.P256.Signing.PrivateKey(pemRepresentation: pem).map(NIOSSHPrivateKey.init) },
+            { try? CryptoKit.P384.Signing.PrivateKey(pemRepresentation: pem).map(NIOSSHPrivateKey.init) },
+            { try? CryptoKit.P521.Signing.PrivateKey(pemRepresentation: pem).map(NIOSSHPrivateKey.init) }
+        ]
+
+        for parser in keyParsers {
+            if let key = parser() {
+                return key
+            }
         }
-        if let p384 = try? CryptoKit.P384.Signing.PrivateKey(pemRepresentation: pem) {
-            return NIOSSHPrivateKey(p384Key: p384)
-        }
-        if let p521 = try? CryptoKit.P521.Signing.PrivateKey(pemRepresentation: pem) {
-            return NIOSSHPrivateKey(p521Key: p521)
-        }
-        // Ed25519 OpenSSH keys are not parsed via PEM here; conversion required.
         return nil
     }
     
@@ -111,26 +108,33 @@ private final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate
             offer: offerType
         )
     }
+    
+    private struct AuthStrategy {
+        let method: NIOSSHAvailableUserAuthenticationMethods
+        let offer: () -> NIOSSHUserAuthenticationOffer.Offer?
+    }
 
     func nextAuthenticationType(
         availableMethods: NIOSSHAvailableUserAuthenticationMethods,
         nextChallengePromise: EventLoopPromise<NIOSSHUserAuthenticationOffer?>
     ) {
-        // Prefer public key when we have one and server allows it
-        if let key = self.privateKey, availableMethods.contains(.publicKey) {
-            let offer = makeAuthOffer(with: .privateKey(.init(privateKey: key)))
-            nextChallengePromise.succeed(offer)
-            return
-        }
+        let strategies: [AuthStrategy] = [
+            AuthStrategy(method: .publicKey) {
+                self.privateKey.map { .privateKey(.init(privateKey: $0)) }
+            },
+            AuthStrategy(method: .password) {
+                self.password.map { .password(.init(password: $0)) }
+            }
+        ]
 
-        // Fall back to password if available and allowed
-        if let password = self.password, availableMethods.contains(.password) {
-            let offer = makeAuthOffer(with: .password(.init(password: password)))
-            nextChallengePromise.succeed(offer)
-            return
+        for strategy in strategies {
+            if availableMethods.contains(strategy.method), let offerType = strategy.offer() {
+                let offer = makeAuthOffer(with: offerType)
+                nextChallengePromise.succeed(offer)
+                return
+            }
         }
-
-        // No more credentials to offer
+        
         nextChallengePromise.succeed(nil)
     }
 }

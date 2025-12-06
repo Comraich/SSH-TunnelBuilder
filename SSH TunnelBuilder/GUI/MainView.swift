@@ -29,6 +29,41 @@ struct CommandHelpRow: View {
     }
 }
 
+// A view that switches between a Text label and a TextField/SecureField
+// based on the current MainViewMode.
+struct EditableFieldView: View {
+    let value: Binding<String>
+    let placeholder: String
+    let isSecure: Bool
+    
+    @EnvironmentObject private var connectionStore: ConnectionStore
+
+    init(value: Binding<String>, placeholder: String, isSecure: Bool = false) {
+        self.value = value
+        self.placeholder = placeholder
+        self.isSecure = isSecure
+    }
+
+    var body: some View {
+        if connectionStore.mode == .view {
+            if isSecure {
+                Text(value.wrappedValue.isEmpty ? "" : "<obfuscated>")
+            } else {
+                Text(value.wrappedValue)
+            }
+        } else {
+            Group {
+                if isSecure {
+                    SecureField(placeholder, text: value)
+                } else {
+                    TextField(placeholder, text: value)
+                }
+            }
+            .textFieldStyle(RoundedBorderTextFieldStyle())
+        }
+    }
+}
+
 // A self-contained view for showing PEM private key status and warnings.
 struct PEMKeyInfoView: View {
     enum KeyKind { case pkcs8, ec, rsa, openssh, dsa, ed25519, unknown }
@@ -399,25 +434,7 @@ struct MainView: View {
         HStack {
             Text(label)
             Spacer()
-            if connectionStore.mode == .view {
-                if isSecure {
-                    if value.wrappedValue.isEmpty {
-                        Text("")
-                    } else {
-                        Text("<obfuscated>")
-                    }
-                } else {
-                    Text(value.wrappedValue)
-                }
-            } else {
-                if isSecure {
-                    SecureField("Enter \(label.lowercased())", text: value)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                } else {
-                    TextField("Enter \(label.lowercased())", text: value)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                }
-            }
+            EditableFieldView(value: value, placeholder: "Enter \(label.lowercased())", isSecure: isSecure)
         }
         .padding(.horizontal)
     }
@@ -427,13 +444,8 @@ struct MainView: View {
             Text(label)
                 .font(.largeTitle)
             Spacer()
-            if connectionStore.mode == .view {
-                Text(value.wrappedValue)
-                    .font(.largeTitle)
-            } else {
-                TextField("Enter connection name", text: value)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-            }
+            EditableFieldView(value: value, placeholder: "Enter connection name")
+                .font(.largeTitle)
         }
     }
 
