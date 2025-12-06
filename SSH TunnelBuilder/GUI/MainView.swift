@@ -1,21 +1,13 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 struct MainView: View {
     @EnvironmentObject var connectionStore: ConnectionStore
     
-    @Binding var connectionName: String
-    @Binding var serverAddress: String
-    @Binding var portNumber: String
-    @Binding var username: String
-    @Binding var password: String
-    @Binding var privateKey: String
-    @Binding var localPort: String
-    @Binding var remoteServer: String
-    @Binding var remotePort: String
     @Binding var selectedConnection: Connection?
-    
-    @Binding var tempConnection: Connection?
-    
+        
     var body: some View {
         if connectionStore.mode == .loading {
             Text("Loading connections...")
@@ -23,7 +15,7 @@ struct MainView: View {
                 .padding()
         } else {
             VStack {
-                connectionNameRow(label: "Connection Name:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.connectionInfo.name ?? "" }, set: { newValue in connectionStore.tempConnection?.connectionInfo.name = newValue }) : $connectionName)
+                connectionNameRow(label: "Connection Name:", value: connectionNameBinding)
                     .padding()
                 
                 if let notice = connectionStore.migrationNotice {
@@ -34,6 +26,25 @@ struct MainView: View {
                             .foregroundColor(.primary)
                         Spacer()
                         Button(action: { connectionStore.migrationNotice = nil }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(8)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(8)
+                    .padding([.horizontal, .top])
+                }
+                
+                if let cloud = connectionStore.cloudNotice {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.blue)
+                        Text(cloud)
+                            .foregroundColor(.primary)
+                        Spacer()
+                        Button(action: { connectionStore.cloudNotice = nil }) {
                             Image(systemName: "xmark.circle.fill")
                                 .foregroundColor(.secondary)
                         }
@@ -67,14 +78,14 @@ struct MainView: View {
                 
                 VStack(alignment: .leading) {
                     Group {
-                        infoRow(label: "Server Address:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.connectionInfo.serverAddress ?? "" }, set: { newValue in connectionStore.tempConnection?.connectionInfo.serverAddress = newValue }) : $serverAddress)
-                        infoRow(label: "Port Number:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.connectionInfo.portNumber ?? "" }, set: { newValue in connectionStore.tempConnection?.connectionInfo.portNumber = newValue }) : $portNumber)
-                        infoRow(label: "User Name:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.connectionInfo.username ?? "" }, set: { newValue in connectionStore.tempConnection?.connectionInfo.username = newValue }) : $username)
-                        infoRow(label: "Password:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.connectionInfo.password ?? "" }, set: { newValue in connectionStore.tempConnection?.connectionInfo.password = newValue }) : $password, isSecure: true)
-                        infoRow(label: "Private Key:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.connectionInfo.privateKey ?? "" }, set: { newValue in connectionStore.tempConnection?.connectionInfo.privateKey = newValue }) : $privateKey, isSecure: true)
-                        infoRow(label: "Local Port:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.tunnelInfo.localPort ?? "" }, set: { newValue in connectionStore.tempConnection?.tunnelInfo.localPort = newValue }) : $localPort)
-                        infoRow(label: "Remote Server:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.tunnelInfo.remoteServer ?? "" }, set: { newValue in connectionStore.tempConnection?.tunnelInfo.remoteServer = newValue }) : $remoteServer)
-                        infoRow(label: "Remote Port:", value: connectionStore.mode == .edit ? Binding(get: { connectionStore.tempConnection?.tunnelInfo.remotePort ?? "" }, set: { newValue in connectionStore.tempConnection?.tunnelInfo.remotePort = newValue }) : $remotePort)
+                        infoRow(label: "Server Address:", value: serverAddressBinding)
+                        infoRow(label: "Port Number:", value: portNumberBinding)
+                        infoRow(label: "User Name:", value: usernameBinding)
+                        infoRow(label: "Password:", value: passwordBinding, isSecure: true)
+                        infoRow(label: "Private Key:", value: privateKeyBinding, isSecure: true)
+                        infoRow(label: "Local Port:", value: localPortBinding)
+                        infoRow(label: "Remote Server:", value: remoteServerBinding)
+                        infoRow(label: "Remote Port:", value: remotePortBinding)
                     }
                     
                     HStack {
@@ -85,9 +96,10 @@ struct MainView: View {
                         } else {
                             Button(action: {
                                 if connectionStore.mode == .create {
-                                    let connectionInfo = ConnectionInfo(name: connectionName, serverAddress: serverAddress, portNumber: portNumber, username: username, password: password, privateKey: privateKey)
-                                    let tunnelInfo = TunnelInfo(localPort: localPort, remoteServer: remoteServer, remotePort: remotePort)
+                                    let connectionInfo = ConnectionInfo(name: connectionStore.connectionName, serverAddress: connectionStore.serverAddress, portNumber: connectionStore.portNumber, username: connectionStore.username, password: connectionStore.password, privateKey: connectionStore.privateKey)
+                                    let tunnelInfo = TunnelInfo(localPort: connectionStore.localPort, remoteServer: connectionStore.remoteServer, remotePort: connectionStore.remotePort)
                                     connectionStore.newConnection(connectionInfo: connectionInfo, tunnelInfo: tunnelInfo)
+                                    connectionStore.clearCreateForm()
                                     connectionStore.mode = .view
                                 } else if connectionStore.mode == .edit {
                                     if let tempConnection = connectionStore.tempConnection {
@@ -108,11 +120,14 @@ struct MainView: View {
             }
             .toolbar {
                 ToolbarItemGroup {
-                    if connectionStore.mode == .create {
+                    if connectionStore.mode == .create || connectionStore.mode == .edit {
                         Button(action: {
                             connectionStore.mode = .view
-                            if let firstConnection = connectionStore.connections.first {
-                                selectedConnection = firstConnection
+                            if connectionStore.mode == .create {
+                                connectionStore.clearCreateForm()
+                            }
+                            if selectedConnection == nil {
+                                selectedConnection = connectionStore.connections.first
                             }
                         }) {
                             Text("Cancel")
@@ -123,6 +138,82 @@ struct MainView: View {
         }
     }
     
+    // MARK: - Bindings
+    
+    private var connectionNameBinding: Binding<String> {
+        switch connectionStore.mode {
+        case .create: return $connectionStore.connectionName
+        case .edit: return Binding(get: { connectionStore.tempConnection?.connectionInfo.name ?? "" }, set: { connectionStore.tempConnection?.connectionInfo.name = $0 })
+        default: return .constant(selectedConnection?.connectionInfo.name ?? "")
+        }
+    }
+    
+    private var serverAddressBinding: Binding<String> {
+        switch connectionStore.mode {
+        case .create: return $connectionStore.serverAddress
+        case .edit: return Binding(get: { connectionStore.tempConnection?.connectionInfo.serverAddress ?? "" }, set: { connectionStore.tempConnection?.connectionInfo.serverAddress = $0 })
+        default: return .constant(selectedConnection?.connectionInfo.serverAddress ?? "")
+        }
+    }
+    
+    private var portNumberBinding: Binding<String> {
+        switch connectionStore.mode {
+        case .create: return $connectionStore.portNumber
+        case .edit: return Binding(get: { connectionStore.tempConnection?.connectionInfo.portNumber ?? "" }, set: { connectionStore.tempConnection?.connectionInfo.portNumber = $0 })
+        default: return .constant(selectedConnection?.connectionInfo.portNumber ?? "")
+        }
+    }
+    
+    private var usernameBinding: Binding<String> {
+        switch connectionStore.mode {
+        case .create: return $connectionStore.username
+        case .edit: return Binding(get: { connectionStore.tempConnection?.connectionInfo.username ?? "" }, set: { connectionStore.tempConnection?.connectionInfo.username = $0 })
+        default: return .constant(selectedConnection?.connectionInfo.username ?? "")
+        }
+    }
+    
+    private var passwordBinding: Binding<String> {
+        switch connectionStore.mode {
+        case .create: return $connectionStore.password
+        case .edit: return Binding(get: { connectionStore.tempConnection?.connectionInfo.password ?? "" }, set: { connectionStore.tempConnection?.connectionInfo.password = $0 })
+        default: return .constant(selectedConnection?.connectionInfo.password ?? "")
+        }
+    }
+    
+    private var privateKeyBinding: Binding<String> {
+        switch connectionStore.mode {
+        case .create: return $connectionStore.privateKey
+        case .edit: return Binding(get: { connectionStore.tempConnection?.connectionInfo.privateKey ?? "" }, set: { connectionStore.tempConnection?.connectionInfo.privateKey = $0 })
+        default: return .constant(selectedConnection?.connectionInfo.privateKey ?? "")
+        }
+    }
+    
+    private var localPortBinding: Binding<String> {
+        switch connectionStore.mode {
+        case .create: return $connectionStore.localPort
+        case .edit: return Binding(get: { connectionStore.tempConnection?.tunnelInfo.localPort ?? "" }, set: { connectionStore.tempConnection?.tunnelInfo.localPort = $0 })
+        default: return .constant(selectedConnection?.tunnelInfo.localPort ?? "")
+        }
+    }
+    
+    private var remoteServerBinding: Binding<String> {
+        switch connectionStore.mode {
+        case .create: return $connectionStore.remoteServer
+        case .edit: return Binding(get: { connectionStore.tempConnection?.tunnelInfo.remoteServer ?? "" }, set: { connectionStore.tempConnection?.tunnelInfo.remoteServer = $0 })
+        default: return .constant(selectedConnection?.tunnelInfo.remoteServer ?? "")
+        }
+    }
+    
+    private var remotePortBinding: Binding<String> {
+        switch connectionStore.mode {
+        case .create: return $connectionStore.remotePort
+        case .edit: return Binding(get: { connectionStore.tempConnection?.tunnelInfo.remotePort ?? "" }, set: { connectionStore.tempConnection?.tunnelInfo.remotePort = $0 })
+        default: return .constant(selectedConnection?.tunnelInfo.remotePort ?? "")
+        }
+    }
+    
+    // MARK: - Views
+
     @ViewBuilder
     private func infoRow(label: String, value: Binding<String>, isSecure: Bool = false) -> some View {
         HStack {
@@ -162,7 +253,6 @@ struct MainView: View {
             } else {
                 TextField("Enter connection name", text: value)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
-                    // .font(.largeTitle)
             }
         }
     }
@@ -193,6 +283,27 @@ struct ConnectButtonView: View {
     @State private var tempPrivateKey: String = ""
     @State private var saveCredentials: Bool = false
     @State private var pemError: String? = nil
+    @State private var showKeyInfo: Bool = false
+    @AppStorage("KeyInfoPopoverDismissed") private var keyInfoPopoverDismissed: Bool = false
+
+    // Key detection helpers
+    private enum KeyKind { case pkcs8, ec, rsa, openssh, dsa, ed25519, unknown }
+
+    private var currentKeyKind: KeyKind { detectKeyKind(tempPrivateKey) }
+    private var currentKeyIsEncrypted: Bool { isPEMEncrypted(tempPrivateKey) }
+    private var currentKeyIsSupported: Bool { currentKeyKind == .pkcs8 || currentKeyKind == .ec }
+
+    private func keyKindDescription(_ kind: KeyKind) -> String {
+        switch kind {
+        case .pkcs8: return "PKCS#8 PRIVATE KEY"
+        case .ec: return "EC PRIVATE KEY (ECDSA)"
+        case .rsa: return "RSA PRIVATE KEY"
+        case .openssh: return "OPENSSH PRIVATE KEY"
+        case .dsa: return "DSA PRIVATE KEY"
+        case .ed25519: return "ED25519 PRIVATE KEY"
+        case .unknown: return "Unknown"
+        }
+    }
 
     var body: some View {
         Button(action: {
@@ -226,9 +337,68 @@ struct ConnectButtonView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Private Key (PEM)")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                        HStack(spacing: 6) {
+                            Text("Private Key (PEM)")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            Button(action: { if !keyInfoPopoverDismissed { showKeyInfo.toggle() } }) {
+                                Image(systemName: "info.circle")
+                            }
+                            .buttonStyle(.plain)
+                            .help("Key format help")
+                            .popover(isPresented: $showKeyInfo) {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text("Key format help")
+                                        .font(.headline)
+
+                                    Text("Supported:")
+                                        .font(.subheadline)
+                                    Text("• ECDSA P-256/P-384/P-521 in PEM (EC PRIVATE KEY) or PKCS#8 (PRIVATE KEY)")
+                                        .font(.footnote)
+
+                                    Text("Not supported in this build:")
+                                        .font(.subheadline)
+                                    Text("• OpenSSH Ed25519, RSA, DSA")
+                                        .font(.footnote)
+
+                                    Divider()
+                                    let genCmd = "ssh-keygen -t ecdsa -b 256 -m PEM -f ~/.ssh/id_ecdsa"
+                                    HStack(alignment: .firstTextBaseline) {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Generate an ECDSA key (recommended):")
+                                                .font(.subheadline)
+                                            Text(genCmd)
+                                                .font(.body.monospaced())
+                                        }
+                                        Spacer(minLength: 8)
+                                        Button("Copy") { copyToClipboard(genCmd) }
+                                    }
+
+                                    Divider()
+                                    let encCmd = "openssl pkcs8 -topk8 -v2 aes-256-cbc -in id_ecdsa -out id_ecdsa_encrypted.pem"
+                                    HStack(alignment: .firstTextBaseline) {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Encrypt an existing PEM key with a passphrase (PKCS#8):")
+                                                .font(.subheadline)
+                                            Text(encCmd)
+                                                .font(.body.monospaced())
+                                        }
+                                        Spacer(minLength: 8)
+                                        Button("Copy") { copyToClipboard(encCmd) }
+                                    }
+
+                                    Divider()
+                                    Text("If you currently have an OpenSSH Ed25519 key, generate an ECDSA key for this release.")
+                                        .font(.footnote)
+                                        .foregroundColor(.secondary)
+
+                                    Toggle("Don't show again", isOn: $keyInfoPopoverDismissed)
+                                        .toggleStyle(.checkbox)
+                                }
+                                .padding(14)
+                                .frame(minWidth: 480)
+                            }
+                        }
                         TextEditor(text: $tempPrivateKey)
                             .frame(minHeight: 140)
                             .overlay(
@@ -237,6 +407,41 @@ struct ConnectButtonView: View {
                             )
                             .font(.body.monospaced())
                             .accessibilityLabel("Private Key (PEM)")
+                    }
+
+                    if !tempPrivateKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        HStack(spacing: 6) {
+                            Image(systemName: currentKeyIsSupported ? "checkmark.circle" : "exclamationmark.triangle")
+                                .foregroundColor(currentKeyIsSupported ? .green : .orange)
+                            Text("Detected key: \(keyKindDescription(currentKeyKind))")
+                                .foregroundColor(currentKeyIsSupported ? .green : .orange)
+                                .font(.footnote)
+                        }
+                        if !currentKeyIsEncrypted {
+                            HStack(spacing: 6) {
+                                Image(systemName: "lock.open")
+                                    .foregroundColor(.orange)
+                                Text("Warning: Key appears unencrypted. Prefer an encrypted PEM (PKCS#8) with a passphrase.")
+                                    .foregroundColor(.orange)
+                                    .font(.footnote)
+                            }
+                        }
+                    }
+                    if currentKeyKind == .openssh || currentKeyKind == .ed25519 {
+                        let genCmdInline = "ssh-keygen -t ecdsa -b 256 -m PEM -f ~/.ssh/id_ecdsa"
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Image(systemName: "lightbulb")
+                                .foregroundColor(.yellow)
+                            Text("Detected OpenSSH/Ed25519 key. For this release, generate an ECDSA key:")
+                                .font(.footnote)
+                            Spacer(minLength: 8)
+                        }
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(genCmdInline)
+                                .font(.body.monospaced())
+                            Spacer(minLength: 8)
+                            Button("Copy") { copyToClipboard(genCmdInline) }
+                        }
                     }
 
                     if let pemError = pemError {
@@ -267,6 +472,14 @@ struct ConnectButtonView: View {
                             if providedKey {
                                 if !isValidPEMPrivateKey(tempPrivateKey) {
                                     pemError = "Invalid private key format. Supported: OPENSSH, RSA, EC, DSA, or PKCS#8 PRIVATE KEY."
+                                    return
+                                }
+                            }
+
+                            // If key provided, block unsupported types
+                            if providedKey {
+                                if !(currentKeyKind == .pkcs8 || currentKeyKind == .ec) {
+                                    pemError = "Unsupported private key type (\(keyKindDescription(currentKeyKind))). Supported: ECDSA (EC PRIVATE KEY) or PKCS#8 PRIVATE KEY."
                                     return
                                 }
                             }
@@ -327,6 +540,34 @@ struct ConnectButtonView: View {
             }
         }
         return false
+    }
+
+    private func detectKeyKind(_ text: String) -> KeyKind {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        if t.contains("-----BEGIN ENCRYPTED PRIVATE KEY-----") { return .pkcs8 }
+        if t.contains("-----BEGIN PRIVATE KEY-----") { return .pkcs8 }
+        if t.contains("-----BEGIN EC PRIVATE KEY-----") { return .ec }
+        if t.contains("-----BEGIN RSA PRIVATE KEY-----") { return .rsa }
+        if t.contains("-----BEGIN OPENSSH PRIVATE KEY-----") { return .openssh }
+        if t.contains("-----BEGIN DSA PRIVATE KEY-----") { return .dsa }
+        if t.contains("ED25519 PRIVATE KEY") { return .ed25519 }
+        return .unknown
+    }
+
+    private func isPEMEncrypted(_ text: String) -> Bool {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        if t.contains("-----BEGIN ENCRYPTED PRIVATE KEY-----") { return true }
+        if t.contains("PROC-TYPE: 4,ENCRYPTED") { return true }
+        if t.contains("DEK-INFO:") { return true }
+        return false
+    }
+
+    private func copyToClipboard(_ text: String) {
+        #if os(macOS)
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(text, forType: .string)
+        #endif
     }
 }
 
