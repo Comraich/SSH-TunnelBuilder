@@ -96,4 +96,4 @@ iOSInjectionProject/
 .DS_Store
 
 # VS Code settings file
-.vscode
+**/*.vscode/*
