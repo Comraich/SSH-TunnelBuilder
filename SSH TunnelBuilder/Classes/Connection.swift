@@ -26,6 +26,7 @@ class Connection: Identifiable, Equatable, Hashable, ObservableObject {
     @Published var bytesSent: Int64 = 0
     @Published var bytesReceived: Int64 = 0
     @Published var isActive: Bool = false
+    @Published var isConnecting: Bool = false
     
     init(id: UUID = UUID(),
          recordID: CKRecord.ID? = nil,
@@ -38,23 +39,14 @@ class Connection: Identifiable, Equatable, Hashable, ObservableObject {
         self.tunnelInfo = tunnelInfo
     }
 
-//    init(record: CKRecord) {
-//        self.recordID = record.recordID
-//        self.id = UUID(uuidString: record.recordID.recordName) ?? UUID()
-//        
-//        let name = record["name"] as? String ?? ""
-//        let serverAddress = record["serverAddress"] as? String ?? ""
-//        let portNumber = record["portNumber"] as? String ?? ""
-//        let username = record["username"] as? String ?? ""
-//        let password = record["password"] as? String ?? ""
-//        let privateKey = record["privateKey"] as? String ?? ""
-//        self.connectionInfo = ConnectionInfo(name: name, serverAddress: serverAddress, portNumber: portNumber, username: username, password: password, privateKey: privateKey)
-//        
-//        let localPort = record["localPort"] as? String ?? ""
-//        let remoteServer = record["remoteServer"] as? String ?? ""
-//        let remotePort = record["remotePort"] as? String ?? ""
-//        self.tunnelInfo = TunnelInfo(localPort: localPort, remoteServer: remoteServer, remotePort: remotePort)
-//    }
+    func copy() -> Connection {
+        let newConnection = Connection(id: self.id, recordID: self.recordID, connectionInfo: self.connectionInfo, tunnelInfo: self.tunnelInfo)
+        newConnection.bytesSent = self.bytesSent
+        newConnection.bytesReceived = self.bytesReceived
+        newConnection.isActive = self.isActive
+        newConnection.isConnecting = self.isConnecting
+        return newConnection
+    }
     
     // Identifiable comfirmity
     static func == (lhs: Connection, rhs: Connection) -> Bool {
@@ -66,5 +58,3 @@ class Connection: Identifiable, Equatable, Hashable, ObservableObject {
         hasher.combine(id)
     }
 }
-
-
