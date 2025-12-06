@@ -62,7 +62,7 @@ private struct AcceptAllHostKeysDelegate: NIOSSHClientServerAuthenticationDelega
 }
 
 // User auth delegate supporting private key (preferred) and password fallback.
-private final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate, Sendable {
+final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate, Sendable {
     let username: String
     let password: String?
     let privateKey: NIOSSHPrivateKey?
@@ -88,9 +88,9 @@ private final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate
 
     private static func makeNIOSSHPrivateKey(fromPEM pem: String) -> NIOSSHPrivateKey? {
         let keyParsers: [() -> NIOSSHPrivateKey?] = [
-            { try? CryptoKit.P256.Signing.PrivateKey(pemRepresentation: pem).map(NIOSSHPrivateKey.init) },
-            { try? CryptoKit.P384.Signing.PrivateKey(pemRepresentation: pem).map(NIOSSHPrivateKey.init) },
-            { try? CryptoKit.P521.Signing.PrivateKey(pemRepresentation: pem).map(NIOSSHPrivateKey.init) }
+            { (try? CryptoKit.P256.Signing.PrivateKey(pemRepresentation: pem)).map(NIOSSHPrivateKey.init) },
+            { (try? CryptoKit.P384.Signing.PrivateKey(pemRepresentation: pem)).map(NIOSSHPrivateKey.init) },
+            { (try? CryptoKit.P521.Signing.PrivateKey(pemRepresentation: pem)).map(NIOSSHPrivateKey.init) }
         ]
 
         for parser in keyParsers {
