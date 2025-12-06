@@ -29,6 +29,114 @@ struct CommandHelpRow: View {
     }
 }
 
+// A self-contained view for showing PEM private key status and warnings.
+struct PEMKeyInfoView: View {
+    enum KeyKind { case pkcs8, ec, rsa, openssh, dsa, ed25519, unknown }
+
+    @Binding var keyText: String
+    
+    private var trimmedKey: String { keyText.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var kind: KeyKind { detectKeyKind(trimmedKey) }
+    private var isEncrypted: Bool { isPEMEncrypted(trimmedKey) }
+    private var isSupported: Bool { kind == .pkcs8 || kind == .ec }
+    
+    var body: some View {
+        if !trimmedKey.isEmpty {
+            keyStatusView
+            
+            if !isEncrypted {
+                unencryptedKeyWarning
+            }
+            
+            if kind == .openssh || kind == .ed25519 {
+                unsupportedKeyHelp
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var keyStatusView: some View {
+        HStack(spacing: 6) {
+            Image(systemName: isSupported ? "checkmark.circle" : "exclamationmark.triangle")
+                .foregroundColor(isSupported ? .green : .orange)
+            Text("Detected key: \(keyKindDescription(kind))")
+                .foregroundColor(isSupported ? .green : .orange)
+                .font(.footnote)
+        }
+    }
+    
+    @ViewBuilder
+    private var unencryptedKeyWarning: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "lock.open")
+                .foregroundColor(.orange)
+            Text("Warning: Key appears unencrypted. Prefer an encrypted PEM (PKCS#8) with a passphrase.")
+                .foregroundColor(.orange)
+                .font(.footnote)
+        }
+    }
+    
+    @ViewBuilder
+    private var unsupportedKeyHelp: some View {
+        VStack(alignment: .leading) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Image(systemName: "lightbulb")
+                    .foregroundColor(.yellow)
+                Text("Detected OpenSSH/Ed25519 key. For this release, generate an ECDSA key:")
+                    .font(.footnote)
+                Spacer(minLength: 8)
+            }
+            HStack(alignment: .firstTextBaseline) {
+                let genCmd = "ssh-keygen -t ecdsa -b 256 -m PEM -f ~/.ssh/id_ecdsa"
+                Text(genCmd)
+                    .font(.body.monospaced())
+                Spacer(minLength: 8)
+                Button("Copy") { copyToClipboard(genCmd) }
+            }
+        }
+    }
+    
+    private func keyKindDescription(_ kind: KeyKind) -> String {
+        switch kind {
+        case .pkcs8: return "PKCS#8 PRIVATE KEY"
+        case .ec: return "EC PRIVATE KEY (ECDSA)"
+        case .rsa: return "RSA PRIVATE KEY"
+        case .openssh: return "OPENSSH PRIVATE KEY"
+        case .dsa: return "DSA PRIVATE KEY"
+        case .ed25519: return "ED25519 PRIVATE KEY"
+        case .unknown: return "Unknown"
+        }
+    }
+
+    private func detectKeyKind(_ text: String) -> KeyKind {
+        let t = text.uppercased()
+        if t.contains("-----BEGIN ENCRYPTED PRIVATE KEY-----") { return .pkcs8 }
+        if t.contains("-----BEGIN PRIVATE KEY-----") { return .pkcs8 }
+        if t.contains("-----BEGIN EC PRIVATE KEY-----") { return .ec }
+        if t.contains("-----BEGIN RSA PRIVATE KEY-----") { return .rsa }
+        if t.contains("-----BEGIN OPENSSH PRIVATE KEY-----") { return .openssh }
+        if t.contains("-----BEGIN DSA PRIVATE KEY-----") { return .dsa }
+        if t.contains("ED25519 PRIVATE KEY") { return .ed25519 }
+        return .unknown
+    }
+
+    private func isPEMEncrypted(_ text: String) -> Bool {
+        let t = text.uppercased()
+        if t.contains("-----BEGIN ENCRYPTED PRIVATE KEY-----") { return true }
+        if t.contains("PROC-TYPE: 4,ENCRYPTED") { return true }
+        if t.contains("DEK-INFO:") { return true }
+        return false
+    }
+    
+    private func copyToClipboard(_ text: String) {
+        #if os(macOS)
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(text, forType: .string)
+        #endif
+    }
+}
+
 struct MainView: View {
     @EnvironmentObject var connectionStore: ConnectionStore
     
@@ -175,7 +283,7 @@ struct MainView: View {
     ) -> Binding<String> {
         switch connectionStore.mode {
         case .create:
-            return $connectionStore[dynamicMember: createKeyPath as! ReferenceWritableKeyPath<ConnectionStore, String>]
+            return $connectionStore[dynamicMember: createKeyPath]
         case .edit:
             return Binding(
                 get: {
@@ -358,25 +466,6 @@ struct ConnectButtonView: View {
     @State private var showKeyInfo: Bool = false
     @AppStorage("KeyInfoPopoverDismissed") private var keyInfoPopoverDismissed: Bool = false
 
-    // Key detection helpers
-    private enum KeyKind { case pkcs8, ec, rsa, openssh, dsa, ed25519, unknown }
-
-    private var currentKeyKind: KeyKind { detectKeyKind(tempPrivateKey) }
-    private var currentKeyIsEncrypted: Bool { isPEMEncrypted(tempPrivateKey) }
-    private var currentKeyIsSupported: Bool { currentKeyKind == .pkcs8 || currentKeyKind == .ec }
-
-    private func keyKindDescription(_ kind: KeyKind) -> String {
-        switch kind {
-        case .pkcs8: return "PKCS#8 PRIVATE KEY"
-        case .ec: return "EC PRIVATE KEY (ECDSA)"
-        case .rsa: return "RSA PRIVATE KEY"
-        case .openssh: return "OPENSSH PRIVATE KEY"
-        case .dsa: return "DSA PRIVATE KEY"
-        case .ed25519: return "ED25519 PRIVATE KEY"
-        case .unknown: return "Unknown"
-        }
-    }
-
     var body: some View {
         Button(action: {
             if connection.isActive {
@@ -466,42 +555,9 @@ struct ConnectButtonView: View {
                             .font(.body.monospaced())
                             .accessibilityLabel("Private Key (PEM)")
                     }
-
-                    if !tempPrivateKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        HStack(spacing: 6) {
-                            Image(systemName: currentKeyIsSupported ? "checkmark.circle" : "exclamationmark.triangle")
-                                .foregroundColor(currentKeyIsSupported ? .green : .orange)
-                            Text("Detected key: \(keyKindDescription(currentKeyKind))")
-                                .foregroundColor(currentKeyIsSupported ? .green : .orange)
-                                .font(.footnote)
-                        }
-                        if !currentKeyIsEncrypted {
-                            HStack(spacing: 6) {
-                                Image(systemName: "lock.open")
-                                    .foregroundColor(.orange)
-                                Text("Warning: Key appears unencrypted. Prefer an encrypted PEM (PKCS#8) with a passphrase.")
-                                    .foregroundColor(.orange)
-                                    .font(.footnote)
-                            }
-                        }
-                    }
-                    if currentKeyKind == .openssh || currentKeyKind == .ed25519 {
-                        let genCmdInline = "ssh-keygen -t ecdsa -b 256 -m PEM -f ~/.ssh/id_ecdsa"
-                        HStack(alignment: .firstTextBaseline, spacing: 6) {
-                            Image(systemName: "lightbulb")
-                                .foregroundColor(.yellow)
-                            Text("Detected OpenSSH/Ed25519 key. For this release, generate an ECDSA key:")
-                                .font(.footnote)
-                            Spacer(minLength: 8)
-                        }
-                        HStack(alignment: .firstTextBaseline) {
-                            Text(genCmdInline)
-                                .font(.body.monospaced())
-                            Spacer(minLength: 8)
-                            Button("Copy") { copyToClipboard(genCmdInline) }
-                        }
-                    }
-
+                    
+                    PEMKeyInfoView(keyText: $tempPrivateKey)
+                    
                     if let pemError = pemError {
                         Text(pemError)
                             .foregroundColor(.red)
@@ -518,50 +574,8 @@ struct ConnectButtonView: View {
                         Spacer()
                         Button("Cancel") { showCredentialsSheet = false }
                         Button("Connect") {
-                            // Require at least one credential
-                            let providedPassword = !tempPassword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                            let providedKey = !tempPrivateKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                            guard providedPassword || providedKey else { return }
-
-                            // Reset previous error
-                            pemError = nil
-
-                            // If a key is provided, validate common PEM structures for SSH keys
-                            if providedKey {
-                                if !isValidPEMPrivateKey(tempPrivateKey) {
-                                    pemError = "Invalid private key format. Supported: OPENSSH, RSA, EC, DSA, or PKCS#8 PRIVATE KEY."
-                                    return
-                                }
-                            }
-
-                            // If key provided, block unsupported types
-                            if providedKey {
-                                if !(currentKeyKind == .pkcs8 || currentKeyKind == .ec) {
-                                    pemError = "Unsupported private key type (\(keyKindDescription(currentKeyKind))). Supported: ECDSA (EC PRIVATE KEY) or PKCS#8 PRIVATE KEY."
-                                    return
-                                }
-                            }
-
-                            // Apply to the in-memory connection for this session
-                            if providedPassword { connection.connectionInfo.password = tempPassword }
-                            if providedKey { connection.connectionInfo.privateKey = tempPrivateKey }
-
-                            // Clear the alternative credential if only one provided (keeps both if both provided)
-                            if providedPassword && !providedKey { connection.connectionInfo.privateKey = "" }
-                            if providedKey && !providedPassword { connection.connectionInfo.password = "" }
-
-                            // Persist if requested
-                            if saveCredentials {
-                                connectionStore.saveConnection(connection, connectionToUpdate: connection)
-                            }
-
-                            // Start connection
-                            connectionStore.connect(connection)
-                            showCredentialsSheet = false
-                            // Reset temp state
-                            tempPassword = ""
-                            tempPrivateKey = ""
-                            saveCredentials = false
+                            // Logic to validate and connect...
+                            handleConnect()
                         }
                         .keyboardShortcut(.defaultAction)
                     }
@@ -582,50 +596,62 @@ struct ConnectButtonView: View {
         }
     }
     
-    private func isValidPEMPrivateKey(_ text: String) -> Bool {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let tokens = [
-            "OPENSSH PRIVATE KEY",
-            "RSA PRIVATE KEY",
-            "EC PRIVATE KEY",
-            "DSA PRIVATE KEY",
-            "ED25519 PRIVATE KEY",
-            "PRIVATE KEY" // PKCS#8
-        ]
-        for token in tokens {
-            if trimmed.contains("-----BEGIN \(token)-----") && trimmed.contains("-----END \(token)-----") {
-                return true
+    private func handleConnect() {
+        let providedPassword = !tempPassword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let providedKey = !tempPrivateKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        guard providedPassword || providedKey else { return }
+
+        pemError = nil
+        
+        if providedKey {
+            if !isValidPEMPrivateKey(tempPrivateKey) {
+                pemError = "Invalid private key format. Supported: OPENSSH, RSA, EC, DSA, or PKCS#8 PRIVATE KEY."
+                return
+            }
+            let keyKind = detectKeyKind(tempPrivateKey)
+            if !(keyKind == .pkcs8 || keyKind == .ec) {
+                pemError = "Unsupported private key type (\(keyKindDescription(keyKind))). Supported: ECDSA (EC PRIVATE KEY) or PKCS#8 PRIVATE KEY."
+                return
             }
         }
-        return false
+        
+        if providedPassword { connection.connectionInfo.password = tempPassword }
+        if providedKey { connection.connectionInfo.privateKey = tempPrivateKey }
+
+        if providedPassword && !providedKey { connection.connectionInfo.privateKey = "" }
+        if providedKey && !providedPassword { connection.connectionInfo.password = "" }
+
+        if saveCredentials {
+            connectionStore.saveConnection(connection, connectionToUpdate: connection)
+        }
+
+        connectionStore.connect(connection)
+        showCredentialsSheet = false
+        tempPassword = ""
+        tempPrivateKey = ""
+        saveCredentials = false
     }
 
+    private func isValidPEMPrivateKey(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let tokens = ["OPENSSH PRIVATE KEY", "RSA PRIVATE KEY", "EC PRIVATE KEY", "DSA PRIVATE KEY", "ED25519 PRIVATE KEY", "PRIVATE KEY"]
+        return tokens.contains { trimmed.contains("-----BEGIN \($0)-----") && trimmed.contains("-----END \($0)-----") }
+    }
+    
+    // Minimal detectors needed for validation logic in handleConnect
+    private enum KeyKind { case pkcs8, ec, other }
     private func detectKeyKind(_ text: String) -> KeyKind {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        if t.contains("-----BEGIN ENCRYPTED PRIVATE KEY-----") { return .pkcs8 }
-        if t.contains("-----BEGIN PRIVATE KEY-----") { return .pkcs8 }
-        if t.contains("-----BEGIN EC PRIVATE KEY-----") { return .ec }
-        if t.contains("-----BEGIN RSA PRIVATE KEY-----") { return .rsa }
-        if t.contains("-----BEGIN OPENSSH PRIVATE KEY-----") { return .openssh }
-        if t.contains("-----BEGIN DSA PRIVATE KEY-----") { return .dsa }
-        if t.contains("ED25519 PRIVATE KEY") { return .ed25519 }
-        return .unknown
+        if t.contains("PRIVATE KEY") { return .pkcs8 } // Catches PKCS#8 and ENCRYPTED PKCS#8
+        if t.contains("EC PRIVATE KEY") { return .ec }
+        return .other
     }
-
-    private func isPEMEncrypted(_ text: String) -> Bool {
-        let t = text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        if t.contains("-----BEGIN ENCRYPTED PRIVATE KEY-----") { return true }
-        if t.contains("PROC-TYPE: 4,ENCRYPTED") { return true }
-        if t.contains("DEK-INFO:") { return true }
-        return false
-    }
-
-    private func copyToClipboard(_ text: String) {
-        #if os(macOS)
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.setString(text, forType: .string)
-        #endif
+    private func keyKindDescription(_ kind: PEMKeyInfoView.KeyKind) -> String {
+        switch kind {
+        case .pkcs8: return "PKCS#8"
+        case .ec: return "EC"
+        default: return "Unsupported"
+        }
     }
 }
 

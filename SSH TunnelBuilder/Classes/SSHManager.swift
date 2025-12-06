@@ -17,12 +17,32 @@ private extension TaskGroup where ChildTaskResult == Void {
     }
 }
 
-// Protocol to handle common channel closing logic for relay handlers
-private protocol PeerClosingHandler: ChannelInboundHandler {
-    var peer: Channel { get }
-}
+// A single, generic relay handler to replace the two specific ones.
+private final class GenericRelayHandler<InboundType, OutboundType>: ChannelInboundHandler {
+    typealias InboundIn = InboundType
 
-extension PeerClosingHandler {
+    private let peer: Channel
+    private let onBytes: (Int) -> Void
+    private let transform: (InboundType) -> (OutboundType?, Int)
+
+    init(peer: Channel, onBytes: @escaping (Int) -> Void, transform: @escaping (InboundType) -> (OutboundType?, Int)) {
+        self.peer = peer
+        self.onBytes = onBytes
+        self.transform = transform
+    }
+
+    func channelRead(context: ChannelHandlerContext, data: NIOAny) {
+        let inboundData = self.unwrapInboundIn(data)
+        let (outboundData, count) = transform(inboundData)
+
+        if count > 0 {
+            self.onBytes(count)
+            if let outboundData = outboundData {
+                _ = peer.writeAndFlush(outboundData)
+            }
+        }
+    }
+
     func channelInactive(context: ChannelHandlerContext) {
         _ = peer.close(mode: .all)
         context.fireChannelInactive()
@@ -31,67 +51,6 @@ extension PeerClosingHandler {
     func errorCaught(context: ChannelHandlerContext, error: Error) {
         _ = peer.close(mode: .all)
         context.close(promise: nil)
-    }
-}
-
-// Relay from SSH child channel (SSHChannelData) to a TCP Channel (ByteBuffer)
-private final class SSHToTCPRelay: PeerClosingHandler {
-    typealias InboundIn = SSHChannelData
-
-    let peer: Channel
-    private let onBytes: (Int) -> Void
-
-    init(peer: Channel, onBytes: @escaping (Int) -> Void) {
-        self.peer = peer
-        self.onBytes = onBytes
-    }
-    
-    func channelActive(context: ChannelHandlerContext) {
-        print("SSHToTCPRelay active: SSH child -> TCP peer")
-        context.fireChannelActive()
-    }
-
-    func channelRead(context: ChannelHandlerContext, data: NIOAny) {
-        let sshData = self.unwrapInboundIn(data)
-        switch sshData.data {
-        case .byteBuffer(let buffer):
-            let count = buffer.readableBytes
-            if count > 0 {
-                self.onBytes(count)
-                _ = peer.writeAndFlush(buffer)
-            }
-        case .fileRegion(_):
-            // Not expected for our forwarding path; ignore or handle as needed.
-            break
-        }
-    }
-}
-
-// Relay from TCP Channel (ByteBuffer) to SSH child channel (SSHChannelData)
-private final class TCPToSSHRelay: PeerClosingHandler {
-    typealias InboundIn = ByteBuffer
-
-    let peer: Channel
-    private let onBytes: (Int) -> Void
-
-    init(peer: Channel, onBytes: @escaping (Int) -> Void) {
-        self.peer = peer
-        self.onBytes = onBytes
-    }
-    
-    func channelActive(context: ChannelHandlerContext) {
-        print("TCPToSSHRelay active: TCP inbound -> SSH child")
-        context.fireChannelActive()
-    }
-
-    func channelRead(context: ChannelHandlerContext, data: NIOAny) {
-        let buffer = self.unwrapInboundIn(data)
-        let count = buffer.readableBytes
-        if count > 0 {
-            self.onBytes(count)
-            let sshData = SSHChannelData(type: .channel, data: .byteBuffer(buffer))
-            _ = peer.writeAndFlush(sshData)
-        }
     }
 }
 
@@ -144,7 +103,7 @@ private final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate
         // Ed25519 OpenSSH keys are not parsed via PEM here; conversion required.
         return nil
     }
-
+    
     private func makeAuthOffer(with offerType: NIOSSHUserAuthenticationOffer.Offer) -> NIOSSHUserAuthenticationOffer {
         return NIOSSHUserAuthenticationOffer(
             username: username,
@@ -152,7 +111,7 @@ private final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate
             offer: offerType
         )
     }
-    
+
     func nextAuthenticationType(
         availableMethods: NIOSSHAvailableUserAuthenticationMethods,
         nextChallengePromise: EventLoopPromise<NIOSSHUserAuthenticationOffer?>
@@ -282,12 +241,21 @@ final class SSHManager: ObservableObject {
                             guard let manager = strongSelf else { return }
                             Task { @MainActor in manager.handleBytesReceived(n) }
                         }
-                        return child.pipeline.addHandlers([
-                            SSHToTCPRelay(peer: inbound, onBytes: received)
-                        ]).flatMap {
-                            inbound.pipeline.addHandlers([
-                                TCPToSSHRelay(peer: child, onBytes: sent)
-                            ])
+                        
+                        // Transform SSH data to a raw buffer for the TCP peer
+                        let sshToTCP = GenericRelayHandler<SSHChannelData, ByteBuffer>(peer: inbound, onBytes: received) { sshData in
+                            guard case .byteBuffer(let buffer) = sshData.data else { return (nil, 0) }
+                            return (buffer, buffer.readableBytes)
+                        }
+                        
+                        // Transform a raw buffer from TCP to SSH data for the SSH peer
+                        let tcpToSSH = GenericRelayHandler<ByteBuffer, SSHChannelData>(peer: child, onBytes: sent) { buffer in
+                            let sshData = SSHChannelData(type: .channel, data: .byteBuffer(buffer))
+                            return (sshData, buffer.readableBytes)
+                        }
+
+                        return child.pipeline.addHandler(sshToTCP).flatMap {
+                            inbound.pipeline.addHandler(tcpToSSH)
                         }
                     }
                     
