@@ -3,6 +3,32 @@ import SwiftUI
 import AppKit
 #endif
 
+// A reusable view for displaying a shell command with a copy button.
+struct CommandHelpRow: View {
+    let title: String
+    let command: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.subheadline)
+                Text(command)
+                    .font(.body.monospaced())
+            }
+            Spacer(minLength: 8)
+            Button("Copy") { copyToClipboard(command) }
+        }
+    }
+    
+    private func copyToClipboard(_ text: String) {
+        #if os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        #endif
+    }
+}
+
 struct MainView: View {
     @EnvironmentObject var connectionStore: ConnectionStore
     
@@ -149,7 +175,7 @@ struct MainView: View {
     ) -> Binding<String> {
         switch connectionStore.mode {
         case .create:
-            return $connectionStore[dynamicMember: createKeyPath]
+            return $connectionStore[dynamicMember: createKeyPath as! ReferenceWritableKeyPath<ConnectionStore, String>]
         case .edit:
             return Binding(
                 get: {
@@ -408,30 +434,16 @@ struct ConnectButtonView: View {
                                         .font(.footnote)
 
                                     Divider()
-                                    let genCmd = "ssh-keygen -t ecdsa -b 256 -m PEM -f ~/.ssh/id_ecdsa"
-                                    HStack(alignment: .firstTextBaseline) {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text("Generate an ECDSA key (recommended):")
-                                                .font(.subheadline)
-                                            Text(genCmd)
-                                                .font(.body.monospaced())
-                                        }
-                                        Spacer(minLength: 8)
-                                        Button("Copy") { copyToClipboard(genCmd) }
-                                    }
+                                    CommandHelpRow(
+                                        title: "Generate an ECDSA key (recommended):",
+                                        command: "ssh-keygen -t ecdsa -b 256 -m PEM -f ~/.ssh/id_ecdsa"
+                                    )
 
                                     Divider()
-                                    let encCmd = "openssl pkcs8 -topk8 -v2 aes-256-cbc -in id_ecdsa -out id_ecdsa_encrypted.pem"
-                                    HStack(alignment: .firstTextBaseline) {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text("Encrypt an existing PEM key with a passphrase (PKCS#8):")
-                                                .font(.subheadline)
-                                            Text(encCmd)
-                                                .font(.body.monospaced())
-                                        }
-                                        Spacer(minLength: 8)
-                                        Button("Copy") { copyToClipboard(encCmd) }
-                                    }
+                                    CommandHelpRow(
+                                        title: "Encrypt an existing PEM key with a passphrase (PKCS#8):",
+                                        command: "openssl pkcs8 -topk8 -v2 aes-256-cbc -in id_ecdsa -out id_ecdsa_encrypted.pem"
+                                    )
 
                                     Divider()
                                     Text("If you currently have an OpenSSH Ed25519 key, generate an ECDSA key for this release.")

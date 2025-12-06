@@ -3,6 +3,20 @@ import NIO
 import NIOSSH
 import CryptoKit
 
+private extension TaskGroup where ChildTaskResult == Void {
+    // Helper to add a channel-closing task, reducing duplication in shutdown().
+    mutating func closeChannel(_ channel: Channel?, name: String) {
+        guard let channel = channel else { return }
+        self.addTask {
+            do {
+                try await channel.close(mode: .all).get()
+            } catch {
+                print("Error closing \(name) channel: \(error)")
+            }
+        }
+    }
+}
+
 // Protocol to handle common channel closing logic for relay handlers
 private protocol PeerClosingHandler: ChannelInboundHandler {
     var peer: Channel { get }
@@ -131,28 +145,28 @@ private final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate
         return nil
     }
 
+    private func makeAuthOffer(with offerType: NIOSSHUserAuthenticationOffer.Offer) -> NIOSSHUserAuthenticationOffer {
+        return NIOSSHUserAuthenticationOffer(
+            username: username,
+            serviceName: "ssh-connection",
+            offer: offerType
+        )
+    }
+    
     func nextAuthenticationType(
         availableMethods: NIOSSHAvailableUserAuthenticationMethods,
         nextChallengePromise: EventLoopPromise<NIOSSHUserAuthenticationOffer?>
     ) {
         // Prefer public key when we have one and server allows it
         if let key = self.privateKey, availableMethods.contains(.publicKey) {
-            let offer = NIOSSHUserAuthenticationOffer(
-                username: username,
-                serviceName: "ssh-connection",
-                offer: .privateKey(.init(privateKey: key))
-            )
+            let offer = makeAuthOffer(with: .privateKey(.init(privateKey: key)))
             nextChallengePromise.succeed(offer)
             return
         }
 
         // Fall back to password if available and allowed
         if let password = self.password, availableMethods.contains(.password) {
-            let offer = NIOSSHUserAuthenticationOffer(
-                username: username,
-                serviceName: "ssh-connection",
-                offer: .password(.init(password: password))
-            )
+            let offer = makeAuthOffer(with: .password(.init(password: password)))
             nextChallengePromise.succeed(offer)
             return
         }
@@ -309,25 +323,9 @@ final class SSHManager: ObservableObject {
         await MainActor.run { connection.isConnecting = false }
         
         await withTaskGroup(of: Void.self) { group in
-            if let sshClientChannel {
-                group.addTask {
-                    do {
-                        try await sshClientChannel.close(mode: .all).get()
-                    } catch {
-                        print("Error closing SSH client channel: \(error)")
-                    }
-                }
-            }
-            
-            if let localServerChannel {
-                group.addTask {
-                    do {
-                        try await localServerChannel.close(mode: .all).get()
-                    } catch {
-                        print("Error closing local server channel: \(error)")
-                    }
-                }
-            }
+            var mutableGroup = group
+            mutableGroup.closeChannel(sshClientChannel, name: "SSH client")
+            mutableGroup.closeChannel(localServerChannel, name: "local server")
         }
         
         sshClientChannel = nil
