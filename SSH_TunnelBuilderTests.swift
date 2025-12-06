@@ -175,10 +175,10 @@ struct PEMKeyLogicTests {
 
     @Test("Detects encrypted PEM keys")
     func testDetectEncrypted() {
-        #expect(isPEMEncrypted("-----BEGIN ENCRYPTED PRIVATE KEY-----") == true)
-        #expect(isPEMEncrypted("DEK-Info: AES-256-CBC") == true)
-        #expect(isPEMEncrypted("Proc-Type: 4,ENCRYPTED") == true)
-        #expect(isPEMEncrypted("-----BEGIN EC PRIVATE KEY-----") == false)
+        #expect(isPEMEncrypted("-----BEGIN ENCRYPTED PRIVATE KEY-----"))
+        #expect(isPEMEncrypted("DEK-Info: AES-256-CBC"))
+        #expect(isPEMEncrypted("Proc-Type: 4,ENCRYPTED"))
+        #expect(!isPEMEncrypted("-----BEGIN EC PRIVATE KEY-----"))
     }
 }
 
@@ -258,7 +258,9 @@ private extension NIOSSHUserAuthenticationOffer.Offer {
     }
     
     var isPassword: Bool {
-        if case .password = self { return true }
+        if case .password = self {
+            return true
+        }
         return false
     }
 }

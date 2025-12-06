@@ -254,7 +254,6 @@ class ConnectionStore: ObservableObject {
         database.fetch(withRecordID: recordID) { [weak self] fetchedRecord, error in
             guard let self = self else { return }
             if let error = error {
-                print("Error fetching record for update: \(error)")
                 DispatchQueue.main.async {
                     self.errorAlert = ErrorAlert(message: "Failed to save changes: \(error.localizedDescription)")
                 }
@@ -266,7 +265,6 @@ class ConnectionStore: ObservableObject {
                 
                 self.database.save(fetchedRecord) { _, error in
                     if let error = error {
-                        print("Error updating connection: \(error)")
                          DispatchQueue.main.async {
                             self.errorAlert = ErrorAlert(message: "Failed to update connection: \(error.localizedDescription)")
                         }
@@ -295,7 +293,6 @@ class ConnectionStore: ObservableObject {
         database.save(record) { [weak self] _, error in
             guard let self = self else { return }
             if let error = error {
-                print("Error saving connection: \(error)")
                 DispatchQueue.main.async {
                     self.errorAlert = ErrorAlert(message: "Failed to save connection: \(error.localizedDescription)")
                 }
@@ -310,7 +307,6 @@ class ConnectionStore: ObservableObject {
         database.fetch(withRecordID: recordID) { [weak self] fetchedRecord, error in
             guard let self = self else { return }
             if let error = error {
-                print("Error fetching connection: \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     self.errorAlert = ErrorAlert(message: "Failed to fetch connection: \(error.localizedDescription)")
                 }
@@ -345,7 +341,6 @@ class ConnectionStore: ObservableObject {
         
         CKContainer.default().privateCloudDatabase.delete(withRecordID: recordID) { [weak self] deletedRecordID, error in
             if let error = error {
-                print("Error deleting connection: \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     self?.errorAlert = ErrorAlert(message: "Failed to delete connection: \(error.localizedDescription)")
                 }
