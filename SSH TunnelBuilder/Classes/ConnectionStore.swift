@@ -397,7 +397,7 @@ class ConnectionStore: ObservableObject {
         }
     }
 
-    private func recordToConnection(record: CKRecord) -> Connection? {
+    func recordToConnection(record: CKRecord) -> Connection? {
         guard let id = record[CloudKitKeys.uuid] as? String,
               let uuid = UUID(uuidString: id),
               let name = record[CloudKitKeys.name] as? String,
