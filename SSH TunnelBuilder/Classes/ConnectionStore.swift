@@ -350,26 +350,24 @@ class ConnectionStore: ObservableObject {
         }
     }
     
+    private func migrateSecret(from record: CKRecord, field: String, for uuid: UUID, saveAction: (String, UUID) -> Void) -> Bool {
+        if let encodedValue = record[field] as? String, !encodedValue.isEmpty {
+            saveAction(encodedValue, uuid)
+            record[field] = ""
+            return true
+        }
+        return false
+    }
+    
     private func migrateSecretsIfNeeded(from record: CKRecord) {
         guard let id = record["uuid"] as? String, let uuid = UUID(uuidString: id) else { return }
         
         let friendlyName: String = (record["name"] as? String) ?? "connection"
+        
+        let passwordMigrated = migrateSecret(from: record, field: "password", for: uuid, saveAction: KeychainService.shared.savePassword)
+        let keyMigrated = migrateSecret(from: record, field: "privateKey", for: uuid, saveAction: KeychainService.shared.savePrivateKey)
 
-        var didMigrate = false
-
-        if let encodedPassword = record["password"] as? String, !encodedPassword.isEmpty {
-            KeychainService.shared.savePassword(encodedPassword, for: uuid)
-            record["password"] = ""
-            didMigrate = true
-        }
-
-        if let encodedKey = record["privateKey"] as? String, !encodedKey.isEmpty {
-            KeychainService.shared.savePrivateKey(encodedKey, for: uuid)
-            record["privateKey"] = ""
-            didMigrate = true
-        }
-
-        if didMigrate {
+        if passwordMigrated || keyMigrated {
             database.save(record) { _, error in
                 if let error = error {
                     print("Migration save error: \(error)")
