@@ -1,6 +1,20 @@
 import Foundation
 import CloudKit
 
+private enum CloudKitKeys {
+    static let recordType = "Connection"
+    static let uuid = "uuid"
+    static let name = "name"
+    static let serverAddress = "serverAddress"
+    static let portNumber = "portNumber"
+    static let username = "username"
+    static let password = "password"
+    static let privateKey = "privateKey"
+    static let localPort = "localPort"
+    static let remoteServer = "remoteServer"
+    static let remotePort = "remotePort"
+}
+
 // A wrapper to make error strings identifiable for SwiftUI Alerts
 struct ErrorAlert: Identifiable {
     let id = UUID()
@@ -158,7 +172,7 @@ class ConnectionStore: ObservableObject {
             return
         }
 
-        let query = CKQuery(recordType: "Connection", predicate: NSPredicate(value: true))
+        let query = CKQuery(recordType: CloudKitKeys.recordType, predicate: NSPredicate(value: true))
         query.sortDescriptors = []
 
         let queryOperation: CKQueryOperation
@@ -169,8 +183,8 @@ class ConnectionStore: ObservableObject {
         }
 
         queryOperation.desiredKeys = [
-            "uuid", "name", "serverAddress", "portNumber", "username",
-            "password", "privateKey", "localPort", "remoteServer", "remotePort"
+            CloudKitKeys.uuid, CloudKitKeys.name, CloudKitKeys.serverAddress, CloudKitKeys.portNumber, CloudKitKeys.username,
+            CloudKitKeys.password, CloudKitKeys.privateKey, CloudKitKeys.localPort, CloudKitKeys.remoteServer, CloudKitKeys.remotePort
         ]
         queryOperation.zoneID = customZoneID
 
@@ -273,10 +287,10 @@ class ConnectionStore: ObservableObject {
 
     func createConnection(_ connection: Connection) {
         let recordID = CKRecord.ID(recordName: connection.id.uuidString, zoneID: customZone!.zoneID)
-        let record = CKRecord(recordType: "Connection", recordID: recordID)
+        let record = CKRecord(recordType: CloudKitKeys.recordType, recordID: recordID)
         updateRecordFields(record, withConnection: connection)
         
-        record["uuid"] = connection.id.uuidString
+        record[CloudKitKeys.uuid] = connection.id.uuidString
         
         database.save(record) { [weak self] _, error in
             guard let self = self else { return }
@@ -313,18 +327,17 @@ class ConnectionStore: ObservableObject {
     }
 
     func updateRecordFields(_ record: CKRecord, withConnection connection: Connection) {
-        record["name"] = connection.connectionInfo.name
-        record["serverAddress"] = connection.connectionInfo.serverAddress
-        record["portNumber"] = connection.connectionInfo.portNumber
-        record["username"] = connection.connectionInfo.username
-        // Do not store secrets in CloudKit; use Keychain instead
-        record["password"] = "" // placeholder
-        record["privateKey"] = "" // placeholder
+        record[CloudKitKeys.name] = connection.connectionInfo.name
+        record[CloudKitKeys.serverAddress] = connection.connectionInfo.serverAddress
+        record[CloudKitKeys.portNumber] = connection.connectionInfo.portNumber
+        record[CloudKitKeys.username] = connection.connectionInfo.username
+        record[CloudKitKeys.password] = "" // placeholder
+        record[CloudKitKeys.privateKey] = "" // placeholder
         KeychainService.shared.savePassword(connection.connectionInfo.password, for: connection.id)
         KeychainService.shared.savePrivateKey(connection.connectionInfo.privateKey, for: connection.id)
-        record["localPort"] = connection.tunnelInfo.localPort
-        record["remoteServer"] = connection.tunnelInfo.remoteServer
-        record["remotePort"] = connection.tunnelInfo.remotePort
+        record[CloudKitKeys.localPort] = connection.tunnelInfo.localPort
+        record[CloudKitKeys.remoteServer] = connection.tunnelInfo.remoteServer
+        record[CloudKitKeys.remotePort] = connection.tunnelInfo.remotePort
     }
 
     func deleteConnection(_ connection: Connection) {
@@ -360,12 +373,12 @@ class ConnectionStore: ObservableObject {
     }
     
     private func migrateSecretsIfNeeded(from record: CKRecord) {
-        guard let id = record["uuid"] as? String, let uuid = UUID(uuidString: id) else { return }
+        guard let id = record[CloudKitKeys.uuid] as? String, let uuid = UUID(uuidString: id) else { return }
         
-        let friendlyName: String = (record["name"] as? String) ?? "connection"
+        let friendlyName: String = (record[CloudKitKeys.name] as? String) ?? "connection"
         
-        let passwordMigrated = migrateSecret(from: record, field: "password", for: uuid, saveAction: KeychainService.shared.savePassword)
-        let keyMigrated = migrateSecret(from: record, field: "privateKey", for: uuid, saveAction: KeychainService.shared.savePrivateKey)
+        let passwordMigrated = migrateSecret(from: record, field: CloudKitKeys.password, for: uuid, saveAction: KeychainService.shared.savePassword)
+        let keyMigrated = migrateSecret(from: record, field: CloudKitKeys.privateKey, for: uuid, saveAction: KeychainService.shared.savePrivateKey)
 
         if passwordMigrated || keyMigrated {
             database.save(record) { _, error in
@@ -385,15 +398,15 @@ class ConnectionStore: ObservableObject {
     }
 
     private func recordToConnection(record: CKRecord) -> Connection? {
-        guard let id = record["uuid"] as? String,
+        guard let id = record[CloudKitKeys.uuid] as? String,
               let uuid = UUID(uuidString: id),
-              let name = record["name"] as? String,
-              let serverAddress = record["serverAddress"] as? String,
-              let portNumber = record["portNumber"] as? String,
-              let username = record["username"] as? String,
-              let localPort = record["localPort"] as? String,
-              let remoteServer = record["remoteServer"] as? String,
-              let remotePort = record["remotePort"] as? String else {
+              let name = record[CloudKitKeys.name] as? String,
+              let serverAddress = record[CloudKitKeys.serverAddress] as? String,
+              let portNumber = record[CloudKitKeys.portNumber] as? String,
+              let username = record[CloudKitKeys.username] as? String,
+              let localPort = record[CloudKitKeys.localPort] as? String,
+              let remoteServer = record[CloudKitKeys.remoteServer] as? String,
+              let remotePort = record[CloudKitKeys.remotePort] as? String else {
             return nil
         }
         
