@@ -138,78 +138,124 @@ struct MainView: View {
         }
     }
     
+    // MARK: - Binding Helper
+
+    private func formBinding(
+        createKeyPath: WritableKeyPath<ConnectionStore, String>,
+        editConnectionInfoKeyPath: WritableKeyPath<ConnectionInfo, String>? = nil,
+        editTunnelInfoKeyPath: WritableKeyPath<TunnelInfo, String>? = nil,
+        viewConnectionInfoKeyPath: KeyPath<ConnectionInfo, String>? = nil,
+        viewTunnelInfoKeyPath: KeyPath<TunnelInfo, String>? = nil
+    ) -> Binding<String> {
+        switch connectionStore.mode {
+        case .create:
+            return $connectionStore[dynamicMember: createKeyPath]
+        case .edit:
+            return Binding(
+                get: {
+                    if let keyPath = editConnectionInfoKeyPath {
+                        return connectionStore.tempConnection?.connectionInfo[keyPath: keyPath] ?? ""
+                    }
+                    if let keyPath = editTunnelInfoKeyPath {
+                        return connectionStore.tempConnection?.tunnelInfo[keyPath: keyPath] ?? ""
+                    }
+                    return ""
+                },
+                set: { newValue in
+                    if let keyPath = editConnectionInfoKeyPath {
+                        connectionStore.tempConnection?.connectionInfo[keyPath: keyPath] = newValue
+                    }
+                    if let keyPath = editTunnelInfoKeyPath {
+                        connectionStore.tempConnection?.tunnelInfo[keyPath: keyPath] = newValue
+                    }
+                }
+            )
+        default: // .view, .loading
+            let value = {
+                if let keyPath = viewConnectionInfoKeyPath {
+                    return selectedConnection?.connectionInfo[keyPath: keyPath] ?? ""
+                }
+                if let keyPath = viewTunnelInfoKeyPath {
+                    return selectedConnection?.tunnelInfo[keyPath: keyPath] ?? ""
+                }
+                return ""
+            }()
+            return .constant(value)
+        }
+    }
+    
     // MARK: - Bindings
     
     private var connectionNameBinding: Binding<String> {
-        switch connectionStore.mode {
-        case .create: return $connectionStore.connectionName
-        case .edit: return Binding(get: { connectionStore.tempConnection?.connectionInfo.name ?? "" }, set: { connectionStore.tempConnection?.connectionInfo.name = $0 })
-        default: return .constant(selectedConnection?.connectionInfo.name ?? "")
-        }
+        formBinding(
+            createKeyPath: \.connectionName,
+            editConnectionInfoKeyPath: \.name,
+            viewConnectionInfoKeyPath: \.name
+        )
     }
     
     private var serverAddressBinding: Binding<String> {
-        switch connectionStore.mode {
-        case .create: return $connectionStore.serverAddress
-        case .edit: return Binding(get: { connectionStore.tempConnection?.connectionInfo.serverAddress ?? "" }, set: { connectionStore.tempConnection?.connectionInfo.serverAddress = $0 })
-        default: return .constant(selectedConnection?.connectionInfo.serverAddress ?? "")
-        }
+        formBinding(
+            createKeyPath: \.serverAddress,
+            editConnectionInfoKeyPath: \.serverAddress,
+            viewConnectionInfoKeyPath: \.serverAddress
+        )
     }
     
     private var portNumberBinding: Binding<String> {
-        switch connectionStore.mode {
-        case .create: return $connectionStore.portNumber
-        case .edit: return Binding(get: { connectionStore.tempConnection?.connectionInfo.portNumber ?? "" }, set: { connectionStore.tempConnection?.connectionInfo.portNumber = $0 })
-        default: return .constant(selectedConnection?.connectionInfo.portNumber ?? "")
-        }
+        formBinding(
+            createKeyPath: \.portNumber,
+            editConnectionInfoKeyPath: \.portNumber,
+            viewConnectionInfoKeyPath: \.portNumber
+        )
     }
     
     private var usernameBinding: Binding<String> {
-        switch connectionStore.mode {
-        case .create: return $connectionStore.username
-        case .edit: return Binding(get: { connectionStore.tempConnection?.connectionInfo.username ?? "" }, set: { connectionStore.tempConnection?.connectionInfo.username = $0 })
-        default: return .constant(selectedConnection?.connectionInfo.username ?? "")
-        }
+        formBinding(
+            createKeyPath: \.username,
+            editConnectionInfoKeyPath: \.username,
+            viewConnectionInfoKeyPath: \.username
+        )
     }
     
     private var passwordBinding: Binding<String> {
-        switch connectionStore.mode {
-        case .create: return $connectionStore.password
-        case .edit: return Binding(get: { connectionStore.tempConnection?.connectionInfo.password ?? "" }, set: { connectionStore.tempConnection?.connectionInfo.password = $0 })
-        default: return .constant(selectedConnection?.connectionInfo.password ?? "")
-        }
+        formBinding(
+            createKeyPath: \.password,
+            editConnectionInfoKeyPath: \.password,
+            viewConnectionInfoKeyPath: \.password
+        )
     }
     
     private var privateKeyBinding: Binding<String> {
-        switch connectionStore.mode {
-        case .create: return $connectionStore.privateKey
-        case .edit: return Binding(get: { connectionStore.tempConnection?.connectionInfo.privateKey ?? "" }, set: { connectionStore.tempConnection?.connectionInfo.privateKey = $0 })
-        default: return .constant(selectedConnection?.connectionInfo.privateKey ?? "")
-        }
+        formBinding(
+            createKeyPath: \.privateKey,
+            editConnectionInfoKeyPath: \.privateKey,
+            viewConnectionInfoKeyPath: \.privateKey
+        )
     }
     
     private var localPortBinding: Binding<String> {
-        switch connectionStore.mode {
-        case .create: return $connectionStore.localPort
-        case .edit: return Binding(get: { connectionStore.tempConnection?.tunnelInfo.localPort ?? "" }, set: { connectionStore.tempConnection?.tunnelInfo.localPort = $0 })
-        default: return .constant(selectedConnection?.tunnelInfo.localPort ?? "")
-        }
+        formBinding(
+            createKeyPath: \.localPort,
+            editTunnelInfoKeyPath: \.localPort,
+            viewTunnelInfoKeyPath: \.localPort
+        )
     }
     
     private var remoteServerBinding: Binding<String> {
-        switch connectionStore.mode {
-        case .create: return $connectionStore.remoteServer
-        case .edit: return Binding(get: { connectionStore.tempConnection?.tunnelInfo.remoteServer ?? "" }, set: { connectionStore.tempConnection?.tunnelInfo.remoteServer = $0 })
-        default: return .constant(selectedConnection?.tunnelInfo.remoteServer ?? "")
-        }
+        formBinding(
+            createKeyPath: \.remoteServer,
+            editTunnelInfoKeyPath: \.remoteServer,
+            viewTunnelInfoKeyPath: \.remoteServer
+        )
     }
     
     private var remotePortBinding: Binding<String> {
-        switch connectionStore.mode {
-        case .create: return $connectionStore.remotePort
-        case .edit: return Binding(get: { connectionStore.tempConnection?.tunnelInfo.remotePort ?? "" }, set: { connectionStore.tempConnection?.tunnelInfo.remotePort = $0 })
-        default: return .constant(selectedConnection?.tunnelInfo.remotePort ?? "")
-        }
+        formBinding(
+            createKeyPath: \.remotePort,
+            editTunnelInfoKeyPath: \.remotePort,
+            viewTunnelInfoKeyPath: \.remotePort
+        )
     }
     
     // MARK: - Views

@@ -3,11 +3,28 @@ import NIO
 import NIOSSH
 import CryptoKit
 
+// Protocol to handle common channel closing logic for relay handlers
+private protocol PeerClosingHandler: ChannelInboundHandler {
+    var peer: Channel { get }
+}
+
+extension PeerClosingHandler {
+    func channelInactive(context: ChannelHandlerContext) {
+        _ = peer.close(mode: .all)
+        context.fireChannelInactive()
+    }
+
+    func errorCaught(context: ChannelHandlerContext, error: Error) {
+        _ = peer.close(mode: .all)
+        context.close(promise: nil)
+    }
+}
+
 // Relay from SSH child channel (SSHChannelData) to a TCP Channel (ByteBuffer)
-private final class SSHToTCPRelay: ChannelInboundHandler {
+private final class SSHToTCPRelay: PeerClosingHandler {
     typealias InboundIn = SSHChannelData
 
-    private let peer: Channel
+    let peer: Channel
     private let onBytes: (Int) -> Void
 
     init(peer: Channel, onBytes: @escaping (Int) -> Void) {
@@ -34,23 +51,13 @@ private final class SSHToTCPRelay: ChannelInboundHandler {
             break
         }
     }
-
-    func channelInactive(context: ChannelHandlerContext) {
-        _ = peer.close(mode: .all)
-        context.fireChannelInactive()
-    }
-
-    func errorCaught(context: ChannelHandlerContext, error: Error) {
-        _ = peer.close(mode: .all)
-        context.close(promise: nil)
-    }
 }
 
 // Relay from TCP Channel (ByteBuffer) to SSH child channel (SSHChannelData)
-private final class TCPToSSHRelay: ChannelInboundHandler {
+private final class TCPToSSHRelay: PeerClosingHandler {
     typealias InboundIn = ByteBuffer
 
-    private let peer: Channel
+    let peer: Channel
     private let onBytes: (Int) -> Void
 
     init(peer: Channel, onBytes: @escaping (Int) -> Void) {
@@ -71,16 +78,6 @@ private final class TCPToSSHRelay: ChannelInboundHandler {
             let sshData = SSHChannelData(type: .channel, data: .byteBuffer(buffer))
             _ = peer.writeAndFlush(sshData)
         }
-    }
-
-    func channelInactive(context: ChannelHandlerContext) {
-        _ = peer.close(mode: .all)
-        context.fireChannelInactive()
-    }
-
-    func errorCaught(context: ChannelHandlerContext, error: Error) {
-        _ = peer.close(mode: .all)
-        context.close(promise: nil)
     }
 }
 
