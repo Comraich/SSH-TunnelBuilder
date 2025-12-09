@@ -1,6 +1,6 @@
 import XCTest
 
-final class SSH_TunnelBuilderUITests: XCTestCase {
+final class SSHTunnelBuilderUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -28,3 +28,4 @@ final class SSH_TunnelBuilderUITests: XCTestCase {
         XCTAssertTrue(detail.exists, "Expected MainView to be present after selection")
     }
 }
+
