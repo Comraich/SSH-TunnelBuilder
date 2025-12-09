@@ -9,12 +9,18 @@ struct ContentView: View {
     }
     
     var body: some View {
-        NavigationView {
-            NavigationList(connectionStore: connectionStore, selectedConnection: $selectedConnection, mode: $connectionStore.mode)
-                .environmentObject(connectionStore)
-
+        NavigationSplitView {
+            NavigationList(
+                connectionStore: connectionStore,
+                selectedConnection: $selectedConnection,
+                mode: $connectionStore.mode
+            )
+            .environmentObject(connectionStore)
+            .accessibilityIdentifier("NavigationList")
+        } detail: {
             MainView(selectedConnection: $selectedConnection)
                 .environmentObject(connectionStore)
+                .accessibilityIdentifier("MainView")
         }
         .alert(item: $connectionStore.errorAlert) { errorAlert in
             Alert(
