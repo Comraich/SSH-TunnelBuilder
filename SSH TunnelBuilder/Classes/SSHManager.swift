@@ -139,11 +139,12 @@ final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate, Sendab
     }
 }
 
-final class SSHManager: ObservableObject {
+final class SSHManager: ObservableObject, @unchecked Sendable {
     let connection: Connection
     private var eventLoopGroup: MultiThreadedEventLoopGroup?
     private var sshClientChannel: Channel?
     private var localServerChannel: Channel?
+    private let lock = NSLock()
 
     @Published private(set) var isActive: Bool = false
     @Published private(set) var bytesSent: Int64 = 0
@@ -167,7 +168,7 @@ final class SSHManager: ObservableObject {
 
         await MainActor.run { connection.isConnecting = true }
         let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
-        self.eventLoopGroup = group
+        lock.withLock { self.eventLoopGroup = group }
 
         let authDelegate = FlexibleAuthDelegate(
             username: connection.connectionInfo.username,
@@ -193,7 +194,7 @@ final class SSHManager: ObservableObject {
 
         do {
             let channel = try await bootstrap.connect(host: host, port: port).get()
-            self.sshClientChannel = channel
+            lock.withLock { self.sshClientChannel = channel }
             await MainActor.run {
                 self.connection.isActive = true
                 self.isActive = true
@@ -209,7 +210,8 @@ final class SSHManager: ObservableObject {
     }
 
     private func startLocalListener() async throws {
-        guard let group = self.eventLoopGroup, let sshChannel = self.sshClientChannel else { return }
+        let group = lock.withLock { self.eventLoopGroup }
+        guard let group, lock.withLock({ self.sshClientChannel }) != nil else { return }
 
         let localPort = Int(connection.tunnelInfo.localPort) ?? 0
 
@@ -217,14 +219,19 @@ final class SSHManager: ObservableObject {
             .serverChannelOption(ChannelOptions.backlog, value: 8)
             .serverChannelOption(ChannelOptions.socketOption(.so_reuseaddr), value: 1)
             .childChannelInitializer { [weak self] inbound in
-                guard let strongSelf = self, let sshChannel = strongSelf.sshClientChannel else {
-                    return inbound.eventLoop.makeFailedFuture(IOError(errnoCode: ECANCELED, function: "SSHManager deallocated"))
+                guard let strongSelf = self else {
+                    return inbound.eventLoop.makeFailedFuture(IOError(errnoCode: ECANCELED, reason: "SSHManager deallocated"))
                 }
+                
+                guard let sshChannel = strongSelf.lock.withLock({ strongSelf.sshClientChannel }) else {
+                    return inbound.eventLoop.makeFailedFuture(IOError(errnoCode: ECANCELED, reason: "SSH channel disconnected"))
+                }
+
                 let targetHost = strongSelf.connection.tunnelInfo.remoteServer
                 let targetPort = Int(strongSelf.connection.tunnelInfo.remotePort) ?? 0
 
                 guard let originator = inbound.remoteAddress else {
-                    let error = IOError(errnoCode: EADDRNOTAVAIL, function: "Inbound channel has no remote address")
+                    let error = IOError(errnoCode: EADDRNOTAVAIL, reason: "Inbound channel has no remote address")
                     return inbound.eventLoop.makeFailedFuture(error)
                 }
                 
@@ -275,7 +282,7 @@ final class SSHManager: ObservableObject {
 
         do {
             let server = try await serverBootstrap.bind(host: "127.0.0.1", port: localPort).get()
-            self.localServerChannel = server
+            lock.withLock { self.localServerChannel = server }
             if let localPort = server.localAddress?.port {
                 print("Local listener bound on 127.0.0.1:\(localPort)")
             }
@@ -296,21 +303,24 @@ final class SSHManager: ObservableObject {
         
         await withTaskGroup(of: Void.self) { group in
             var mutableGroup = group
-            mutableGroup.closeChannel(sshClientChannel, name: "SSH client")
-            mutableGroup.closeChannel(localServerChannel, name: "local server")
+            let (ssh, local) = lock.withLock { (self.sshClientChannel, self.localServerChannel) }
+            mutableGroup.closeChannel(ssh, name: "SSH client")
+            mutableGroup.closeChannel(local, name: "local server")
         }
         
-        sshClientChannel = nil
-        localServerChannel = nil
+        lock.withLock {
+            sshClientChannel = nil
+            localServerChannel = nil
+        }
 
         // Shutdown event loop group
-        if let group = eventLoopGroup {
+        if let group = lock.withLock({ self.eventLoopGroup }) {
             do {
                 try await group.shutdownGracefully()
             } catch {
                 print("EventLoopGroup shutdown error: \(error)")
             }
-            self.eventLoopGroup = nil
+            lock.withLock { self.eventLoopGroup = nil }
         }
         
         // Reset state
