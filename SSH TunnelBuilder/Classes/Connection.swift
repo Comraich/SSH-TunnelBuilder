@@ -9,6 +9,7 @@ struct ConnectionInfo {
     var username: String
     var password: String
     var privateKey: String
+    var privateKeyPassphrase: String
 }
 
 struct TunnelInfo {

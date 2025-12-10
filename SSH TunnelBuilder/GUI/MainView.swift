@@ -227,16 +227,21 @@ struct MainView: View {
                     .padding([.horizontal, .top])
                 }
                 
-                HStack {
+                HStack(alignment: .firstTextBaseline) {
                     if connectionStore.mode == .view, let connection = selectedConnection {
                         Text("Connection Status:")
-                        Spacer()
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         ConnectionIndicatorView(connection: connection)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
                             .padding(.trailing)
+                    } else {
+                        // Maintain spacing when no connection is selected
+                        Color.clear.frame(maxWidth: .infinity)
+                        Color.clear.frame(maxWidth: .infinity)
                     }
-                    
                 }
                 .padding(.horizontal)
+                
                 if connectionStore.mode == .view {
                     if let connection = selectedConnection {
                         DataCounterView(connection: connection)
@@ -267,7 +272,7 @@ struct MainView: View {
                         } else {
                             Button(action: {
                                 if connectionStore.mode == .create {
-                                    let connectionInfo = ConnectionInfo(name: connectionStore.connectionName, serverAddress: connectionStore.serverAddress, portNumber: connectionStore.portNumber, username: connectionStore.username, password: connectionStore.password, privateKey: connectionStore.privateKey)
+                                    let connectionInfo = ConnectionInfo(name: connectionStore.connectionName, serverAddress: connectionStore.serverAddress, portNumber: connectionStore.portNumber, username: connectionStore.username, password: connectionStore.password, privateKey: connectionStore.privateKey, privateKeyPassphrase: "")
                                     let tunnelInfo = TunnelInfo(localPort: connectionStore.localPort, remoteServer: connectionStore.remoteServer, remotePort: connectionStore.remotePort)
                                     connectionStore.newConnection(connectionInfo: connectionInfo, tunnelInfo: tunnelInfo)
                                     connectionStore.clearCreateForm()
@@ -465,7 +470,9 @@ struct ConnectionIndicatorView: View {
                 .fill(connection.isActive ? Color.green : Color.red)
                 .frame(width: 10, height: 10)
             Text(connection.isActive ? "Connected" : "Disconnected")
+                .multilineTextAlignment(.trailing)
         }
+        .frame(maxWidth: .infinity, alignment: .trailing)
     }
 }
 
@@ -475,6 +482,7 @@ struct ConnectButtonView: View {
     @State private var showCredentialsSheet: Bool = false
     @State private var tempPassword: String = ""
     @State private var tempPrivateKey: String = ""
+    @State private var tempPassphrase: String = ""
     @State private var saveCredentials: Bool = false
     @State private var pemError: String? = nil
     @State private var showKeyInfo: Bool = false
@@ -572,6 +580,21 @@ struct ConnectButtonView: View {
                     
                     PEMKeyInfoView(keyText: $tempPrivateKey)
                     
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 6) {
+                            Text("Passphrase (optional)")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            if isPEMEncrypted(tempPrivateKey) {
+                                Image(systemName: "lock")
+                                    .foregroundColor(.secondary)
+                                    .help("This key appears to be encrypted; enter the passphrase.")
+                            }
+                        }
+                        SecureField("Enter passphrase", text: $tempPassphrase)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                    }
+                    
                     if let pemError = pemError {
                         Text(pemError)
                             .foregroundColor(.red)
@@ -631,6 +654,7 @@ struct ConnectButtonView: View {
         
         if providedPassword { connection.connectionInfo.password = tempPassword }
         if providedKey { connection.connectionInfo.privateKey = tempPrivateKey }
+        connection.connectionInfo.privateKeyPassphrase = tempPassphrase
 
         if providedPassword && !providedKey { connection.connectionInfo.privateKey = "" }
         if providedKey && !providedPassword { connection.connectionInfo.password = "" }
@@ -643,6 +667,7 @@ struct ConnectButtonView: View {
         showCredentialsSheet = false
         tempPassword = ""
         tempPrivateKey = ""
+        tempPassphrase = ""
         saveCredentials = false
     }
 
