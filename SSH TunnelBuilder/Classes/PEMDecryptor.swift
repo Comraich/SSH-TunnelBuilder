@@ -227,8 +227,6 @@ struct PEMDecryptor {
     }
 }
 
-import CommonCrypto
-
 private enum AESCBC {
     static func decrypt(ciphertext: Data, key: Data, iv: Data) throws -> Data {
         guard key.count == kCCKeySizeAES256 else { throw PEMDecryptorError.decryptionFailed }
