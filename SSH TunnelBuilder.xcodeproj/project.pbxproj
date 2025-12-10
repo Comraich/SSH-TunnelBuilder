@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 55;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -19,12 +19,16 @@
 		F4700F8529D768E20069DC6D /* ConnectionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4700F8429D768E20069DC6D /* ConnectionRow.swift */; };
 		F49EBCB229D367A500A43775 /* ConnectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49EBCB129D367A500A43775 /* ConnectionStore.swift */; };
 		F49EBCB429D367A900A43775 /* Connection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49EBCB329D367A900A43775 /* Connection.swift */; };
+		F4A368C02EE9964400762D9D /* PEMDecryptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4A368BF2EE9943A00762D9D /* PEMDecryptor.swift */; };
+		F4A368C22EE9F97300762D9D /* PEMDecryptor 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4A368C12EE9F97300762D9D /* PEMDecryptor 2.swift */; };
 		F4ABBF5827DFDF730097436A /* SSH_TunnelBuilderApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4ABBF5727DFDF730097436A /* SSH_TunnelBuilderApp.swift */; };
 		F4ABBF5A27DFDF730097436A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4ABBF5927DFDF730097436A /* ContentView.swift */; };
 		F4ABBF5C27DFDF740097436A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F4ABBF5B27DFDF740097436A /* Assets.xcassets */; };
 		F4ABBF5F27DFDF740097436A /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F4ABBF5E27DFDF740097436A /* Preview Assets.xcassets */; };
 		F4B4CA462EBBCA31003F7C53 /* SSHManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4B4CA452EBBCA31003F7C53 /* SSHManager.swift */; };
 		F4B4CA4B2EBBD995003F7C53 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4B4CA4A2EBBD995003F7C53 /* KeychainService.swift */; };
+		F4EDF2C12EEA149600D3B85E /* NIOSSH in Frameworks */ = {isa = PBXBuildFile; productRef = F4EDF2C02EEA149600D3B85E /* NIOSSH */; };
+		F4EDF2C32EEA17A000D3B85E /* PEMDecryptor 3.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4EDF2C22EEA17A000D3B85E /* PEMDecryptor 3.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -46,6 +50,8 @@
 		F4700F8429D768E20069DC6D /* ConnectionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionRow.swift; sourceTree = "<group>"; };
 		F49EBCB129D367A500A43775 /* ConnectionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionStore.swift; sourceTree = "<group>"; };
 		F49EBCB329D367A900A43775 /* Connection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Connection.swift; sourceTree = "<group>"; };
+		F4A368BF2EE9943A00762D9D /* PEMDecryptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PEMDecryptor.swift; sourceTree = "<group>"; };
+		F4A368C12EE9F97300762D9D /* PEMDecryptor 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PEMDecryptor 2.swift"; sourceTree = "<group>"; };
 		F4ABBF5427DFDF730097436A /* SSH TunnelBuilder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "SSH TunnelBuilder.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F4ABBF5727DFDF730097436A /* SSH_TunnelBuilderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSH_TunnelBuilderApp.swift; sourceTree = "<group>"; };
 		F4ABBF5927DFDF730097436A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.swift; };
@@ -58,6 +64,7 @@
 		F4B4CA452EBBCA31003F7C53 /* SSHManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHManager.swift; sourceTree = "<group>"; };
 		F4B4CA4A2EBBD995003F7C53 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
 		F4CB866B2EE49D1D0066AEDA /* SSH TunnelBuilderTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "SSH TunnelBuilderTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F4EDF2C22EEA17A000D3B85E /* PEMDecryptor 3.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PEMDecryptor 3.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -71,6 +78,7 @@
 			files = (
 				F45BB0992EE4274A000B4FA8 /* NIO in Frameworks */,
 				F45BB09F2EE4274A000B4FA8 /* NIOEmbedded in Frameworks */,
+				F4EDF2C12EEA149600D3B85E /* NIOSSH in Frameworks */,
 				F45BB0A92EE42A74000B4FA8 /* NIOSSH in Frameworks */,
 				F45BB0A32EE4274A000B4FA8 /* NIOTLS in Frameworks */,
 				F45BB09D2EE4274A000B4FA8 /* NIOCore in Frameworks */,
@@ -122,6 +130,9 @@
 				F49EBCB329D367A900A43775 /* Connection.swift */,
 				F4B4CA452EBBCA31003F7C53 /* SSHManager.swift */,
 				F4B4CA4A2EBBD995003F7C53 /* KeychainService.swift */,
+				F4A368BF2EE9943A00762D9D /* PEMDecryptor.swift */,
+				F4A368C12EE9F97300762D9D /* PEMDecryptor 2.swift */,
+				F4EDF2C22EEA17A000D3B85E /* PEMDecryptor 3.swift */,
 			);
 			path = Classes;
 			sourceTree = "<group>";
@@ -244,7 +255,7 @@
 			mainGroup = F4ABBF4B27DFDF730097436A;
 			packageReferences = (
 				F45BB0972EE4274A000B4FA8 /* XCRemoteSwiftPackageReference "swift-nio" */,
-				F45BB0A72EE42A74000B4FA8 /* XCRemoteSwiftPackageReference "swift-nio-ssh" */,
+				F4EDF2BF2EEA149600D3B85E /* XCLocalSwiftPackageReference "../swift-nio-ssh" */,
 			);
 			productRefGroup = F4ABBF5527DFDF730097436A /* Products */;
 			projectDirPath = "";
@@ -280,12 +291,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F4A368C02EE9964400762D9D /* PEMDecryptor.swift in Sources */,
 				F49EBCB429D367A900A43775 /* Connection.swift in Sources */,
 				F4700F8529D768E20069DC6D /* ConnectionRow.swift in Sources */,
 				F4700F8329D7670D0069DC6D /* MainView.swift in Sources */,
+				F4EDF2C32EEA17A000D3B85E /* PEMDecryptor 3.swift in Sources */,
 				F4B4CA4B2EBBD995003F7C53 /* KeychainService.swift in Sources */,
 				F4ABBF5A27DFDF730097436A /* ContentView.swift in Sources */,
 				F4700F8129D7669E0069DC6D /* NavigationView.swift in Sources */,
+				F4A368C22EE9F97300762D9D /* PEMDecryptor 2.swift in Sources */,
 				F4B4CA462EBBCA31003F7C53 /* SSHManager.swift in Sources */,
 				F422C57A29E46B2B007306BC /* DataCounterView.swift in Sources */,
 				F49EBCB229D367A500A43775 /* ConnectionStore.swift in Sources */,
@@ -603,6 +617,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		F4EDF2BF2EEA149600D3B85E /* XCLocalSwiftPackageReference "../swift-nio-ssh" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../swift-nio-ssh";
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		F45BB0972EE4274A000B4FA8 /* XCRemoteSwiftPackageReference "swift-nio" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -651,6 +672,10 @@
 		F45BB0A82EE42A74000B4FA8 /* NIOSSH */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = F45BB0A72EE42A74000B4FA8 /* XCRemoteSwiftPackageReference "swift-nio-ssh" */;
+			productName = NIOSSH;
+		};
+		F4EDF2C02EEA149600D3B85E /* NIOSSH */ = {
+			isa = XCSwiftPackageProductDependency;
 			productName = NIOSSH;
 		};
 /* End XCSwiftPackageProductDependency section */
