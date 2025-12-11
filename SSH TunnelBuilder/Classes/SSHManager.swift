@@ -1,8 +1,9 @@
 import Foundation
 import NIO
 import NIOSSH
-import CryptoKit
-import Security
+// Connection.swift must be imported or available in scope for the Connection type.
+
+// MARK: - NIOSSH Handlers
 
 private final class SSHSessionReadyHandler: ChannelInboundHandler, RemovableChannelHandler {
     typealias InboundIn = Any
@@ -15,6 +16,11 @@ private final class SSHSessionReadyHandler: ChannelInboundHandler, RemovableChan
     }
 
     func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
+        // NIOSSH sends specific events upon successful negotiation/auth.
+        if event is UserAuthSuccessEvent, !promiseFulfilled {
+            promiseFulfilled = true
+            sessionReadyPromise.succeed(())
+        }
         context.fireUserInboundEventTriggered(event)
     }
 
@@ -88,211 +94,30 @@ private final class GenericRelayHandler<InboundType, OutboundType>: ChannelInbou
     }
 }
 
-// Accept-all host key validator (development only) matching provided protocol
+// Accept-all host key validator (development only)
 private struct AcceptAllHostKeysDelegate: NIOSSHClientServerAuthenticationDelegate {
     func validateHostKey(hostKey: NIOSSHPublicKey, validationCompletePromise: EventLoopPromise<Void>) {
+        // WARNING: This accepts ANY host key. Implement proper host key validation in production.
         validationCompletePromise.succeed(())
     }
 }
 
-// User auth delegate supporting private key (preferred) and password fallback.
-final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate, Sendable {
+// User auth delegate supporting only password authentication.
+private final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate, Sendable {
     let username: String
     let password: String?
-    let privateKey: NIOSSHPrivateKey?
-    let privateKeyPassphrase: String?
+    let reportError: (@Sendable (String) -> Void)? // <-- Changed to @Sendable closure
 
-    init(username: String, password: String?, privateKeyString: String?, privateKeyPassphrase: String?) {
+    // We keep the initializer matching the original signature for consistency, 
+    // but private key parameters are ignored.
+    init(username: String, password: String?, privateKeyString: String?, privateKeyPassphrase: String?, reportError: (@Sendable (String) -> Void)? = nil) {
+        self.reportError = reportError
         self.username = username
         self.password = password?.isEmpty == false ? password : nil
-
-        if let keyString = privateKeyString, !keyString.isEmpty {
-            let normalized = keyString
-                .replacingOccurrences(of: "\r\n", with: "\n")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            
-            self.privateKeyPassphrase = (privateKeyPassphrase?.isEmpty == false) ? privateKeyPassphrase : nil
-            self.privateKey = FlexibleAuthDelegate.makeNIOSSHPrivateKey(fromPEM: normalized, passphrase: self.privateKeyPassphrase)
-            
-            if self.privateKey == nil {
-                print("FlexibleAuthDelegate: Private key parsing disabled for current NIOSSH version or unsupported key format. Falling back to password if available.")
-            }
-        } else {
-            self.privateKeyPassphrase = nil
-            self.privateKey = nil
+        
+        if (privateKeyString?.isEmpty == false) {
+             reportError?("Private key provided but only password authentication is enabled in this implementation.")
         }
-    }
-
-    private static func extractPEMBody(begin: String, end: String, from text: String) -> Data? {
-        guard let beginRange = text.range(of: begin), let endRange = text.range(of: end, range: beginRange.upperBound..<text.endIndex) else { return nil }
-        let bodyRange = beginRange.upperBound..<endRange.lowerBound
-        let body = text[bodyRange]
-            .replacingOccurrences(of: "\n", with: "")
-            .replacingOccurrences(of: "\r", with: "")
-            .replacingOccurrences(of: "\t", with: "")
-            .replacingOccurrences(of: " ", with: "")
-        return Data(base64Encoded: body)
-    }
-
-    private enum KeyKind { case ecdsaP256, ecdsaP384, ecdsaP521, rsa, unknown }
-
-    // Minimal OID detection inside PKCS#8 DER to decide curve / RSA
-    private static func detectKeyKind(in der: Data) -> KeyKind {
-        // Very small heuristic: search for curve OIDs or RSA OID bytes
-        // P-256: 1.2.840.10045.3.1.7 -> 06 08 2A 86 48 CE 3D 03 01 07
-        // P-384: 1.3.132.0.34       -> 06 05 2B 81 04 00 22
-        // P-521: 1.3.132.0.35       -> 06 05 2B 81 04 00 23
-        // RSA:   1.2.840.113549.1.1.1 -> 06 09 2A 86 48 86 F7 0D 01 01 01
-        let p256: [UInt8] = [0x06,0x08,0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x07]
-        let p384: [UInt8] = [0x06,0x05,0x2B,0x81,0x04,0x00,0x22]
-        let p521: [UInt8] = [0x06,0x05,0x2B,0x81,0x04,0x00,0x23]
-        let rsa:  [UInt8] = [0x06,0x09,0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,0x01,0x01]
-        let bytes = [UInt8](der)
-        func contains(_ sig: [UInt8]) -> Bool {
-            guard sig.count <= bytes.count else { return false }
-            let limit = bytes.count - sig.count
-            var i = 0
-            while i <= limit {
-                var j = 0
-                while j < sig.count, bytes[i + j] == sig[j] { j += 1 }
-                if j == sig.count { return true }
-                i += 1
-            }
-            return false
-        }
-        if contains(p256) { return .ecdsaP256 }
-        if contains(p384) { return .ecdsaP384 }
-        if contains(p521) { return .ecdsaP521 }
-        if contains(rsa) { return .rsa }
-        return .unknown
-    }
-
-    // Build SecKey from RSA PKCS#1 or PKCS#8 private key
-    private static func makeSecKeyRSA(from der: Data, isPKCS1: Bool) -> SecKey? {
-        let attrs: CFDictionary = [
-            kSecAttrKeyType: kSecAttrKeyTypeRSA,
-            kSecAttrKeyClass: kSecAttrKeyClassPrivate,
-        ] as CFDictionary
-        // If PKCS#1, wrap into a PKCS#8 structure header for SecKey to accept, else try as-is
-        var keyData = der
-        if isPKCS1 {
-            // Minimal PKCS#8 wrapper for RSA private key: PrivateKeyInfo { version, alg { rsaOID, NULL }, octetString(pkcs1) }
-            // Prebuilt header for RSA OID and NULL params; encode lengths dynamically
-            let rsaOID: [UInt8] = [0x30,0x0D,0x06,0x09,0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,0x01,0x01,0x05,0x00]
-            let pkcs1Octet = [UInt8]([0x04]) + lengthBytes(for: keyData.count) + [UInt8](keyData)
-            let alg = rsaOID
-            let version: [UInt8] = [0x02,0x01,0x00]
-            let inner = version + alg + pkcs1Octet
-            let pkcs8 = [UInt8]([0x30]) + lengthBytes(for: inner.count) + inner
-            keyData = Data(pkcs8)
-        }
-        return SecKeyCreateWithData(keyData as CFData, attrs, nil)
-    }
-
-    private static func lengthBytes(for length: Int) -> [UInt8] {
-        if length < 0x80 { return [UInt8(length)] }
-        var len = length
-        var bytes: [UInt8] = []
-        while len > 0 { bytes.insert(UInt8(len & 0xFF), at: 0); len >>= 8 }
-        return [0x80 | UInt8(bytes.count)] + bytes
-    }
-
-    private static func makeNIOSSHPrivateKey(fromPEM pem: String, passphrase: String?) -> NIOSSHPrivateKey? {
-        // Normalize PEM
-        let pem = pem.replacingOccurrences(of: "\r\n", with: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
-
-        func decodeBase64Body(begin: String, end: String, from text: String) -> Data? {
-            guard let b = text.range(of: begin), let e = text.range(of: end, range: b.upperBound..<text.endIndex) else { return nil }
-            let body = text[b.upperBound..<e.lowerBound]
-                .components(separatedBy: .newlines)
-                .joined()
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            return Data(base64Encoded: body)
-        }
-
-        // 0) OpenSSH Ed25519 private key (unencypted)
-        if pem.contains("-----BEGIN OPENSSH PRIVATE KEY-----") {
-            // Decode OpenSSH PEM body
-            if let blob = decodeBase64Body(begin: "-----BEGIN OPENSSH PRIVATE KEY-----", end: "-----END OPENSSH PRIVATE KEY-----", from: pem) {
-                print("NIOSSH: Detected OpenSSH Ed25519 private key; attempting to construct NIOSSHPrivateKey.")
-                // Requires fork exposing: NIOSSHPrivateKey(init openSSHEd25519PrivateKeyBlob: [UInt8])
-                if let key = try? NIOSSHPrivateKey(openSSHEd25519PrivateKeyBlob: Array(blob)) {
-                    return key
-                } else {
-                    print("NIOSSH: Failed to build Ed25519 key from OpenSSH private key blob. Ensure fork exposes init(openSSHEd25519PrivateKeyBlob:).")
-                    return nil
-                }
-            } else {
-                print("NIOSSH: Failed to decode OpenSSH private key PEM body")
-                return nil
-            }
-        }
-
-        // Helper to try building SecKey from PKCS#8 DER for EC or RSA
-        func secKeyFromPKCS8DER(_ der: Data) -> SecKey? {
-            // Try EC first
-            var attrs: CFDictionary = [
-                kSecAttrKeyType: kSecAttrKeyTypeECSECPrimeRandom,
-                kSecAttrKeyClass: kSecAttrKeyClassPrivate,
-            ] as CFDictionary
-            if let key = SecKeyCreateWithData(der as CFData, attrs, nil) { return key }
-            // Then RSA
-            attrs = [
-                kSecAttrKeyType: kSecAttrKeyTypeRSA,
-                kSecAttrKeyClass: kSecAttrKeyClassPrivate,
-            ] as CFDictionary
-            if let key = SecKeyCreateWithData(der as CFData, attrs, nil) { return key }
-            return nil
-        }
-
-        // 1) Encrypted PKCS#8
-        if pem.contains("-----BEGIN ENCRYPTED PRIVATE KEY-----") {
-            guard let pass = passphrase, !pass.isEmpty else {
-                print("NIOSSH: Encrypted PKCS#8 key detected but no passphrase provided.")
-                return nil
-            }
-            do {
-                let der = try PEMDecryptor.decryptEncryptedPKCS8PEM(pem, passphrase: pass)
-                if secKeyFromPKCS8DER(der) != nil {
-                    // Temporarily disabled until fork exposes init(secKey:)
-                    print("NIOSSH: init(secKey:) not available in current NIOSSH build; falling back to password.")
-                    return nil
-                }
-                print("NIOSSH: SecKeyCreateWithData failed for decrypted PKCS#8.")
-                return nil
-            } catch {
-                print("NIOSSH: Failed to decrypt PKCS#8: \(error)")
-                return nil
-            }
-        }
-
-        // 2) Unencrypted PKCS#8 PRIVATE KEY
-        if pem.contains("-----BEGIN PRIVATE KEY-----") {
-            guard let der = decodeBase64Body(begin: "-----BEGIN PRIVATE KEY-----", end: "-----END PRIVATE KEY-----", from: pem) else {
-                print("NIOSSH: Failed to decode PKCS#8 PRIVATE KEY PEM body")
-                return nil
-            }
-            if secKeyFromPKCS8DER(der) != nil {
-                // Temporarily disabled until fork exposes init(secKey:)
-                print("NIOSSH: init(secKey:) not available in current NIOSSH build; falling back to password.")
-                return nil
-            }
-            print("NIOSSH: SecKeyCreateWithData failed for PKCS#8 PRIVATE KEY.")
-            return nil
-        }
-
-        // 3) Legacy/unsupported PEM blocks: advise conversion
-        if pem.contains("-----BEGIN EC PRIVATE KEY-----") {
-            print("NIOSSH: EC PRIVATE KEY (traditional) not supported directly; please convert to PKCS#8 (openssl pkcs8 -topk8 -nocrypt -in ec.key -out ec_pkcs8.pem)")
-            return nil
-        }
-        if pem.contains("-----BEGIN RSA PRIVATE KEY-----") {
-            print("NIOSSH: RSA PKCS#1 not supported directly; convert to PKCS#8 with `openssl pkcs8 -topk8 -in id_rsa -out id_rsa_pkcs8.pem`.")
-            return nil
-        }
-
-        print("NIOSSH: Unsupported or encrypted private key format. Supported: PKCS#8 PRIVATE KEY and ENCRYPTED PRIVATE KEY")
-        return nil
     }
     
     private func makeAuthOffer(with offerType: NIOSSHUserAuthenticationOffer.Offer) -> NIOSSHUserAuthenticationOffer {
@@ -302,39 +127,29 @@ final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate, Sendab
             offer: offerType
         )
     }
-    
-    private struct AuthStrategy {
-        let method: NIOSSHAvailableUserAuthenticationMethods
-        let offer: () -> NIOSSHUserAuthenticationOffer.Offer?
-    }
 
     func nextAuthenticationType(
         availableMethods: NIOSSHAvailableUserAuthenticationMethods,
         nextChallengePromise: EventLoopPromise<NIOSSHUserAuthenticationOffer?>
     ) {
-        let strategies: [AuthStrategy] = [
-            AuthStrategy(method: .publicKey) {
-                self.privateKey.map { .privateKey(.init(privateKey: $0)) }
-            },
-            AuthStrategy(method: .password) {
-                self.password.map { .password(.init(password: $0)) }
-            }
-        ]
-
-        for strategy in strategies {
-            if availableMethods.contains(strategy.method), let offerType = strategy.offer() {
-                let offer = makeAuthOffer(with: offerType)
-                nextChallengePromise.succeed(offer)
-                return
-            }
+        // Only attempt password authentication
+        guard availableMethods.contains(.password), let password = self.password else {
+            nextChallengePromise.succeed(nil)
+            return
         }
+
+        let offerType: NIOSSHUserAuthenticationOffer.Offer = .password(.init(password: password))
+        let offer = makeAuthOffer(with: offerType)
         
-        nextChallengePromise.succeed(nil)
+        nextChallengePromise.succeed(offer)
     }
 }
 
+// MARK: - SSHManager
+
 final class SSHManager: ObservableObject, @unchecked Sendable {
-    let connection: Connection
+    // Uses the global Connection type defined in Connection.swift
+    let connection: Connection 
     private var eventLoopGroup: MultiThreadedEventLoopGroup?
     private var sshClientChannel: Channel?
     private var localServerChannel: Channel?
@@ -343,24 +158,29 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
     private var sessionReadyPromise: EventLoopPromise<Void>?
     private var sessionReadyCompleted: Bool = false
 
-    @Published private(set) var isActive: Bool = false
-    @Published private(set) var bytesSent: Int64 = 0
-    @Published private(set) var bytesReceived: Int64 = 0
+    // Removed duplicated @Published state, relying on Connection object's state
+    @Published var lastErrorMessage: String? = nil
+    
+    // We only need internal counters now, as the connection object handles the @Published state
+    private var internalBytesSent: Int64 = 0
+    private var internalBytesReceived: Int64 = 0
 
     init(connection: Connection) { self.connection = connection }
 
     func connect() async throws {
+        // Use connection.isActive which is defined in Connection.swift
         guard !connection.isActive else { return }
+        
         let hasPassword = !connection.connectionInfo.password.isEmpty
         let hasKey = !connection.connectionInfo.privateKey.isEmpty
-        guard hasPassword || hasKey else {
-            print("SSHManager.connect: Missing credentials (provide a password or a private key)")
+        
+        guard hasPassword else {
+            print("SSHManager.connect: Missing password for authentication.")
             await MainActor.run {
                 connection.isConnecting = false
                 connection.isActive = false
-                isActive = false
             }
-            return
+            throw NSError(domain: "SSHManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing password"])
         }
 
         await MainActor.run { connection.isConnecting = true }
@@ -370,8 +190,13 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
         let authDelegate = FlexibleAuthDelegate(
             username: connection.connectionInfo.username,
             password: hasPassword ? connection.connectionInfo.password : nil,
-            privateKeyString: hasKey ? connection.connectionInfo.privateKey : nil,
-            privateKeyPassphrase: connection.connectionInfo.privateKeyPassphrase
+            privateKeyString: hasKey ? connection.connectionInfo.privateKey : nil, // Passed for consistent API, but ignored
+            privateKeyPassphrase: connection.connectionInfo.privateKeyPassphrase,  // Passed for consistent API, but ignored
+            reportError: { [weak self] message in
+                Task { @MainActor in
+                    self?.lastErrorMessage = message
+                }
+            }
         )
         let serverDelegate = AcceptAllHostKeysDelegate()
 
@@ -404,21 +229,23 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
             }
 
         do {
-            // This connects the TCP socket.
+            // 1. Connect the TCP socket.
             let channel = try await bootstrap.connect(host: host, port: port).get()
             
-            // This waits for the SSH handshake and authentication to complete.
+            // 2. Wait for the SSH handshake and password authentication to complete.
             if let sessionReadyPromise = self.sessionReadyPromise {
                 try await sessionReadyPromise.futureResult.get()
             }
             
-            // NOW the connection is fully up and ready.
+            // 3. Connection is fully up and ready.
             lock.withLock { self.sshClientChannel = channel }
             await MainActor.run {
                 self.connection.isActive = true
-                self.isActive = true
+                self.lastErrorMessage = nil
                 self.connection.isConnecting = false
             }
+            
+            // 4. Start listening locally for tunneling requests.
             try await startLocalListener()
         } catch {
             print("SSH connect failed: \(error)")
@@ -462,28 +289,24 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
                     // 3. Create the forwarding channel using an explicit promise for clarity.
                     let childChannelPromise = sshChannel.eventLoop.makePromise(of: Channel.self)
                     print("Opening direct-tcpip to \(strongSelf.connection.tunnelInfo.remoteServer):\(Int(strongSelf.connection.tunnelInfo.remotePort) ?? 0) from originator: \(originator)")
+                    
                     let directTCPIP = NIOSSH.SSHChannelType.DirectTCPIP(
                         targetHost: strongSelf.connection.tunnelInfo.remoteServer,
                         targetPort: Int(strongSelf.connection.tunnelInfo.remotePort) ?? 0,
                         originatorAddress: originator
                     )
+                    
                     ssh.createChannel(childChannelPromise, channelType: .directTCPIP(directTCPIP)) { sshChildChannel, _ in
                         let received: (Int) -> Void = { [weak strongSelf] n in
                             guard let manager = strongSelf else { return }
                             Task { @MainActor in manager.handleBytesReceived(n) }
                         }
+                        // SSH -> TCP (forward data received from remote server to local client)
                         let sshToTCP = GenericRelayHandler<SSHChannelData, ByteBuffer>(peer: inbound, onBytes: received) { sshData in
                             guard case .byteBuffer(let buffer) = sshData.data else { return (nil, 0) }
                             return (buffer, buffer.readableBytes)
                         }
-                        let f = sshChildChannel.pipeline.addHandler(sshToTCP)
-                        f.whenSuccess { _ in
-                            if let promise = self?.sessionReadyPromise, self?.sessionReadyCompleted == false {
-                                self?.sessionReadyCompleted = true
-                                promise.succeed(())
-                            }
-                        }
-                        return f
+                        return sshChildChannel.pipeline.addHandler(sshToTCP)
                     }
                     return childChannelPromise.futureResult
                 }.flatMap { sshChildChannel -> EventLoopFuture<Void> in
@@ -492,6 +315,7 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
                         guard let manager = strongSelf else { return }
                         Task { @MainActor in manager.handleBytesSent(n) }
                     }
+                    // TCP -> SSH (forward data received from local client to remote server via SSH)
                     let tcpToSSH = GenericRelayHandler<ByteBuffer, SSHChannelData>(peer: sshChildChannel, onBytes: sent) { buffer in
                         let sshData = SSHChannelData(type: .channel, data: .byteBuffer(buffer))
                         return (sshData, buffer.readableBytes)
@@ -549,6 +373,9 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
                 self.sessionReadyCompleted = true
                 p.fail(ChannelError.ioOnClosedChannel)
             }
+            // Reset internal counters
+            self.internalBytesSent = 0
+            self.internalBytesReceived = 0
         }
         
         self.sessionReadyPromise = nil
@@ -564,14 +391,12 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
             lock.withLock { self.eventLoopGroup = nil }
         }
         
-        // Reset state
+        // Reset state on connection object
         await MainActor.run {
             self.connection.isActive = false
-            self.isActive = false
-            self.bytesSent = 0
-            self.bytesReceived = 0
             self.connection.bytesSent = 0
             self.connection.bytesReceived = 0
+            self.lastErrorMessage = nil
         }
     }
     
@@ -579,14 +404,19 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
     
     private func handleBytesSent(_ count: Int) {
         let n = Int64(count)
-        self.bytesSent += n
-        self.connection.bytesSent += n
+        self.internalBytesSent += n
+        Task { @MainActor in
+            // Update the published property on the Connection object
+            self.connection.bytesSent += n
+        }
     }
     
     private func handleBytesReceived(_ count: Int) {
         let n = Int64(count)
-        self.bytesReceived += n
-        self.connection.bytesReceived += n
+        self.internalBytesReceived += n
+        Task { @MainActor in
+            // Update the published property on the Connection object
+            self.connection.bytesReceived += n
+        }
     }
 }
-

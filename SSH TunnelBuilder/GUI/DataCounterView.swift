@@ -16,7 +16,7 @@ struct DataCounterView: View {
             HStack {
                 VStack(alignment: .leading) {
                     Text("Data Sent: \(byteCountFormatter.string(fromByteCount: connection.bytesSent))")
-                    Text("Received: \(byteCountFormatter.string(fromByteCount: connection.bytesReceived))")
+                    Text("Data Received: \(byteCountFormatter.string(fromByteCount: connection.bytesReceived))")
                 }
                 Spacer()
                 VStack {
