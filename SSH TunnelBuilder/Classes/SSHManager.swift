@@ -210,6 +210,24 @@ final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate, Sendab
             return Data(base64Encoded: body)
         }
 
+        // 0) OpenSSH Ed25519 private key (unencypted)
+        if pem.contains("-----BEGIN OPENSSH PRIVATE KEY-----") {
+            // Decode OpenSSH PEM body
+            if let blob = decodeBase64Body(begin: "-----BEGIN OPENSSH PRIVATE KEY-----", end: "-----END OPENSSH PRIVATE KEY-----", from: pem) {
+                print("NIOSSH: Detected OpenSSH Ed25519 private key; attempting to construct NIOSSHPrivateKey.")
+                // Requires fork exposing: NIOSSHPrivateKey(init openSSHEd25519PrivateKeyBlob: [UInt8])
+                if let key = try? NIOSSHPrivateKey(openSSHEd25519PrivateKeyBlob: Array(blob)) {
+                    return key
+                } else {
+                    print("NIOSSH: Failed to build Ed25519 key from OpenSSH private key blob. Ensure fork exposes init(openSSHEd25519PrivateKeyBlob:).")
+                    return nil
+                }
+            } else {
+                print("NIOSSH: Failed to decode OpenSSH private key PEM body")
+                return nil
+            }
+        }
+
         // Helper to try building SecKey from PKCS#8 DER for EC or RSA
         func secKeyFromPKCS8DER(_ der: Data) -> SecKey? {
             // Try EC first
