@@ -641,25 +641,39 @@ struct ConnectButtonView: View {
         pemError = nil
         
         if providedKey {
-            if !isValidPEMPrivateKey(tempPrivateKey) {
-                pemError = "Invalid private key format. Supported: OPENSSH, RSA, EC, DSA, or PKCS#8 PRIVATE KEY."
+            let keyKind = detectPEMKeyKind(tempPrivateKey)
+            
+            guard keyKind != .unknown else {
+                pemError = "Invalid private key format."
                 return
             }
-            let keyKind = detectPEMKeyKind(tempPrivateKey)
+            
+            // Only PKCS#8 or EC (ECDSA) are supported by the current NIOSSH/SSHManager setup.
             if !(keyKind == .pkcs8 || keyKind == .ec) {
-                pemError = "Unsupported private key type (\(keyKindDescription(keyKind))). Supported: ECDSA (EC PRIVATE KEY) or PKCS#8 PRIVATE KEY."
+                pemError = "Unsupported private key type (\(keyKindDescription(keyKind))). Supported types are ECDSA (EC PRIVATE KEY) or PKCS#8 PRIVATE KEY."
                 return
             }
         }
         
+        // At this point, validation passed. Store credentials temporarily/permanently.
+        
+        // If password field was filled, use it.
         if providedPassword { connection.connectionInfo.password = tempPassword }
-        if providedKey { connection.connectionInfo.privateKey = tempPrivateKey }
-        connection.connectionInfo.privateKeyPassphrase = tempPassphrase
-
+        
+        // If key field was filled, use it.
+        if providedKey { 
+            connection.connectionInfo.privateKey = tempPrivateKey
+            connection.connectionInfo.privateKeyPassphrase = tempPassphrase
+        } else {
+             connection.connectionInfo.privateKeyPassphrase = ""
+        }
+        
+        // Ensure we clear the opposing field if only one was provided in the modal
         if providedPassword && !providedKey { connection.connectionInfo.privateKey = "" }
         if providedKey && !providedPassword { connection.connectionInfo.password = "" }
 
         if saveCredentials {
+            // This implicitly updates the Keychain via ConnectionStore's save logic.
             connectionStore.saveConnection(connection, connectionToUpdate: connection)
         }
 
