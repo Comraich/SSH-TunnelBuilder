@@ -408,7 +408,7 @@ class ConnectionStore: ObservableObject {
         let password = KeychainService.shared.loadPassword(for: uuid) ?? ""
         let privateKey = KeychainService.shared.loadPrivateKey(for: uuid) ?? ""
 
-        let connectionInfo = ConnectionInfo(name: name, serverAddress: serverAddress, portNumber: portNumber, username: username, password: password, privateKey: privateKey)
+        let connectionInfo = ConnectionInfo(name: name, serverAddress: serverAddress, portNumber: portNumber, username: username, password: password, privateKey: privateKey, privateKeyPassphrase: "")
         let tunnelInfo = TunnelInfo(localPort: localPort, remoteServer: remoteServer, remotePort: remotePort)
 
         return Connection(id: uuid, recordID: record.recordID, connectionInfo: connectionInfo, tunnelInfo: tunnelInfo)
