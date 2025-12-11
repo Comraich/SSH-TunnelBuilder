@@ -227,10 +227,16 @@ struct PEMDecryptor {
     }
 }
 
+// AES-256-CBC with PKCS#7 padding (no ECB, no raw/NoPadding).
 private enum AESCBC {
     static func decrypt(ciphertext: Data, key: Data, iv: Data) throws -> Data {
         guard key.count == kCCKeySizeAES256 else { throw PEMDecryptorError.decryptionFailed }
         guard iv.count == kCCBlockSizeAES128 else { throw PEMDecryptorError.decryptionFailed }
+        
+        // Defensive checks: CBC requires an IV and ciphertext at least one block; reject all-zero IV to avoid trivial patterns
+        guard ciphertext.count >= kCCBlockSizeAES128 else { throw PEMDecryptorError.decryptionFailed }
+        if iv.allSatisfy({ $0 == 0 }) { throw PEMDecryptorError.decryptionFailed }
+        
         var outLength: size_t = 0
         var outData = Data(count: ciphertext.count + kCCBlockSizeAES128)
         let status = outData.withUnsafeMutableBytes { outBuf in
