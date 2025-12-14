@@ -125,7 +125,7 @@ class ConnectionStore: ObservableObject {
         let mgr = manager(for: connection)
         
         // Configure the host key validation callback
-        mgr.hostKeyValidationCallback = { [weak self] host, fingerprint, keyType, keyData, completion in
+        mgr.hostKeyValidationCallback = { [weak self] host, fingerprint, _, keyData, completion in
             Task { @MainActor in
                 // We wrap the original completion to handle saving the key if trusted
                 self?.hostKeyRequest = HostKeyRequest(hostname: host, fingerprint: fingerprint, keyData: keyData) { trusted in
