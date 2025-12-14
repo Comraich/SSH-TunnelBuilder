@@ -10,6 +10,7 @@ struct ConnectionInfo {
     var password: String
     var privateKey: String
     var privateKeyPassphrase: String
+    var knownHostKey: String = "" // Base64 encoded host key
 }
 
 struct TunnelInfo {
@@ -18,6 +19,7 @@ struct TunnelInfo {
     var remotePort: String
 }
 
+@MainActor
 class Connection: Identifiable, Equatable, Hashable, ObservableObject {
     let id: UUID
     let recordID: CKRecord.ID?
@@ -55,7 +57,7 @@ class Connection: Identifiable, Equatable, Hashable, ObservableObject {
     }
     
     // Hashable conformity
-    func hash(into hasher: inout Hasher) {
+    nonisolated func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
 }
