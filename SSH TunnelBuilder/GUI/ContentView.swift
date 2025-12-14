@@ -29,6 +29,18 @@ struct ContentView: View {
                 dismissButton: .default(Text("OK"))
             )
         }
+        .alert(item: $connectionStore.hostKeyRequest) { request in
+            Alert(
+                title: Text("Unknown Host"),
+                message: Text("The host '\(request.hostname)' is unknown.\n\nFingerprint:\n\(request.fingerprint)\n\nDo you want to trust this host?"),
+                primaryButton: .default(Text("Trust")) {
+                    request.completion(true)
+                },
+                secondaryButton: .cancel(Text("Cancel")) {
+                    request.completion(false)
+                }
+            )
+        }
     }
 }
 

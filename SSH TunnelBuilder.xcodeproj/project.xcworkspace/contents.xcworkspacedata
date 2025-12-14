@@ -5,6 +5,9 @@
       location = "self:">
    </FileRef>
    <FileRef
-      location = "group:SSH_TunnelBuilderUITests.swift">
+      location = "group:ConnectionStore.swift (Relevant excerpt from deleteConnection)">
+   </FileRef>
+   <FileRef
+      location = "group:ConnectionStore.swift (Original provided content snippet)">
    </FileRef>
 </Workspace>

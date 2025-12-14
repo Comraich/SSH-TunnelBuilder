@@ -20,6 +20,7 @@
 		F49EBCB229D367A500A43775 /* ConnectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49EBCB129D367A500A43775 /* ConnectionStore.swift */; };
 		F49EBCB429D367A900A43775 /* Connection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49EBCB329D367A900A43775 /* Connection.swift */; };
 		F4A368C02EE9964400762D9D /* PEMDecryptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4A368BF2EE9943A00762D9D /* PEMDecryptor.swift */; };
+		F4A51CEC2EEF257500C846B3 /* SSHManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4A51CEB2EEF257500C846B3 /* SSHManagerTests.swift */; };
 		F4ABBF5827DFDF730097436A /* SSH_TunnelBuilderApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4ABBF5727DFDF730097436A /* SSH_TunnelBuilderApp.swift */; };
 		F4ABBF5A27DFDF730097436A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4ABBF5927DFDF730097436A /* ContentView.swift */; };
 		F4ABBF5C27DFDF740097436A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F4ABBF5B27DFDF740097436A /* Assets.xcassets */; };
@@ -49,6 +50,7 @@
 		F49EBCB129D367A500A43775 /* ConnectionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionStore.swift; sourceTree = "<group>"; };
 		F49EBCB329D367A900A43775 /* Connection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Connection.swift; sourceTree = "<group>"; };
 		F4A368BF2EE9943A00762D9D /* PEMDecryptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PEMDecryptor.swift; sourceTree = "<group>"; };
+		F4A51CEB2EEF257500C846B3 /* SSHManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHManagerTests.swift; sourceTree = "<group>"; };
 		F4ABBF5427DFDF730097436A /* SSH TunnelBuilder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "SSH TunnelBuilder.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F4ABBF5727DFDF730097436A /* SSH_TunnelBuilderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSH_TunnelBuilderApp.swift; sourceTree = "<group>"; };
 		F4ABBF5927DFDF730097436A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.swift; };
@@ -127,6 +129,7 @@
 				F4B4CA452EBBCA31003F7C53 /* SSHManager.swift */,
 				F4B4CA4A2EBBD995003F7C53 /* KeychainService.swift */,
 				F4A368BF2EE9943A00762D9D /* PEMDecryptor.swift */,
+				F4A51CEB2EEF257500C846B3 /* SSHManagerTests.swift */,
 			);
 			path = Classes;
 			sourceTree = "<group>";
@@ -285,6 +288,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F4A51CEC2EEF257500C846B3 /* SSHManagerTests.swift in Sources */,
 				F4A368C02EE9964400762D9D /* PEMDecryptor.swift in Sources */,
 				F49EBCB429D367A900A43775 /* Connection.swift in Sources */,
 				F4700F8529D768E20069DC6D /* ConnectionRow.swift in Sources */,
