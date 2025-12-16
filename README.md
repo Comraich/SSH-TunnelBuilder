@@ -1,3 +1,5 @@
+[![CodeFactor](https://www.codefactor.io/repository/github/comraich/ssh-tunnelbuilder/badge)](https://www.codefactor.io/repository/github/comraich/ssh-tunnelbuilder)
+
 # SSH Tunnel Manager
 
 A SwiftUI app for creating, viewing, editing, and persisting SSH connection profiles (including local port forwarding) and establishing tunnels using SwiftNIO + NIOSSH. Connection records are stored in your private iCloud database via CloudKit, with sensitive credentials secured in the Keychain.
