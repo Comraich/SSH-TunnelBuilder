@@ -52,7 +52,7 @@ class Connection: Identifiable, Equatable, Hashable, ObservableObject {
     }
     
     // Identifiable comfirmity
-    static func == (lhs: Connection, rhs: Connection) -> Bool {
+    nonisolated static func == (lhs: Connection, rhs: Connection) -> Bool {
         return lhs.id == rhs.id
     }
     
