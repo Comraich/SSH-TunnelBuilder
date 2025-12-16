@@ -59,7 +59,6 @@ struct PEMDecryptor {
             prfOID = try prfAlg.readOID()
             // parameters ignored (usually NULL)
             if !prfAlg.isAtEnd { _ = try? prfAlg.readAny() } // ignore
-            if !pbkdf2params.isAtEnd { } // continue
         }
         if !pbkdf2params.isAtEnd { throw PEMDecryptorError.asn1ParseError("Extra data after PBKDF2 params") }
         

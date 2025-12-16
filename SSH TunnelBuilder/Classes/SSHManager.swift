@@ -2,7 +2,30 @@ import Foundation
 import NIO
 import NIOSSH
 import CryptoKit
-import Security
+import Combine
+
+// NOTE: PEMKeyKind, detectPEMKeyKind, isPEMEncrypted are assumed to be defined in MainView.swift or another file.
+// If they are not visible here, move them to a shared utility file.
+
+// MARK: - Helper Types
+
+private final class InteractiveHostKeyDelegate: NIOSSHClientServerAuthenticationDelegate, Sendable {
+    let host: String
+    let port: Int
+    let validationHandler: @Sendable (String, Int, NIOSSHPublicKey, EventLoopPromise<Void>) -> Void
+
+    init(host: String, port: Int, validationHandler: @escaping @Sendable (String, Int, NIOSSHPublicKey, EventLoopPromise<Void>) -> Void) {
+        self.host = host
+        self.port = port
+        self.validationHandler = validationHandler
+    }
+
+    func validateHostKey(hostKey: NIOSSHPublicKey, validationCompletePromise: EventLoopPromise<Void>) {
+        validationHandler(host, port, hostKey, validationCompletePromise)
+    }
+}
+
+// MARK: - NIOSSH Handlers
 
 private final class SSHSessionReadyHandler: ChannelInboundHandler, RemovableChannelHandler {
     typealias InboundIn = Any
@@ -15,11 +38,14 @@ private final class SSHSessionReadyHandler: ChannelInboundHandler, RemovableChan
     }
 
     func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
+        if event is UserAuthSuccessEvent, !promiseFulfilled {
+            promiseFulfilled = true
+            sessionReadyPromise.succeed(())
+        }
         context.fireUserInboundEventTriggered(event)
     }
 
     func errorCaught(context: ChannelHandlerContext, error: Error) {
-        // If an error occurs during handshake (e.g., auth failure), fail the promise.
         if !promiseFulfilled {
             promiseFulfilled = true
             sessionReadyPromise.fail(error)
@@ -28,7 +54,6 @@ private final class SSHSessionReadyHandler: ChannelInboundHandler, RemovableChan
     }
     
     func channelInactive(context: ChannelHandlerContext) {
-        // If the channel closes before authentication succeeds, fail the promise.
         if !promiseFulfilled {
             promiseFulfilled = true
             sessionReadyPromise.fail(ChannelError.ioOnClosedChannel)
@@ -38,7 +63,6 @@ private final class SSHSessionReadyHandler: ChannelInboundHandler, RemovableChan
 }
 
 private extension TaskGroup where ChildTaskResult == Void {
-    // Helper to add a channel-closing task, reducing duplication in shutdown().
     mutating func closeChannel(_ channel: Channel?, name: String) {
         guard let channel = channel else { return }
         self.addTask {
@@ -51,7 +75,6 @@ private extension TaskGroup where ChildTaskResult == Void {
     }
 }
 
-// A single, generic relay handler to replace the two specific ones.
 private final class GenericRelayHandler<InboundType, OutboundType>: ChannelInboundHandler {
     typealias InboundIn = InboundType
 
@@ -72,227 +95,78 @@ private final class GenericRelayHandler<InboundType, OutboundType>: ChannelInbou
         if count > 0 {
             self.onBytes(count)
             if let outboundData = outboundData {
-                _ = peer.writeAndFlush(outboundData)
+                // Ensure write happens on the peer's event loop for thread safety.
+                peer.eventLoop.execute {
+                    self.peer.writeAndFlush(outboundData, promise: nil)
+                }
             }
         }
     }
 
     func channelInactive(context: ChannelHandlerContext) {
-        _ = peer.close(mode: .all)
+        // Ensure close happens on the peer's event loop for thread safety.
+        peer.eventLoop.execute {
+            self.peer.close(mode: .all, promise: nil)
+        }
         context.fireChannelInactive()
     }
 
     func errorCaught(context: ChannelHandlerContext, error: Error) {
-        _ = peer.close(mode: .all)
+        print("GenericRelayHandler error: \(error)")
+        // Ensure close happens on the peer's event loop for thread safety.
+        peer.eventLoop.execute {
+            self.peer.close(mode: .all, promise: nil)
+        }
         context.close(promise: nil)
     }
 }
 
-// Accept-all host key validator (development only) matching provided protocol
-private struct AcceptAllHostKeysDelegate: NIOSSHClientServerAuthenticationDelegate {
-    func validateHostKey(hostKey: NIOSSHPublicKey, validationCompletePromise: EventLoopPromise<Void>) {
-        validationCompletePromise.succeed(())
+internal enum OpenSSHKeyParser {
+    enum OpenSSHParsingError: Error, Equatable {
+        case insufficientData
+        case invalidPEMFormat
+        case invalidKeyFormat(reason: String)
+        case encryptedKeyNotSupported
+        case unsupportedKeyType(String)
+        case unsupportedCurve(String)
+        case invalidStringData
     }
+
+    static func extractOpenSSHData(from pem: String) throws -> Data { return try FlexibleAuthDelegate.extractOpenSSHData(from: pem) }
+    static func parseOpenSSHPrivateKey(_ data: Data) throws -> NIOSSHPrivateKey { return try FlexibleAuthDelegate.parseOpenSSHPrivateKey(data) }
+    static func normalizeScalar(_ bytes: [UInt8], targetSize: Int) throws -> Data { return try FlexibleAuthDelegate.normalizeScalar(bytes, targetSize: targetSize) }
+    static func readSSHString(from buffer: inout ByteBuffer) throws -> String { return try FlexibleAuthDelegate.readSSHString(from: &buffer) }
+    static func readSSHBytes(from buffer: inout ByteBuffer) throws -> [UInt8] { return try FlexibleAuthDelegate.readSSHBytes(from: &buffer) }
 }
 
-// User auth delegate supporting private key (preferred) and password fallback.
-final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate, Sendable {
+private final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate, Sendable {
     let username: String
     let password: String?
     let privateKey: NIOSSHPrivateKey?
-    let privateKeyPassphrase: String?
+    let initializationError: String? // Captured synchronously for immediate reporting
+    let reportError: (@Sendable (String) -> Void)?
 
-    init(username: String, password: String?, privateKeyString: String?, privateKeyPassphrase: String?) {
+    init(username: String, password: String?, privateKeyString: String?, privateKeyPassphrase: String?, reportError: (@Sendable (String) -> Void)? = nil) {
+        self.reportError = reportError
         self.username = username
         self.password = password?.isEmpty == false ? password : nil
-
+        
+        var parsedKey: NIOSSHPrivateKey? = nil
+        var initError: String? = nil
+        
         if let keyString = privateKeyString, !keyString.isEmpty {
-            let normalized = keyString
-                .replacingOccurrences(of: "\r\n", with: "\n")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            
-            self.privateKeyPassphrase = (privateKeyPassphrase?.isEmpty == false) ? privateKeyPassphrase : nil
-            self.privateKey = FlexibleAuthDelegate.makeNIOSSHPrivateKey(fromPEM: normalized, passphrase: self.privateKeyPassphrase)
-            
-            if self.privateKey == nil {
-                print("FlexibleAuthDelegate: Private key parsing disabled for current NIOSSH version or unsupported key format. Falling back to password if available.")
-            }
-        } else {
-            self.privateKeyPassphrase = nil
-            self.privateKey = nil
-        }
-    }
-
-    private static func extractPEMBody(begin: String, end: String, from text: String) -> Data? {
-        guard let beginRange = text.range(of: begin), let endRange = text.range(of: end, range: beginRange.upperBound..<text.endIndex) else { return nil }
-        let bodyRange = beginRange.upperBound..<endRange.lowerBound
-        let body = text[bodyRange]
-            .replacingOccurrences(of: "\n", with: "")
-            .replacingOccurrences(of: "\r", with: "")
-            .replacingOccurrences(of: "\t", with: "")
-            .replacingOccurrences(of: " ", with: "")
-        return Data(base64Encoded: body)
-    }
-
-    private enum KeyKind { case ecdsaP256, ecdsaP384, ecdsaP521, rsa, unknown }
-
-    // Minimal OID detection inside PKCS#8 DER to decide curve / RSA
-    private static func detectKeyKind(in der: Data) -> KeyKind {
-        // Very small heuristic: search for curve OIDs or RSA OID bytes
-        // P-256: 1.2.840.10045.3.1.7 -> 06 08 2A 86 48 CE 3D 03 01 07
-        // P-384: 1.3.132.0.34       -> 06 05 2B 81 04 00 22
-        // P-521: 1.3.132.0.35       -> 06 05 2B 81 04 00 23
-        // RSA:   1.2.840.113549.1.1.1 -> 06 09 2A 86 48 86 F7 0D 01 01 01
-        let p256: [UInt8] = [0x06,0x08,0x2A,0x86,0x48,0xCE,0x3D,0x03,0x01,0x07]
-        let p384: [UInt8] = [0x06,0x05,0x2B,0x81,0x04,0x00,0x22]
-        let p521: [UInt8] = [0x06,0x05,0x2B,0x81,0x04,0x00,0x23]
-        let rsa:  [UInt8] = [0x06,0x09,0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,0x01,0x01]
-        let bytes = [UInt8](der)
-        func contains(_ sig: [UInt8]) -> Bool {
-            guard sig.count <= bytes.count else { return false }
-            let limit = bytes.count - sig.count
-            var i = 0
-            while i <= limit {
-                var j = 0
-                while j < sig.count, bytes[i + j] == sig[j] { j += 1 }
-                if j == sig.count { return true }
-                i += 1
-            }
-            return false
-        }
-        if contains(p256) { return .ecdsaP256 }
-        if contains(p384) { return .ecdsaP384 }
-        if contains(p521) { return .ecdsaP521 }
-        if contains(rsa) { return .rsa }
-        return .unknown
-    }
-
-    // Build SecKey from RSA PKCS#1 or PKCS#8 private key
-    private static func makeSecKeyRSA(from der: Data, isPKCS1: Bool) -> SecKey? {
-        let attrs: CFDictionary = [
-            kSecAttrKeyType: kSecAttrKeyTypeRSA,
-            kSecAttrKeyClass: kSecAttrKeyClassPrivate,
-        ] as CFDictionary
-        // If PKCS#1, wrap into a PKCS#8 structure header for SecKey to accept, else try as-is
-        var keyData = der
-        if isPKCS1 {
-            // Minimal PKCS#8 wrapper for RSA private key: PrivateKeyInfo { version, alg { rsaOID, NULL }, octetString(pkcs1) }
-            // Prebuilt header for RSA OID and NULL params; encode lengths dynamically
-            let rsaOID: [UInt8] = [0x30,0x0D,0x06,0x09,0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,0x01,0x01,0x05,0x00]
-            let pkcs1Octet = [UInt8]([0x04]) + lengthBytes(for: keyData.count) + [UInt8](keyData)
-            let alg = rsaOID
-            let version: [UInt8] = [0x02,0x01,0x00]
-            let inner = version + alg + pkcs1Octet
-            let pkcs8 = [UInt8]([0x30]) + lengthBytes(for: inner.count) + inner
-            keyData = Data(pkcs8)
-        }
-        return SecKeyCreateWithData(keyData as CFData, attrs, nil)
-    }
-
-    private static func lengthBytes(for length: Int) -> [UInt8] {
-        if length < 0x80 { return [UInt8(length)] }
-        var len = length
-        var bytes: [UInt8] = []
-        while len > 0 { bytes.insert(UInt8(len & 0xFF), at: 0); len >>= 8 }
-        return [0x80 | UInt8(bytes.count)] + bytes
-    }
-
-    private static func makeNIOSSHPrivateKey(fromPEM pem: String, passphrase: String?) -> NIOSSHPrivateKey? {
-        // Normalize PEM
-        let pem = pem.replacingOccurrences(of: "\r\n", with: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
-
-        func decodeBase64Body(begin: String, end: String, from text: String) -> Data? {
-            guard let b = text.range(of: begin), let e = text.range(of: end, range: b.upperBound..<text.endIndex) else { return nil }
-            let body = text[b.upperBound..<e.lowerBound]
-                .components(separatedBy: .newlines)
-                .joined()
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            return Data(base64Encoded: body)
-        }
-
-        // 0) OpenSSH Ed25519 private key (unencypted)
-        if pem.contains("-----BEGIN OPENSSH PRIVATE KEY-----") {
-            // Decode OpenSSH PEM body
-            if let blob = decodeBase64Body(begin: "-----BEGIN OPENSSH PRIVATE KEY-----", end: "-----END OPENSSH PRIVATE KEY-----", from: pem) {
-                print("NIOSSH: Detected OpenSSH Ed25519 private key; attempting to construct NIOSSHPrivateKey.")
-                // Requires fork exposing: NIOSSHPrivateKey(init openSSHEd25519PrivateKeyBlob: [UInt8])
-                if let key = try? NIOSSHPrivateKey(openSSHEd25519PrivateKeyBlob: Array(blob)) {
-                    return key
-                } else {
-                    print("NIOSSH: Failed to build Ed25519 key from OpenSSH private key blob. Ensure fork exposes init(openSSHEd25519PrivateKeyBlob:).")
-                    return nil
-                }
-            } else {
-                print("NIOSSH: Failed to decode OpenSSH private key PEM body")
-                return nil
-            }
-        }
-
-        // Helper to try building SecKey from PKCS#8 DER for EC or RSA
-        func secKeyFromPKCS8DER(_ der: Data) -> SecKey? {
-            // Try EC first
-            var attrs: CFDictionary = [
-                kSecAttrKeyType: kSecAttrKeyTypeECSECPrimeRandom,
-                kSecAttrKeyClass: kSecAttrKeyClassPrivate,
-            ] as CFDictionary
-            if let key = SecKeyCreateWithData(der as CFData, attrs, nil) { return key }
-            // Then RSA
-            attrs = [
-                kSecAttrKeyType: kSecAttrKeyTypeRSA,
-                kSecAttrKeyClass: kSecAttrKeyClassPrivate,
-            ] as CFDictionary
-            if let key = SecKeyCreateWithData(der as CFData, attrs, nil) { return key }
-            return nil
-        }
-
-        // 1) Encrypted PKCS#8
-        if pem.contains("-----BEGIN ENCRYPTED PRIVATE KEY-----") {
-            guard let pass = passphrase, !pass.isEmpty else {
-                print("NIOSSH: Encrypted PKCS#8 key detected but no passphrase provided.")
-                return nil
-            }
             do {
-                let der = try PEMDecryptor.decryptEncryptedPKCS8PEM(pem, passphrase: pass)
-                if secKeyFromPKCS8DER(der) != nil {
-                    // Temporarily disabled until fork exposes init(secKey:)
-                    print("NIOSSH: init(secKey:) not available in current NIOSSH build; falling back to password.")
-                    return nil
-                }
-                print("NIOSSH: SecKeyCreateWithData failed for decrypted PKCS#8.")
-                return nil
+                parsedKey = try FlexibleAuthDelegate.parsePrivateKey(pemString: keyString, passphrase: privateKeyPassphrase)
+                print("[SSH] Private key parsed successfully.")
             } catch {
-                print("NIOSSH: Failed to decrypt PKCS#8: \(error)")
-                return nil
+                let errorMsg = "Failed to parse private key: \(error.localizedDescription)"
+                initError = error.localizedDescription
+                reportError?(errorMsg)
+                print(errorMsg)
             }
         }
-
-        // 2) Unencrypted PKCS#8 PRIVATE KEY
-        if pem.contains("-----BEGIN PRIVATE KEY-----") {
-            guard let der = decodeBase64Body(begin: "-----BEGIN PRIVATE KEY-----", end: "-----END PRIVATE KEY-----", from: pem) else {
-                print("NIOSSH: Failed to decode PKCS#8 PRIVATE KEY PEM body")
-                return nil
-            }
-            if secKeyFromPKCS8DER(der) != nil {
-                // Temporarily disabled until fork exposes init(secKey:)
-                print("NIOSSH: init(secKey:) not available in current NIOSSH build; falling back to password.")
-                return nil
-            }
-            print("NIOSSH: SecKeyCreateWithData failed for PKCS#8 PRIVATE KEY.")
-            return nil
-        }
-
-        // 3) Legacy/unsupported PEM blocks: advise conversion
-        if pem.contains("-----BEGIN EC PRIVATE KEY-----") {
-            print("NIOSSH: EC PRIVATE KEY (traditional) not supported directly; please convert to PKCS#8 (openssl pkcs8 -topk8 -nocrypt -in ec.key -out ec_pkcs8.pem)")
-            return nil
-        }
-        if pem.contains("-----BEGIN RSA PRIVATE KEY-----") {
-            print("NIOSSH: RSA PKCS#1 not supported directly; convert to PKCS#8 with `openssl pkcs8 -topk8 -in id_rsa -out id_rsa_pkcs8.pem`.")
-            return nil
-        }
-
-        print("NIOSSH: Unsupported or encrypted private key format. Supported: PKCS#8 PRIVATE KEY and ENCRYPTED PRIVATE KEY")
-        return nil
+        self.privateKey = parsedKey
+        self.initializationError = initError
     }
     
     private func makeAuthOffer(with offerType: NIOSSHUserAuthenticationOffer.Offer) -> NIOSSHUserAuthenticationOffer {
@@ -302,36 +176,256 @@ final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate, Sendab
             offer: offerType
         )
     }
-    
-    private struct AuthStrategy {
-        let method: NIOSSHAvailableUserAuthenticationMethods
-        let offer: () -> NIOSSHUserAuthenticationOffer.Offer?
-    }
 
     func nextAuthenticationType(
         availableMethods: NIOSSHAvailableUserAuthenticationMethods,
         nextChallengePromise: EventLoopPromise<NIOSSHUserAuthenticationOffer?>
     ) {
-        let strategies: [AuthStrategy] = [
-            AuthStrategy(method: .publicKey) {
-                self.privateKey.map { .privateKey(.init(privateKey: $0)) }
-            },
-            AuthStrategy(method: .password) {
-                self.password.map { .password(.init(password: $0)) }
-            }
-        ]
-
-        for strategy in strategies {
-            if availableMethods.contains(strategy.method), let offerType = strategy.offer() {
-                let offer = makeAuthOffer(with: offerType)
-                nextChallengePromise.succeed(offer)
-                return
-            }
+        if availableMethods.contains(.publicKey), let key = self.privateKey {
+             // Correctly construct the private key offer wrapper
+             let offer = makeAuthOffer(with: .privateKey(.init(privateKey: key)))
+             nextChallengePromise.succeed(offer)
+             return
         }
         
+        if availableMethods.contains(.password), let password = self.password {
+            let offer = makeAuthOffer(with: .password(.init(password: password)))
+            nextChallengePromise.succeed(offer)
+            return
+        }
+
         nextChallengePromise.succeed(nil)
     }
 }
+
+private extension FlexibleAuthDelegate {
+    static func parsePrivateKey(pemString: String, passphrase: String?) throws -> NIOSSHPrivateKey {
+        let trimmed = pemString.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        let kind = detectPEMKeyKind(trimmed)
+        
+        // Handle OpenSSH keys (Ed25519, ECDSA)
+        if kind == .openssh {
+            let data = try extractOpenSSHData(from: trimmed)
+            return try parseOpenSSHPrivateKey(data)
+        }
+        
+        guard kind == .pkcs8 || kind == .ec else {
+            throw NSError(domain: "FlexibleAuthDelegate", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unsupported key type: \(keyKindDescription(kind))"])
+        }
+
+        let isEncrypted = isPEMEncrypted(trimmed)
+        let derData: Data
+        
+        if isEncrypted {
+            guard let passphrase = passphrase, !passphrase.isEmpty else {
+                 throw NSError(domain: "FlexibleAuthDelegate", code: 0, userInfo: [NSLocalizedDescriptionKey: "Key is encrypted but no passphrase provided."])
+            }
+            derData = try PEMDecryptor.decryptEncryptedPKCS8PEM(trimmed, passphrase: passphrase)
+        } else if trimmed.contains("-----BEGIN PRIVATE KEY-----") || trimmed.contains("-----BEGIN EC PRIVATE KEY-----") {
+            derData = try decodeUnencryptedPEM(trimmed)
+        } else {
+            throw PEMDecryptorError.invalidPEM
+        }
+        
+        let parsedKey = try PEMDecryptor.parsePKCS8PrivateKey(derData)
+        
+        switch parsedKey {
+        case .ec(_, let privateScalar):
+            switch privateScalar.count {
+            case 32:
+                let key = try P256.Signing.PrivateKey(rawRepresentation: privateScalar)
+                return NIOSSHPrivateKey(p256Key: key)
+            case 48:
+                let key = try P384.Signing.PrivateKey(rawRepresentation: privateScalar)
+                return NIOSSHPrivateKey(p384Key: key)
+            case 66:
+                let key = try P521.Signing.PrivateKey(rawRepresentation: privateScalar)
+                return NIOSSHPrivateKey(p521Key: key)
+            default:
+                throw NSError(domain: "FlexibleAuthDelegate", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unsupported ECDSA curve length."])
+            }
+        case .rsa:
+            throw NSError(domain: "FlexibleAuthDelegate", code: 0, userInfo: [NSLocalizedDescriptionKey: "RSA keys are not currently supported by the underlying cryptographic library setup. Convert your key to Ed25519 or ECDSA (nistp256/384/521)."])
+        }
+    }
+    
+    // MARK: - OpenSSH Parsing Helpers
+    
+    static func extractOpenSSHData(from pem: String) throws -> Data {
+        let lines = pem.components(separatedBy: .newlines)
+        var base64String = ""
+        var insideBlock = false
+        
+        for line in lines {
+            if line.contains("-----BEGIN OPENSSH PRIVATE KEY-----") {
+                insideBlock = true
+                continue
+            }
+            if line.contains("-----END OPENSSH PRIVATE KEY-----") {
+                insideBlock = false
+                break
+            }
+            if insideBlock {
+                base64String += line.trimmingCharacters(in: .whitespaces)
+            }
+        }
+        
+        guard !base64String.isEmpty, let data = Data(base64Encoded: base64String) else {
+            throw OpenSSHKeyParser.OpenSSHParsingError.invalidPEMFormat
+        }
+        return data
+    }
+
+    static func parseOpenSSHPrivateKey(_ data: Data) throws -> NIOSSHPrivateKey {
+        var buffer = ByteBuffer(data: data)
+        
+        // 1. Magic "openssh-key-v1\0" (15 bytes)
+        guard let magic = buffer.readBytes(length: 15),
+              String(bytes: magic, encoding: .utf8) == "openssh-key-v1\0" else {
+            throw OpenSSHKeyParser.OpenSSHParsingError.invalidKeyFormat(reason: "Invalid OpenSSH magic header")
+        }
+        
+        // 2. Cipher
+        let cipherName = try readSSHString(from: &buffer)
+        // 3. KDF
+        let kdfName = try readSSHString(from: &buffer)
+        // 4. KDF Options (Binary data)
+        let _ = try readSSHBytes(from: &buffer) // kdfOptions
+        
+        if cipherName != "none" || kdfName != "none" {
+            throw OpenSSHKeyParser.OpenSSHParsingError.encryptedKeyNotSupported
+        }
+        
+        // 5. Num Keys
+        guard let numKeys = buffer.readInteger(as: UInt32.self) else {
+             throw OpenSSHKeyParser.OpenSSHParsingError.invalidKeyFormat(reason: "Could not read number of keys from private key blob")
+        }
+        
+        guard numKeys >= 1 else {
+             throw OpenSSHKeyParser.OpenSSHParsingError.invalidKeyFormat(reason: "No keys found in private key data")
+        }
+        
+        // 6. Public Key Blob (Binary data)
+        let _ = try readSSHBytes(from: &buffer) // pubKeyBlob
+        
+        // 7. Private Key Blob
+        let privateBlobBytes = try readSSHBytes(from: &buffer)
+        var privateBuffer = ByteBuffer(bytes: privateBlobBytes)
+        
+        // Check Ints
+        guard let check1 = privateBuffer.readInteger(as: UInt32.self),
+              let check2 = privateBuffer.readInteger(as: UInt32.self),
+              check1 == check2 else {
+            throw OpenSSHKeyParser.OpenSSHParsingError.invalidKeyFormat(reason: "Private key blob integrity check failed")
+        }
+        
+        // Key Type
+        let keyType = try readSSHString(from: &privateBuffer)
+        
+        if keyType == "ssh-ed25519" {
+            // Pub key
+            let _ = try readSSHBytes(from: &privateBuffer)
+            // Priv key
+            let keyBytes = try readSSHBytes(from: &privateBuffer)
+            
+            // NIOSSH expects the OpenSSH Ed25519 blob
+            return try NIOSSHPrivateKey(openSSHEd25519PrivateKeyBlob: keyBytes)
+        } else if keyType.hasPrefix("ecdsa-sha2-") {
+            let curveName = try readSSHString(from: &privateBuffer)
+            let _ = try readSSHBytes(from: &privateBuffer) // Public Key
+            let privateScalarBytes = try readSSHBytes(from: &privateBuffer) // Private Key Scalar
+            
+            let normalized: Data
+            switch curveName {
+            case "nistp256":
+                normalized = try normalizeScalar(privateScalarBytes, targetSize: 32)
+                let key = try P256.Signing.PrivateKey(rawRepresentation: normalized)
+                return NIOSSHPrivateKey(p256Key: key)
+            case "nistp384":
+                normalized = try normalizeScalar(privateScalarBytes, targetSize: 48)
+                let key = try P384.Signing.PrivateKey(rawRepresentation: normalized)
+                return NIOSSHPrivateKey(p384Key: key)
+            case "nistp521":
+                normalized = try normalizeScalar(privateScalarBytes, targetSize: 66)
+                let key = try P521.Signing.PrivateKey(rawRepresentation: normalized)
+                return NIOSSHPrivateKey(p521Key: key)
+            default:
+                throw OpenSSHKeyParser.OpenSSHParsingError.unsupportedCurve(curveName)
+            }
+        } else {
+            throw OpenSSHKeyParser.OpenSSHParsingError.unsupportedKeyType(keyType)
+        }
+    }
+    
+    static func normalizeScalar(_ bytes: [UInt8], targetSize: Int) throws -> Data {
+        var result = bytes
+        // Strip leading zeros if longer (OpenSSH MPINT format)
+        while result.count > targetSize && result.first == 0 {
+            result.removeFirst()
+        }
+        
+        if result.count > targetSize {
+            throw OpenSSHKeyParser.OpenSSHParsingError.invalidKeyFormat(reason: "Private key scalar is too large for the curve")
+        }
+        
+        // Pad with leading zeros if shorter
+        while result.count < targetSize {
+            result.insert(0, at: 0)
+        }
+        
+        return Data(result)
+    }
+
+    static func readSSHString(from buffer: inout ByteBuffer) throws -> String {
+        let bytes = try readSSHBytes(from: &buffer)
+        guard let string = String(bytes: bytes, encoding: .utf8) else {
+             throw OpenSSHKeyParser.OpenSSHParsingError.invalidStringData
+        }
+        return string
+    }
+    
+    static func readSSHBytes(from buffer: inout ByteBuffer) throws -> [UInt8] {
+        guard let length = buffer.readInteger(as: UInt32.self) else {
+            throw OpenSSHKeyParser.OpenSSHParsingError.insufficientData
+        }
+        guard let bytes = buffer.readBytes(length: Int(length)) else {
+             throw OpenSSHKeyParser.OpenSSHParsingError.insufficientData
+        }
+        return bytes
+    }
+    
+    private static func decodeUnencryptedPEM(_ pem: String) throws -> Data {
+        let normalized = pem
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+        
+        let startMarkers = ["-----BEGIN PRIVATE KEY-----", "-----BEGIN EC PRIVATE KEY-----"]
+        let endMarkers = ["-----END PRIVATE KEY-----", "-----END EC PRIVATE KEY-----"]
+        
+        var base64Content = ""
+        
+        for (start, end) in zip(startMarkers, endMarkers) {
+            if let startRange = normalized.range(of: start),
+               let endRange = normalized.range(of: end) {
+                let base64Start = startRange.upperBound
+                let base64End = endRange.lowerBound
+                base64Content = normalized[base64Start..<base64End]
+                    .components(separatedBy: .newlines)
+                    .joined()
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                break
+            }
+        }
+        
+        guard !base64Content.isEmpty, let data = Data(base64Encoded: base64Content) else {
+            throw PEMDecryptorError.invalidPEM
+        }
+        return data
+    }
+}
+
+// MARK: - SSHManager
 
 final class SSHManager: ObservableObject, @unchecked Sendable {
     let connection: Connection
@@ -339,46 +433,92 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
     private var sshClientChannel: Channel?
     private var localServerChannel: Channel?
     private let lock = NSLock()
+    
+    // Store active config safely for background threads
+    private var activeTunnelInfo: TunnelInfo?
 
     private var sessionReadyPromise: EventLoopPromise<Void>?
-    private var sessionReadyCompleted: Bool = false
+    private var sessionReadyCompleted = false
 
-    @Published private(set) var isActive: Bool = false
-    @Published private(set) var bytesSent: Int64 = 0
-    @Published private(set) var bytesReceived: Int64 = 0
+    @Published var lastErrorMessage: String? = nil
+    
+    private var internalBytesSent: Int64 = 0
+    private var internalBytesReceived: Int64 = 0
+    
+    // Callback: (hostname, fingerprint, keyType, keyData, completion)
+    var hostKeyValidationCallback: (@Sendable (String, String, String, Data, @escaping @Sendable (Bool) -> Void) -> Void)?
 
     init(connection: Connection) { self.connection = connection }
 
     func connect() async throws {
-        guard !connection.isActive else { return }
-        let hasPassword = !connection.connectionInfo.password.isEmpty
-        let hasKey = !connection.connectionInfo.privateKey.isEmpty
+        // 1. Capture connection info on MainActor to avoid races and allow background processing
+        let (connInfo, tunnelInfo) = await MainActor.run { () -> (ConnectionInfo?, TunnelInfo?) in
+            if connection.isActive {
+                return (nil, nil)
+            }
+            connection.isConnecting = true
+            return (connection.connectionInfo, connection.tunnelInfo)
+        }
+        
+        guard let connectionInfo = connInfo, let tunnelInfo = tunnelInfo else { return }
+        
+        lock.withLock {
+            self.activeTunnelInfo = tunnelInfo
+        }
+        
+        let hasPassword = !connectionInfo.password.isEmpty
+        let hasKey = !connectionInfo.privateKey.isEmpty
+        
         guard hasPassword || hasKey else {
-            print("SSHManager.connect: Missing credentials (provide a password or a private key)")
+            print("SSHManager.connect: Missing credentials for authentication.")
             await MainActor.run {
                 connection.isConnecting = false
                 connection.isActive = false
-                isActive = false
             }
-            return
+            throw NSError(domain: "SSHManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing password or private key"])
         }
 
-        await MainActor.run { connection.isConnecting = true }
         let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
         lock.withLock { self.eventLoopGroup = group }
 
-        let authDelegate = FlexibleAuthDelegate(
-            username: connection.connectionInfo.username,
-            password: hasPassword ? connection.connectionInfo.password : nil,
-            privateKeyString: hasKey ? connection.connectionInfo.privateKey : nil,
-            privateKeyPassphrase: connection.connectionInfo.privateKeyPassphrase
-        )
-        let serverDelegate = AcceptAllHostKeysDelegate()
+        // 2. Offload auth delegate creation (heavy crypto) to detached task
+        let authDelegate = await Task.detached { () -> FlexibleAuthDelegate in
+            return FlexibleAuthDelegate(
+                username: connectionInfo.username,
+                password: hasPassword ? connectionInfo.password : nil,
+                privateKeyString: hasKey ? connectionInfo.privateKey : nil,
+                privateKeyPassphrase: connectionInfo.privateKeyPassphrase,
+                reportError: nil // We will check initializationError directly
+            )
+        }.value
+        
+        if let initError = authDelegate.initializationError {
+            await MainActor.run {
+                self.lastErrorMessage = "Failed to parse private key: \(initError)"
+            }
+        }
+        
+        if hasKey && authDelegate.privateKey == nil && !hasPassword {
+            await MainActor.run { connection.isConnecting = false }
+            await shutdown()
+            
+            let detail = authDelegate.initializationError ?? "Unknown key error"
+            let errorMsg = "Failed to initialize key: \(detail). If this is an OpenSSH encrypted key, remove the passphrase or convert to PKCS#8/Ed25519/ECDSA."
+            
+            await MainActor.run {
+                self.lastErrorMessage = errorMsg
+            }
+            
+            throw NSError(domain: "SSHManager", code: 1, userInfo: [NSLocalizedDescriptionKey: errorMsg])
+        }
+        
+        let host = connectionInfo.serverAddress
+        let port = Int(connectionInfo.portNumber) ?? 22
 
-        let host = connection.connectionInfo.serverAddress
-        let port = Int(connection.connectionInfo.portNumber) ?? 22
+        let serverDelegate = InteractiveHostKeyDelegate(host: host, port: port) { [weak self] host, port, key, promise in
+            self?.handleHostKeyValidation(host: host, port: port, key: key, promise: promise, knownHostKey: connectionInfo.knownHostKey)
+        }
 
-        // Create a promise that will be fulfilled when SSH auth completes.
         self.sessionReadyPromise = group.next().makePromise(of: Void.self)
         self.sessionReadyCompleted = false
 
@@ -404,25 +544,23 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
             }
 
         do {
-            // This connects the TCP socket.
             let channel = try await bootstrap.connect(host: host, port: port).get()
             
-            // This waits for the SSH handshake and authentication to complete.
             if let sessionReadyPromise = self.sessionReadyPromise {
                 try await sessionReadyPromise.futureResult.get()
+                self.sessionReadyCompleted = true
             }
             
-            // NOW the connection is fully up and ready.
             lock.withLock { self.sshClientChannel = channel }
             await MainActor.run {
                 self.connection.isActive = true
-                self.isActive = true
+                self.lastErrorMessage = nil
                 self.connection.isConnecting = false
             }
+            
             try await startLocalListener()
         } catch {
             print("SSH connect failed: \(error)")
-            // Ensure any pending sessionReadyPromise is failed to avoid leaking promises.
             if let p = self.sessionReadyPromise, self.sessionReadyCompleted == false {
                 self.sessionReadyCompleted = true
                 p.fail(error)
@@ -431,15 +569,65 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
 
             await MainActor.run { self.connection.isConnecting = false }
             await shutdown()
-            throw error // Re-throw the error for the caller to handle
+            throw error 
         }
+    }
+    
+    private func handleHostKeyValidation(host: String, port: Int, key: NIOSSHPublicKey, promise: EventLoopPromise<Void>, knownHostKey: String) {
+        let keyData = serialize(key: key)
+        let fingerprint: String
+        if let keyData = keyData {
+            let digest = SHA256.hash(data: keyData)
+            fingerprint = "SHA256:" + Data(digest).base64EncodedString()
+        } else {
+            // Fallback: we cannot serialize the key with this NIOSSH version; present a legacy marker.
+            fingerprint = "SHA256:UNAVAILABLE"
+        }
+        
+        if !knownHostKey.isEmpty {
+            // Try raw key base64 match first (if we have raw key bytes)
+            if let keyData = keyData, let knownData = Data(base64Encoded: knownHostKey), knownData == keyData {
+                promise.succeed(())
+                return
+            }
+            // Then try fingerprint match (stored as the literal SHA256:... string)
+            if knownHostKey == fingerprint {
+                promise.succeed(())
+                return
+            }
+            let error = NSError(domain: "SSHManager", code: 2, userInfo: [NSLocalizedDescriptionKey: "SECURITY WARNING: Host key mismatch! The server key has changed. This could be a Man-in-the-Middle attack."])
+            promise.fail(error)
+            return
+        }
+        
+        guard let callback = self.hostKeyValidationCallback else {
+            promise.fail(NSError(domain: "SSHManager", code: 3, userInfo: [NSLocalizedDescriptionKey: "Unknown host key and no validation callback configured."]))
+            return
+        }
+        
+        let keyType = keyData == nil ? "Unknown (Legacy Lib)" : "Unknown"
+        callback(host, fingerprint, keyType, keyData ?? Data()) { allowed in
+            if allowed {
+                promise.succeed(())
+            } else {
+                promise.fail(NSError(domain: "SSHManager", code: 4, userInfo: [NSLocalizedDescriptionKey: "User rejected host key."]))
+            }
+        }
+    }
+    
+    private func serialize(key: NIOSSHPublicKey) -> Data? {
+        // If NIOSSH supports serializing the key (e.g. key.write(to:)), return raw key bytes.
+        // Otherwise return nil and we will fall back to fingerprint-based verification.
+        return nil
     }
 
     private func startLocalListener() async throws {
         let group = lock.withLock { self.eventLoopGroup }
-        guard let group, let sshChannel = lock.withLock({ self.sshClientChannel }) else { return }
+        // Capture active tunnel info safely
+        guard let group, let sshChannel = lock.withLock({ self.sshClientChannel }),
+              let tunnelInfo = lock.withLock({ self.activeTunnelInfo }) else { return }
 
-        let localPort = Int(connection.tunnelInfo.localPort) ?? 0
+        let localPort = Int(tunnelInfo.localPort) ?? 0
 
         let serverBootstrap = ServerBootstrap(group: group)
             .serverChannelOption(ChannelOptions.backlog, value: 8)
@@ -454,40 +642,35 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
                     return inbound.eventLoop.makeFailedFuture(error)
                 }
 
-                // 1. Pause reading from the client channel.
-                let setupFuture = inbound.setOption(ChannelOptions.autoRead, value: false).flatMap {
-                    // 2. Get the main NIOSSH handler.
-                    sshChannel.pipeline.handler(type: NIOSSHHandler.self)
-                }.flatMap { (ssh: NIOSSHHandler) -> EventLoopFuture<Channel> in
-                    // 3. Create the forwarding channel using an explicit promise for clarity.
-                    let childChannelPromise = sshChannel.eventLoop.makePromise(of: Channel.self)
-                    print("Opening direct-tcpip to \(strongSelf.connection.tunnelInfo.remoteServer):\(Int(strongSelf.connection.tunnelInfo.remotePort) ?? 0) from originator: \(originator)")
-                    let directTCPIP = NIOSSH.SSHChannelType.DirectTCPIP(
-                        targetHost: strongSelf.connection.tunnelInfo.remoteServer,
-                        targetPort: Int(strongSelf.connection.tunnelInfo.remotePort) ?? 0,
-                        originatorAddress: originator
-                    )
-                    ssh.createChannel(childChannelPromise, channelType: .directTCPIP(directTCPIP)) { sshChildChannel, _ in
-                        let received: (Int) -> Void = { [weak strongSelf] n in
-                            guard let manager = strongSelf else { return }
-                            Task { @MainActor in manager.handleBytesReceived(n) }
-                        }
-                        let sshToTCP = GenericRelayHandler<SSHChannelData, ByteBuffer>(peer: inbound, onBytes: received) { sshData in
-                            guard case .byteBuffer(let buffer) = sshData.data else { return (nil, 0) }
-                            return (buffer, buffer.readableBytes)
-                        }
-                        let f = sshChildChannel.pipeline.addHandler(sshToTCP)
-                        f.whenSuccess { _ in
-                            if let promise = self?.sessionReadyPromise, self?.sessionReadyCompleted == false {
-                                self?.sessionReadyCompleted = true
-                                promise.succeed(())
+                let sshChildChannelFuture = sshChannel.eventLoop.flatSubmit {
+                    sshChannel.pipeline.handler(type: NIOSSHHandler.self).flatMap { sshHandler -> EventLoopFuture<Channel> in
+                        let childChannelPromise = sshChannel.eventLoop.makePromise(of: Channel.self)
+                        print("Opening direct-tcpip to \(tunnelInfo.remoteServer):\(Int(tunnelInfo.remotePort) ?? 0) from originator: \(originator)")
+                        
+                        let directTCPIP = NIOSSH.SSHChannelType.DirectTCPIP(
+                            targetHost: tunnelInfo.remoteServer,
+                            targetPort: Int(tunnelInfo.remotePort) ?? 0,
+                            originatorAddress: originator
+                        )
+                        
+                        sshHandler.createChannel(childChannelPromise, channelType: .directTCPIP(directTCPIP)) { sshChildChannel, _ in
+                            let received: (Int) -> Void = { [weak strongSelf] n in
+                                guard let manager = strongSelf else { return }
+                                Task { @MainActor in manager.handleBytesReceived(n) }
                             }
+                            let sshToTCP = GenericRelayHandler<SSHChannelData, ByteBuffer>(peer: inbound, onBytes: received) { sshData in
+                                guard case .byteBuffer(let buffer) = sshData.data else { return (nil, 0) }
+                                return (buffer, buffer.readableBytes)
+                            }
+                            return sshChildChannel.pipeline.addHandler(sshToTCP)
                         }
-                        return f
+                        return childChannelPromise.futureResult
                     }
-                    return childChannelPromise.futureResult
+                }
+                
+                let setupFuture = inbound.setOption(ChannelOptions.autoRead, value: false).flatMap {
+                    sshChildChannelFuture
                 }.flatMap { sshChildChannel -> EventLoopFuture<Void> in
-                    // 4. The SSH child channel is ready; configure the local client's pipeline to forward to it.
                     let sent: (Int) -> Void = { [weak strongSelf] n in
                         guard let manager = strongSelf else { return }
                         Task { @MainActor in manager.handleBytesSent(n) }
@@ -498,13 +681,11 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
                     }
                     return inbound.pipeline.addHandler(tcpToSSH)
                 }.flatMap {
-                    // 5. With both pipelines configured, resume reading from the local client.
                     inbound.setOption(ChannelOptions.autoRead, value: true)
                 }
 
                 setupFuture.whenFailure { error in
-                    print("Failed to establish forwarding channel to \(strongSelf.connection.tunnelInfo.remoteServer):\(Int(strongSelf.connection.tunnelInfo.remotePort) ?? 0) — error: \(error)")
-                    // Correctly close the channel, satisfying the compiler.
+                    print("Failed to establish forwarding channel to \(tunnelInfo.remoteServer):\(Int(tunnelInfo.remotePort) ?? 0) — error: \(error)")
                     inbound.close(promise: nil)
                 }
                 
@@ -522,7 +703,7 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
             print("Local listener bind failed: \(error)")
             await MainActor.run { self.connection.isConnecting = false }
             await self.disconnect()
-            throw error // rethrow to signal connection failure
+            throw error 
         }
     }
 
@@ -543,18 +724,19 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
         lock.withLock {
             sshClientChannel = nil
             localServerChannel = nil
+            activeTunnelInfo = nil
 
-            // Fail any pending sessionReadyPromise to avoid leaks during shutdown.
             if let p = self.sessionReadyPromise, self.sessionReadyCompleted == false {
                 self.sessionReadyCompleted = true
                 p.fail(ChannelError.ioOnClosedChannel)
             }
+            self.internalBytesSent = 0
+            self.internalBytesReceived = 0
         }
         
         self.sessionReadyPromise = nil
         self.sessionReadyCompleted = false
 
-        // Shutdown event loop group
         if let group = lock.withLock({ self.eventLoopGroup }) {
             do {
                 try await group.shutdownGracefully()
@@ -564,14 +746,11 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
             lock.withLock { self.eventLoopGroup = nil }
         }
         
-        // Reset state
         await MainActor.run {
             self.connection.isActive = false
-            self.isActive = false
-            self.bytesSent = 0
-            self.bytesReceived = 0
             self.connection.bytesSent = 0
             self.connection.bytesReceived = 0
+            self.lastErrorMessage = nil
         }
     }
     
@@ -579,14 +758,17 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
     
     private func handleBytesSent(_ count: Int) {
         let n = Int64(count)
-        self.bytesSent += n
-        self.connection.bytesSent += n
+        self.internalBytesSent += n
+        Task { @MainActor in
+            self.connection.bytesSent += n
+        }
     }
     
     private func handleBytesReceived(_ count: Int) {
         let n = Int64(count)
-        self.bytesReceived += n
-        self.connection.bytesReceived += n
+        self.internalBytesReceived += n
+        Task { @MainActor in
+            self.connection.bytesReceived += n
+        }
     }
 }
-

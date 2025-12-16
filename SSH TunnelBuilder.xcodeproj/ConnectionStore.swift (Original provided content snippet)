@@ -1,0 +1,21 @@
+    func deleteConnection(_ connection: Connection) {
+        guard let recordID = connection.recordID else { return }
+        
+        CKContainer.default().privateCloudDatabase.delete(withRecordID: recordID) { [weak self] deletedRecordID, error in
+            if let error = error {
+                DispatchQueue.main.async {
+                    self?.errorAlert = ErrorAlert(message: "Failed to delete connection: \(error.localizedDescription)")
+                }
+                return
+            }
+            
+            DispatchQueue.main.async {
+                if let toDelete = self?.connections.first(where: { $0.recordID == deletedRecordID }) {
+                    self?.disconnect(toDelete)
+                    self?.managers[toDelete.id] = nil // <-- Already here
+                    KeychainService.shared.deleteCredentials(for: toDelete.id)
+                }
+                self?.connections.removeAll { $0.recordID == deletedRecordID }
+            }
+        }
+    }

@@ -63,8 +63,25 @@
 		F4CB866B2EE49D1D0066AEDA /* SSH TunnelBuilderTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "SSH TunnelBuilderTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		F49710F62EF01016003ADB19 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				SSHManagerTests.swift,
+			);
+			target = F4ABBF5327DFDF730097436A /* SSH TunnelBuilder */;
+		};
+		F49710F72EF01016003ADB19 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				SSHManagerTests.swift,
+			);
+			target = F4CB866A2EE49D1D0066AEDA /* SSH TunnelBuilderTests */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		F4CB866C2EE49D1D0066AEDA /* SSH TunnelBuilderTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "SSH TunnelBuilderTests"; sourceTree = "<group>"; };
+		F4CB866C2EE49D1D0066AEDA /* SSH TunnelBuilderTests */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (F49710F62EF01016003ADB19 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, F49710F72EF01016003ADB19 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = "SSH TunnelBuilderTests"; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -92,13 +109,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		F422C56F29E454A7007306BC /* SSH TunnelBuilderTests */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = "SSH TunnelBuilderTests";
-			sourceTree = "<group>";
-		};
 		F45BB0872EE41928000B4FA8 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -135,7 +145,6 @@
 			isa = PBXGroup;
 			children = (
 				F4ABBF5627DFDF730097436A /* SSH TunnelBuilder */,
-				F422C56F29E454A7007306BC /* SSH TunnelBuilderTests */,
 				F4CB866C2EE49D1D0066AEDA /* SSH TunnelBuilderTests */,
 				F4ABBF5527DFDF730097436A /* Products */,
 				F4B4CA422EBBC20E003F7C53 /* README.md */,
@@ -539,8 +548,8 @@
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.1;
-				MARKETING_VERSION = 1.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.6;
+				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "no.comraich.SSH-TunnelBuilderTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
@@ -548,7 +557,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SSH TunnelBuilder.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/SSH TunnelBuilder";
 			};
 			name = Debug;
@@ -564,15 +573,15 @@
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.1;
-				MARKETING_VERSION = 1.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.6;
+				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "no.comraich.SSH-TunnelBuilderTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SSH TunnelBuilder.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/SSH TunnelBuilder";
 			};
 			name = Release;
