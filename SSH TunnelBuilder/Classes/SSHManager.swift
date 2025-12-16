@@ -25,11 +25,6 @@ private final class InteractiveHostKeyDelegate: NIOSSHClientServerAuthentication
     }
 }
 
-struct UncheckedSendable<T>: @unchecked Sendable {
-    let value: T
-    init(_ value: T) { self.value = value }
-}
-
 // MARK: - NIOSSH Handlers
 
 private final class SSHSessionReadyHandler: ChannelInboundHandler, RemovableChannelHandler {
@@ -100,24 +95,43 @@ private final class GenericRelayHandler<InboundType, OutboundType>: ChannelInbou
         if count > 0 {
             self.onBytes(count)
             if let outboundData = outboundData {
-                _ = peer.writeAndFlush(outboundData)
+                // Ensure write happens on the peer's event loop for thread safety.
+                peer.eventLoop.execute {
+                    self.peer.writeAndFlush(outboundData, promise: nil)
+                }
             }
         }
     }
 
     func channelInactive(context: ChannelHandlerContext) {
-        _ = peer.close(mode: .all)
+        // Ensure close happens on the peer's event loop for thread safety.
+        peer.eventLoop.execute {
+            self.peer.close(mode: .all, promise: nil)
+        }
         context.fireChannelInactive()
     }
 
     func errorCaught(context: ChannelHandlerContext, error: Error) {
         print("GenericRelayHandler error: \(error)")
-        _ = peer.close(mode: .all)
+        // Ensure close happens on the peer's event loop for thread safety.
+        peer.eventLoop.execute {
+            self.peer.close(mode: .all, promise: nil)
+        }
         context.close(promise: nil)
     }
 }
 
 internal enum OpenSSHKeyParser {
+    enum OpenSSHParsingError: Error, Equatable {
+        case insufficientData
+        case invalidPEMFormat
+        case invalidKeyFormat(reason: String)
+        case encryptedKeyNotSupported
+        case unsupportedKeyType(String)
+        case unsupportedCurve(String)
+        case invalidStringData
+    }
+
     static func extractOpenSSHData(from pem: String) throws -> Data { return try FlexibleAuthDelegate.extractOpenSSHData(from: pem) }
     static func parseOpenSSHPrivateKey(_ data: Data) throws -> NIOSSHPrivateKey { return try FlexibleAuthDelegate.parseOpenSSHPrivateKey(data) }
     static func normalizeScalar(_ bytes: [UInt8], targetSize: Int) throws -> Data { return try FlexibleAuthDelegate.normalizeScalar(bytes, targetSize: targetSize) }
@@ -238,7 +252,7 @@ private extension FlexibleAuthDelegate {
     
     // MARK: - OpenSSH Parsing Helpers
     
-    private static func extractOpenSSHData(from pem: String) throws -> Data {
+    static func extractOpenSSHData(from pem: String) throws -> Data {
         let lines = pem.components(separatedBy: .newlines)
         var base64String = ""
         var insideBlock = false
@@ -258,18 +272,18 @@ private extension FlexibleAuthDelegate {
         }
         
         guard !base64String.isEmpty, let data = Data(base64Encoded: base64String) else {
-            throw NSError(domain: "FlexibleAuthDelegate", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid OpenSSH PEM format"])
+            throw OpenSSHKeyParser.OpenSSHParsingError.invalidPEMFormat
         }
         return data
     }
 
-    private static func parseOpenSSHPrivateKey(_ data: Data) throws -> NIOSSHPrivateKey {
+    static func parseOpenSSHPrivateKey(_ data: Data) throws -> NIOSSHPrivateKey {
         var buffer = ByteBuffer(data: data)
         
         // 1. Magic "openssh-key-v1\0" (15 bytes)
         guard let magic = buffer.readBytes(length: 15),
               String(bytes: magic, encoding: .utf8) == "openssh-key-v1\0" else {
-            throw NSError(domain: "OpenSSHParser", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid OpenSSH header"])
+            throw OpenSSHKeyParser.OpenSSHParsingError.invalidKeyFormat(reason: "Invalid OpenSSH magic header")
         }
         
         // 2. Cipher
@@ -280,16 +294,16 @@ private extension FlexibleAuthDelegate {
         let _ = try readSSHBytes(from: &buffer) // kdfOptions
         
         if cipherName != "none" || kdfName != "none" {
-            throw NSError(domain: "OpenSSHParser", code: 0, userInfo: [NSLocalizedDescriptionKey: "Encrypted OpenSSH keys (passphrase) are not supported yet. Please remove the passphrase or convert to PEM."])
+            throw OpenSSHKeyParser.OpenSSHParsingError.encryptedKeyNotSupported
         }
         
         // 5. Num Keys
         guard let numKeys = buffer.readInteger(as: UInt32.self) else {
-             throw NSError(domain: "OpenSSHParser", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid format (num keys)"])
+             throw OpenSSHKeyParser.OpenSSHParsingError.invalidKeyFormat(reason: "Could not read number of keys from private key blob")
         }
         
         guard numKeys >= 1 else {
-             throw NSError(domain: "OpenSSHParser", code: 0, userInfo: [NSLocalizedDescriptionKey: "No keys found in file"])
+             throw OpenSSHKeyParser.OpenSSHParsingError.invalidKeyFormat(reason: "No keys found in private key data")
         }
         
         // 6. Public Key Blob (Binary data)
@@ -303,7 +317,7 @@ private extension FlexibleAuthDelegate {
         guard let check1 = privateBuffer.readInteger(as: UInt32.self),
               let check2 = privateBuffer.readInteger(as: UInt32.self),
               check1 == check2 else {
-            throw NSError(domain: "OpenSSHParser", code: 0, userInfo: [NSLocalizedDescriptionKey: "OpenSSH integrity check failed"])
+            throw OpenSSHKeyParser.OpenSSHParsingError.invalidKeyFormat(reason: "Private key blob integrity check failed")
         }
         
         // Key Type
@@ -337,14 +351,14 @@ private extension FlexibleAuthDelegate {
                 let key = try P521.Signing.PrivateKey(rawRepresentation: normalized)
                 return NIOSSHPrivateKey(p521Key: key)
             default:
-                throw NSError(domain: "OpenSSHParser", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unsupported ECDSA curve: \(curveName)"])
+                throw OpenSSHKeyParser.OpenSSHParsingError.unsupportedCurve(curveName)
             }
         } else {
-             throw NSError(domain: "OpenSSHParser", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unsupported OpenSSH key type: \(keyType). Only ssh-ed25519 and ecdsa-sha2-nistp256/384/521 are supported in this format."])
+            throw OpenSSHKeyParser.OpenSSHParsingError.unsupportedKeyType(keyType)
         }
     }
     
-    private static func normalizeScalar(_ bytes: [UInt8], targetSize: Int) throws -> Data {
+    static func normalizeScalar(_ bytes: [UInt8], targetSize: Int) throws -> Data {
         var result = bytes
         // Strip leading zeros if longer (OpenSSH MPINT format)
         while result.count > targetSize && result.first == 0 {
@@ -352,7 +366,7 @@ private extension FlexibleAuthDelegate {
         }
         
         if result.count > targetSize {
-            throw NSError(domain: "OpenSSHParser", code: 0, userInfo: [NSLocalizedDescriptionKey: "Private key scalar too large for curve"])
+            throw OpenSSHKeyParser.OpenSSHParsingError.invalidKeyFormat(reason: "Private key scalar is too large for the curve")
         }
         
         // Pad with leading zeros if shorter
@@ -363,20 +377,20 @@ private extension FlexibleAuthDelegate {
         return Data(result)
     }
 
-    private static func readSSHString(from buffer: inout ByteBuffer) throws -> String {
+    static func readSSHString(from buffer: inout ByteBuffer) throws -> String {
         let bytes = try readSSHBytes(from: &buffer)
         guard let string = String(bytes: bytes, encoding: .utf8) else {
-             throw NSError(domain: "OpenSSHParser", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid string encoding"])
+             throw OpenSSHKeyParser.OpenSSHParsingError.invalidStringData
         }
         return string
     }
     
-    private static func readSSHBytes(from buffer: inout ByteBuffer) throws -> [UInt8] {
+    static func readSSHBytes(from buffer: inout ByteBuffer) throws -> [UInt8] {
         guard let length = buffer.readInteger(as: UInt32.self) else {
-            throw NSError(domain: "OpenSSHParser", code: 0, userInfo: [NSLocalizedDescriptionKey: "Truncated data (length)"])
+            throw OpenSSHKeyParser.OpenSSHParsingError.insufficientData
         }
         guard let bytes = buffer.readBytes(length: Int(length)) else {
-             throw NSError(domain: "OpenSSHParser", code: 0, userInfo: [NSLocalizedDescriptionKey: "Truncated data (bytes)"])
+             throw OpenSSHKeyParser.OpenSSHParsingError.insufficientData
         }
         return bytes
     }
@@ -628,32 +642,34 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
                     return inbound.eventLoop.makeFailedFuture(error)
                 }
 
-                let setupFuture = inbound.setOption(ChannelOptions.autoRead, value: false).flatMap {
-                    sshChannel.pipeline.handler(type: NIOSSHHandler.self)
-                        .map { UncheckedSendable($0) } // Wrap immediately to satisfy Sendable check
-                }.flatMap { (wrappedSSH: UncheckedSendable<NIOSSHHandler>) -> EventLoopFuture<Channel> in
-                    let childChannelPromise = inbound.eventLoop.makePromise(of: Channel.self)
-                    
-                    print("Opening direct-tcpip to \(tunnelInfo.remoteServer):\(Int(tunnelInfo.remotePort) ?? 0) from originator: \(originator)")
-                    
-                    let directTCPIP = NIOSSH.SSHChannelType.DirectTCPIP(
-                        targetHost: tunnelInfo.remoteServer,
-                        targetPort: Int(tunnelInfo.remotePort) ?? 0,
-                        originatorAddress: originator
-                    )
-                    
-                    wrappedSSH.value.createChannel(childChannelPromise, channelType: .directTCPIP(directTCPIP)) { sshChildChannel, _ in
-                        let received: (Int) -> Void = { [weak strongSelf] n in
-                            guard let manager = strongSelf else { return }
-                            Task { @MainActor in manager.handleBytesReceived(n) }
+                let sshChildChannelFuture = sshChannel.eventLoop.flatSubmit {
+                    sshChannel.pipeline.handler(type: NIOSSHHandler.self).flatMap { sshHandler -> EventLoopFuture<Channel> in
+                        let childChannelPromise = sshChannel.eventLoop.makePromise(of: Channel.self)
+                        print("Opening direct-tcpip to \(tunnelInfo.remoteServer):\(Int(tunnelInfo.remotePort) ?? 0) from originator: \(originator)")
+                        
+                        let directTCPIP = NIOSSH.SSHChannelType.DirectTCPIP(
+                            targetHost: tunnelInfo.remoteServer,
+                            targetPort: Int(tunnelInfo.remotePort) ?? 0,
+                            originatorAddress: originator
+                        )
+                        
+                        sshHandler.createChannel(childChannelPromise, channelType: .directTCPIP(directTCPIP)) { sshChildChannel, _ in
+                            let received: (Int) -> Void = { [weak strongSelf] n in
+                                guard let manager = strongSelf else { return }
+                                Task { @MainActor in manager.handleBytesReceived(n) }
+                            }
+                            let sshToTCP = GenericRelayHandler<SSHChannelData, ByteBuffer>(peer: inbound, onBytes: received) { sshData in
+                                guard case .byteBuffer(let buffer) = sshData.data else { return (nil, 0) }
+                                return (buffer, buffer.readableBytes)
+                            }
+                            return sshChildChannel.pipeline.addHandler(sshToTCP)
                         }
-                        let sshToTCP = GenericRelayHandler<SSHChannelData, ByteBuffer>(peer: inbound, onBytes: received) { sshData in
-                            guard case .byteBuffer(let buffer) = sshData.data else { return (nil, 0) }
-                            return (buffer, buffer.readableBytes)
-                        }
-                        return sshChildChannel.pipeline.addHandler(sshToTCP)
+                        return childChannelPromise.futureResult
                     }
-                    return childChannelPromise.futureResult
+                }
+                
+                let setupFuture = inbound.setOption(ChannelOptions.autoRead, value: false).flatMap {
+                    sshChildChannelFuture
                 }.flatMap { sshChildChannel -> EventLoopFuture<Void> in
                     let sent: (Int) -> Void = { [weak strongSelf] n in
                         guard let manager = strongSelf else { return }
@@ -756,4 +772,3 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
         }
     }
 }
-
