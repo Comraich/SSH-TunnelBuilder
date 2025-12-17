@@ -13,20 +13,19 @@
 		F45BB09D2EE4274A000B4FA8 /* NIOCore in Frameworks */ = {isa = PBXBuildFile; productRef = F45BB09C2EE4274A000B4FA8 /* NIOCore */; };
 		F45BB09F2EE4274A000B4FA8 /* NIOEmbedded in Frameworks */ = {isa = PBXBuildFile; productRef = F45BB09E2EE4274A000B4FA8 /* NIOEmbedded */; };
 		F45BB0A32EE4274A000B4FA8 /* NIOTLS in Frameworks */ = {isa = PBXBuildFile; productRef = F45BB0A22EE4274A000B4FA8 /* NIOTLS */; };
-		F45BB0A92EE42A74000B4FA8 /* NIOSSH in Frameworks */ = {isa = PBXBuildFile; productRef = F45BB0A82EE42A74000B4FA8 /* NIOSSH */; };
 		F4700F8129D7669E0069DC6D /* NavigationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4700F8029D7669E0069DC6D /* NavigationView.swift */; };
 		F4700F8329D7670D0069DC6D /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4700F8229D7670D0069DC6D /* MainView.swift */; };
 		F4700F8529D768E20069DC6D /* ConnectionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4700F8429D768E20069DC6D /* ConnectionRow.swift */; };
 		F49EBCB229D367A500A43775 /* ConnectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49EBCB129D367A500A43775 /* ConnectionStore.swift */; };
 		F49EBCB429D367A900A43775 /* Connection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49EBCB329D367A900A43775 /* Connection.swift */; };
 		F4A368C02EE9964400762D9D /* PEMDecryptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4A368BF2EE9943A00762D9D /* PEMDecryptor.swift */; };
+		F4A6A5562EF2BF53000C2B1C /* NIOSSH in Frameworks */ = {isa = PBXBuildFile; productRef = F4A6A5552EF2BF53000C2B1C /* NIOSSH */; };
 		F4ABBF5827DFDF730097436A /* SSH_TunnelBuilderApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4ABBF5727DFDF730097436A /* SSH_TunnelBuilderApp.swift */; };
 		F4ABBF5A27DFDF730097436A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4ABBF5927DFDF730097436A /* ContentView.swift */; };
 		F4ABBF5C27DFDF740097436A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F4ABBF5B27DFDF740097436A /* Assets.xcassets */; };
 		F4ABBF5F27DFDF740097436A /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F4ABBF5E27DFDF740097436A /* Preview Assets.xcassets */; };
 		F4B4CA462EBBCA31003F7C53 /* SSHManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4B4CA452EBBCA31003F7C53 /* SSHManager.swift */; };
 		F4B4CA4B2EBBD995003F7C53 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4B4CA4A2EBBD995003F7C53 /* KeychainService.swift */; };
-		F4EDF2C12EEA149600D3B85E /* NIOSSH in Frameworks */ = {isa = PBXBuildFile; productRef = F4EDF2C02EEA149600D3B85E /* NIOSSH */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -42,7 +41,6 @@
 /* Begin PBXFileReference section */
 		F422C57929E46B2B007306BC /* DataCounterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataCounterView.swift; sourceTree = "<group>"; };
 		F45BB0882EE41928000B4FA8 /* CryptoKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CryptoKit.framework; path = System/Library/Frameworks/CryptoKit.framework; sourceTree = SDKROOT; };
-		F45BB0AF2EE47A09000B4FA8 /* SSH_TunnelBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSH_TunnelBuilderTests.swift; sourceTree = "<group>"; };
 		F4700F8029D7669E0069DC6D /* NavigationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationView.swift; sourceTree = "<group>"; };
 		F4700F8229D7670D0069DC6D /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
 		F4700F8429D768E20069DC6D /* ConnectionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionRow.swift; sourceTree = "<group>"; };
@@ -74,6 +72,7 @@
 		F49710F72EF01016003ADB19 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				SSH_TunnelBuilderTests.swift,
 				SSHManagerTests.swift,
 			);
 			target = F4CB866A2EE49D1D0066AEDA /* SSH TunnelBuilderTests */;
@@ -89,10 +88,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F4A6A5562EF2BF53000C2B1C /* NIOSSH in Frameworks */,
 				F45BB0992EE4274A000B4FA8 /* NIO in Frameworks */,
 				F45BB09F2EE4274A000B4FA8 /* NIOEmbedded in Frameworks */,
-				F4EDF2C12EEA149600D3B85E /* NIOSSH in Frameworks */,
-				F45BB0A92EE42A74000B4FA8 /* NIOSSH in Frameworks */,
 				F45BB0A32EE4274A000B4FA8 /* NIOTLS in Frameworks */,
 				F45BB09D2EE4274A000B4FA8 /* NIOCore in Frameworks */,
 				F45BB09B2EE4274A000B4FA8 /* NIOConcurrencyHelpers in Frameworks */,
@@ -151,7 +149,6 @@
 				F4B4CA432EBBC211003F7C53 /* NOTICE.txt */,
 				F4B4CA442EBBC2AC003F7C53 /* LICENSE.TXT */,
 				F45BB0872EE41928000B4FA8 /* Frameworks */,
-				F45BB0AF2EE47A09000B4FA8 /* SSH_TunnelBuilderTests.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -634,14 +631,6 @@
 				minimumVersion = 2.91.0;
 			};
 		};
-		F45BB0A72EE42A74000B4FA8 /* XCRemoteSwiftPackageReference "swift-nio-ssh" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/apple/swift-nio-ssh.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.12.0;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -670,13 +659,9 @@
 			package = F45BB0972EE4274A000B4FA8 /* XCRemoteSwiftPackageReference "swift-nio" */;
 			productName = NIOTLS;
 		};
-		F45BB0A82EE42A74000B4FA8 /* NIOSSH */ = {
+		F4A6A5552EF2BF53000C2B1C /* NIOSSH */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = F45BB0A72EE42A74000B4FA8 /* XCRemoteSwiftPackageReference "swift-nio-ssh" */;
-			productName = NIOSSH;
-		};
-		F4EDF2C02EEA149600D3B85E /* NIOSSH */ = {
-			isa = XCSwiftPackageProductDependency;
+			package = F4EDF2BF2EEA149600D3B85E /* XCLocalSwiftPackageReference "../swift-nio-ssh" */;
 			productName = NIOSSH;
 		};
 /* End XCSwiftPackageProductDependency section */

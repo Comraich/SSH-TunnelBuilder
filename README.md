@@ -61,13 +61,6 @@ This project uses third-party components:
 
 See NOTICE.txt for attributions and licensing details.
 
-## Screenshots
-- Sidebar listing saved connections
-- Detail view to view/edit connection info
-- Status indicator and data counters
-
-(Replace with real screenshots when available. For example, place images in a `docs/images/` folder and reference them like `![Sidebar](docs/images/sidebar.png)`.)
-
 ## Getting Help
 - CloudKit setup
   - Ensure iCloud and CloudKit are enabled in Signing & Capabilities and an iCloud container is selected.
