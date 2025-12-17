@@ -19,7 +19,7 @@
 		F49EBCB229D367A500A43775 /* ConnectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49EBCB129D367A500A43775 /* ConnectionStore.swift */; };
 		F49EBCB429D367A900A43775 /* Connection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49EBCB329D367A900A43775 /* Connection.swift */; };
 		F4A368C02EE9964400762D9D /* PEMDecryptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4A368BF2EE9943A00762D9D /* PEMDecryptor.swift */; };
-		F4A6A5562EF2BF53000C2B1C /* NIOSSH in Frameworks */ = {isa = PBXBuildFile; productRef = F4A6A5552EF2BF53000C2B1C /* NIOSSH */; };
+		F4A6A56A2EF2C73E000C2B1C /* NIOSSH in Frameworks */ = {isa = PBXBuildFile; productRef = F4A6A5692EF2C73E000C2B1C /* NIOSSH */; };
 		F4ABBF5827DFDF730097436A /* SSH_TunnelBuilderApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4ABBF5727DFDF730097436A /* SSH_TunnelBuilderApp.swift */; };
 		F4ABBF5A27DFDF730097436A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4ABBF5927DFDF730097436A /* ContentView.swift */; };
 		F4ABBF5C27DFDF740097436A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F4ABBF5B27DFDF740097436A /* Assets.xcassets */; };
@@ -88,7 +88,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F4A6A5562EF2BF53000C2B1C /* NIOSSH in Frameworks */,
+				F4A6A56A2EF2C73E000C2B1C /* NIOSSH in Frameworks */,
 				F45BB0992EE4274A000B4FA8 /* NIO in Frameworks */,
 				F45BB09F2EE4274A000B4FA8 /* NIOEmbedded in Frameworks */,
 				F45BB0A32EE4274A000B4FA8 /* NIOTLS in Frameworks */,
@@ -255,7 +255,7 @@
 			mainGroup = F4ABBF4B27DFDF730097436A;
 			packageReferences = (
 				F45BB0972EE4274A000B4FA8 /* XCRemoteSwiftPackageReference "swift-nio" */,
-				F4EDF2BF2EEA149600D3B85E /* XCLocalSwiftPackageReference "../swift-nio-ssh" */,
+				F4A6A5682EF2C73E000C2B1C /* XCRemoteSwiftPackageReference "swift-nio-ssh" */,
 			);
 			productRefGroup = F4ABBF5527DFDF730097436A /* Products */;
 			projectDirPath = "";
@@ -615,13 +615,6 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		F4EDF2BF2EEA149600D3B85E /* XCLocalSwiftPackageReference "../swift-nio-ssh" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = "../swift-nio-ssh";
-		};
-/* End XCLocalSwiftPackageReference section */
-
 /* Begin XCRemoteSwiftPackageReference section */
 		F45BB0972EE4274A000B4FA8 /* XCRemoteSwiftPackageReference "swift-nio" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -629,6 +622,14 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 2.91.0;
+			};
+		};
+		F4A6A5682EF2C73E000C2B1C /* XCRemoteSwiftPackageReference "swift-nio-ssh" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Comraich/swift-nio-ssh.git";
+			requirement = {
+				branch = main;
+				kind = branch;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -659,9 +660,9 @@
 			package = F45BB0972EE4274A000B4FA8 /* XCRemoteSwiftPackageReference "swift-nio" */;
 			productName = NIOTLS;
 		};
-		F4A6A5552EF2BF53000C2B1C /* NIOSSH */ = {
+		F4A6A5692EF2C73E000C2B1C /* NIOSSH */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = F4EDF2BF2EEA149600D3B85E /* XCLocalSwiftPackageReference "../swift-nio-ssh" */;
+			package = F4A6A5682EF2C73E000C2B1C /* XCRemoteSwiftPackageReference "swift-nio-ssh" */;
 			productName = NIOSSH;
 		};
 /* End XCSwiftPackageProductDependency section */
