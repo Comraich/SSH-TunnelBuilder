@@ -93,7 +93,10 @@ class ConnectionStore: ObservableObject {
             // Using Task.sleep(for: .seconds(3.0)) can throw, so needs guarding or handling
             do {
                 try await Task.sleep(for: .seconds(3.0))
-            } catch {}
+            } catch {
+                // Sleep was cancelled; proceed without delay.
+                print("Task.sleep cancelled: \(error.localizedDescription)")
+            }
             
             if self.mode == .loading {
                 self.mode = .create
@@ -488,3 +491,4 @@ class ConnectionStore: ObservableObject {
         return Connection(id: uuid, recordID: record.recordID, connectionInfo: connectionInfo, tunnelInfo: tunnelInfo)
     }
 }
+

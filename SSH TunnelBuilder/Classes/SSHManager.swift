@@ -615,16 +615,16 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
         }
     }
     
-    private func serialize(key: NIOSSHPublicKey) -> Data? {
+    private func serialize(key _: NIOSSHPublicKey) -> Data? {
         // If NIOSSH supports serializing the key (e.g. key.write(to:)), return raw key bytes.
         // Otherwise return nil and we will fall back to fingerprint-based verification.
         return nil
     }
 
     private func startLocalListener() async throws {
-        let group = lock.withLock { self.eventLoopGroup }
         // Capture active tunnel info safely
-        guard let group, let sshChannel = lock.withLock({ self.sshClientChannel }),
+        guard let group = lock.withLock({ self.eventLoopGroup }),
+              let sshChannel = lock.withLock({ self.sshClientChannel }),
               let tunnelInfo = lock.withLock({ self.activeTunnelInfo }) else { return }
 
         let localPort = Int(tunnelInfo.localPort) ?? 0
@@ -654,15 +654,7 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
                         )
                         
                         sshHandler.createChannel(childChannelPromise, channelType: .directTCPIP(directTCPIP)) { sshChildChannel, _ in
-                            let received: (Int) -> Void = { [weak strongSelf] n in
-                                guard let manager = strongSelf else { return }
-                                Task { @MainActor in manager.handleBytesReceived(n) }
-                            }
-                            let sshToTCP = GenericRelayHandler<SSHChannelData, ByteBuffer>(peer: inbound, onBytes: received) { sshData in
-                                guard case .byteBuffer(let buffer) = sshData.data else { return (nil, 0) }
-                                return (buffer, buffer.readableBytes)
-                            }
-                            return sshChildChannel.pipeline.addHandler(sshToTCP)
+                            strongSelf.configureSSHChildPipeline(sshChildChannel, inbound: inbound, strongSelf: strongSelf)
                         }
                         return childChannelPromise.futureResult
                     }
@@ -671,15 +663,7 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
                 let setupFuture = inbound.setOption(ChannelOptions.autoRead, value: false).flatMap {
                     sshChildChannelFuture
                 }.flatMap { sshChildChannel -> EventLoopFuture<Void> in
-                    let sent: (Int) -> Void = { [weak strongSelf] n in
-                        guard let manager = strongSelf else { return }
-                        Task { @MainActor in manager.handleBytesSent(n) }
-                    }
-                    let tcpToSSH = GenericRelayHandler<ByteBuffer, SSHChannelData>(peer: sshChildChannel, onBytes: sent) { buffer in
-                        let sshData = SSHChannelData(type: .channel, data: .byteBuffer(buffer))
-                        return (sshData, buffer.readableBytes)
-                    }
-                    return inbound.pipeline.addHandler(tcpToSSH)
+                    return strongSelf.configureInboundTCPPipeline(inbound, sshChildChannel: sshChildChannel, strongSelf: strongSelf)
                 }.flatMap {
                     inbound.setOption(ChannelOptions.autoRead, value: true)
                 }
@@ -705,6 +689,31 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
             await self.disconnect()
             throw error 
         }
+    }
+    
+    // New helper method extracted from the inner closure in startLocalListener()
+    private func configureSSHChildPipeline(_ sshChildChannel: Channel, inbound: Channel, strongSelf: SSHManager) -> EventLoopFuture<Void> {
+        let received: (Int) -> Void = { [weak strongSelf] n in
+            guard let manager = strongSelf else { return }
+            Task { @MainActor in manager.handleBytesReceived(n) }
+        }
+        let sshToTCP = GenericRelayHandler<SSHChannelData, ByteBuffer>(peer: inbound, onBytes: received) { sshData in
+            guard case .byteBuffer(let buffer) = sshData.data else { return (nil, 0) }
+            return (buffer, buffer.readableBytes)
+        }
+        return sshChildChannel.pipeline.addHandler(sshToTCP)
+    }
+
+    private func configureInboundTCPPipeline(_ inbound: Channel, sshChildChannel: Channel, strongSelf: SSHManager) -> EventLoopFuture<Void> {
+        let sent: (Int) -> Void = { [weak strongSelf] n in
+            guard let manager = strongSelf else { return }
+            Task { @MainActor in manager.handleBytesSent(n) }
+        }
+        let tcpToSSH = GenericRelayHandler<ByteBuffer, SSHChannelData>(peer: sshChildChannel, onBytes: sent) { buffer in
+            let sshData = SSHChannelData(type: .channel, data: .byteBuffer(buffer))
+            return (sshData, buffer.readableBytes)
+        }
+        return inbound.pipeline.addHandler(tcpToSSH)
     }
 
     func disconnect() async {
@@ -772,3 +781,5 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
         }
     }
 }
+
+
