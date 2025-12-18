@@ -158,7 +158,6 @@ struct ConnectionStoreLocalTests {
         let connection = makeMockConnection(id: id, password: "test", privateKey: "test")
         
         // Setup: Ensure manager and keychain data exist
-        let mgr = store.manager(for: connection)
         KeychainService.shared.savePassword("test", for: id)
         
         // Mock a minimal CKRecord ID to allow the delete logic to execute locally
@@ -378,3 +377,4 @@ private extension NIOSSHUserAuthenticationOffer.Offer {
         return false
     }
 }
+

@@ -33,7 +33,7 @@ struct OpenSSHKeyParserTests {
     }
 
     @Test("Extracting OpenSSH data from PEM validates headers")
-    func extractOpenSSHDataMinimalPEM_andHeaderValidation() throws {
+    func extractOpenSSHDataMinimalPEMAndHeaderValidation() throws {
         let pem = """
         -----BEGIN OPENSSH PRIVATE KEY-----
         b3BlbnNzaC1rZXktdjEAAAABAAAAgQAAAAMAAAABAAAABg==
@@ -61,3 +61,4 @@ struct OpenSSHKeyParserTests {
         }
     }
 }
+

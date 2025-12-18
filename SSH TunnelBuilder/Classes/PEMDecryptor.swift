@@ -238,25 +238,49 @@ private enum AESCBC {
         
         var outLength: size_t = 0
         var outData = Data(count: ciphertext.count + kCCBlockSizeAES128)
-        let status = outData.withUnsafeMutableBytes { outBuf in
-            ciphertext.withUnsafeBytes { ctBuf in
-                key.withUnsafeBytes { keyBuf in
-                    iv.withUnsafeBytes { ivBuf in
-                        CCCrypt(CCOperation(kCCDecrypt),
-                                CCAlgorithm(kCCAlgorithmAES),
-                                CCOptions(kCCOptionPKCS7Padding),
-                                keyBuf.baseAddress, key.count,
-                                ivBuf.baseAddress,
-                                ctBuf.baseAddress, ctBuf.count,
-                                outBuf.baseAddress, outBuf.count,
-                                &outLength)
+        let status = performCCCryptDecrypt(
+            ciphertext: ciphertext,
+            key: key,
+            iv: iv,
+            outData: &outData,
+            outLength: &outLength
+        )
+        guard status == kCCSuccess else { throw PEMDecryptorError.decryptionFailed }
+        outData.removeSubrange(outLength..<outData.count)
+        return outData
+    }
+    
+    private static func performCCCryptDecrypt(
+        ciphertext: Data,
+        key: Data,
+        iv: Data,
+        outData: inout Data,
+        outLength: inout size_t
+    ) -> CCCryptorStatus {
+        return outData.withUnsafeMutableBytes { outBuf in
+            let outBase = outBuf.baseAddress
+            let outCount = outBuf.count
+            return ciphertext.withUnsafeBytes { ctBuf in
+                let ctBase = ctBuf.baseAddress
+                let ctCount = ctBuf.count
+                return key.withUnsafeBytes { keyBuf in
+                    let keyBase = keyBuf.baseAddress
+                    return iv.withUnsafeBytes { ivBuf in
+                        let ivBase = ivBuf.baseAddress
+                        return CCCrypt(
+                            CCOperation(kCCDecrypt),
+                            CCAlgorithm(kCCAlgorithmAES),
+                            CCOptions(kCCOptionPKCS7Padding),
+                            keyBase, key.count,
+                            ivBase,
+                            ctBase, ctCount,
+                            outBase, outCount,
+                            &outLength
+                        )
                     }
                 }
             }
         }
-        guard status == kCCSuccess else { throw PEMDecryptorError.decryptionFailed }
-        outData.removeSubrange(outLength..<outData.count)
-        return outData
     }
 }
 
