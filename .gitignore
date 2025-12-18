@@ -91,3 +91,9 @@ fastlane/test_output
 # https://github.com/johnno1962/injectionforxcode
 
 iOSInjectionProject/
+
+# MacOS junk files
+.DS_Store
+
+# VS Code settings file
+**/*.vscode/*
