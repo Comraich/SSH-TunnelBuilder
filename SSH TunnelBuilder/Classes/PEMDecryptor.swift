@@ -52,7 +52,7 @@ struct PEMDecryptor {
         if let nextTag = try pbkdf2params.peekTag(), nextTag == 0x02 {
             keyLength = try pbkdf2params.readInteger()
         }
-        var prfOID = "1.2.840.113549.2.7" // default hmacWithSHA1
+        var prfOID = "1.2.840.113549.2.9" // default hmacWithSHA256
         if let nextTag = try pbkdf2params.peekTag(), nextTag == 0x30 {
             // prf AlgorithmIdentifier ::= SEQUENCE { algorithm OBJECT IDENTIFIER, parameters ANY DEFINED BY algorithm OPTIONAL }
             var prfAlg = try pbkdf2params.readSequence()
@@ -73,23 +73,16 @@ struct PEMDecryptor {
         // Derive key with PBKDF2-HMAC (SHA1 or SHA256)
         let keyLen = keyLength ?? 32
         guard keyLen == 32 else { throw PEMDecryptorError.unsupportedFormat }
-        let key: Data
-        switch prfOID {
-        case "1.2.840.113549.2.7": // HMAC-SHA1
-            key = try pbkdf2(password: Data(passphrase.utf8),
-                             salt: salt,
-                             iterations: iterationCount,
-                             keyLength: keyLen,
-                             variant: .sha1)
-        case "1.2.840.113549.2.9": // HMAC-SHA256
-            key = try pbkdf2(password: Data(passphrase.utf8),
+        
+        // Security policy: reject PBKDF2 PRFs other than HMAC-SHA256 (e.g., SHA-1).
+        guard prfOID == "1.2.840.113549.2.9" else { // hmacWithSHA256 OID
+            throw PEMDecryptorError.unsupportedFormat
+        }
+        let key = try pbkdf2(password: Data(passphrase.utf8),
                              salt: salt,
                              iterations: iterationCount,
                              keyLength: keyLen,
                              variant: .sha256)
-        default:
-            throw PEMDecryptorError.unsupportedFormat
-        }
         
         guard key.count == 32 else { throw PEMDecryptorError.decryptionFailed }
         guard iv.count == 16 else { throw PEMDecryptorError.decryptionFailed }
