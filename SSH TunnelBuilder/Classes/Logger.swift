@@ -1,36 +1,32 @@
 import Foundation
-import os.log
+import os
 
-/// Centralized logging for SSH TunnelBuilder using os.log
+/// Centralized logging for SSH TunnelBuilder using os.Logger
 /// Logs are visible in Console.app and can be filtered by subsystem/category
 enum Logger {
     private static let subsystem = Bundle.main.bundleIdentifier ?? "com.comraich.ssh-tunnelbuilder"
 
+    struct Category {
+        fileprivate let logger: os.Logger
+    }
+
     // MARK: - Log Categories
-    static let ssh = OSLog(subsystem: subsystem, category: "SSH")
-    static let keychain = OSLog(subsystem: subsystem, category: "Keychain")
-    static let cloudKit = OSLog(subsystem: subsystem, category: "CloudKit")
-    static let crypto = OSLog(subsystem: subsystem, category: "Crypto")
+    static let ssh = Category(logger: os.Logger(subsystem: subsystem, category: "SSH"))
+    static let keychain = Category(logger: os.Logger(subsystem: subsystem, category: "Keychain"))
+    static let cloudKit = Category(logger: os.Logger(subsystem: subsystem, category: "CloudKit"))
+    static let crypto = Category(logger: os.Logger(subsystem: subsystem, category: "Crypto"))
 
     // MARK: - Convenience Methods
 
-    /// Log debug information (not persisted by default)
-    static func debug(_ message: String, log: OSLog = .default) {
-        os_log(.debug, log: log, "%{public}@", message)
+    static func debug(_ message: String, log: Category) {
+        log.logger.debug("\(message, privacy: .public)")
     }
 
-    /// Log general information
-    static func info(_ message: String, log: OSLog = .default) {
-        os_log(.info, log: log, "%{public}@", message)
+    static func info(_ message: String, log: Category) {
+        log.logger.info("\(message, privacy: .public)")
     }
 
-    /// Log errors
-    static func error(_ message: String, log: OSLog = .default) {
-        os_log(.error, log: log, "%{public}@", message)
-    }
-
-    /// Log faults (serious errors)
-    static func fault(_ message: String, log: OSLog = .default) {
-        os_log(.fault, log: log, "%{public}@", message)
+    static func error(_ message: String, log: Category) {
+        log.logger.error("\(message, privacy: .public)")
     }
 }

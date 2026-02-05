@@ -20,6 +20,10 @@
 		F49EBCB429D367A900A43775 /* Connection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49EBCB329D367A900A43775 /* Connection.swift */; };
 		F4A368C02EE9964400762D9D /* PEMDecryptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4A368BF2EE9943A00762D9D /* PEMDecryptor.swift */; };
 		F4A6A56A2EF2C73E000C2B1C /* NIOSSH in Frameworks */ = {isa = PBXBuildFile; productRef = F4A6A5692EF2C73E000C2B1C /* NIOSSH */; };
+		F4AA684F2F3533540065E097 /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4AA684E2F3533540065E097 /* SampleData.swift */; };
+		F4AA68512F3533F80065E097 /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4AA68502F3533F80065E097 /* Logger.swift */; };
+		F4AA685E2F35400A0065E097 /* SSHTunnelError.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4AA685C2F35400A0065E097 /* SSHTunnelError.swift */; };
+		F4AA68602F35400A0065E097 /* SSHTunnelError.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4AA685C2F35400A0065E097 /* SSHTunnelError.swift */; };
 		F4ABBF5827DFDF730097436A /* SSH_TunnelBuilderApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4ABBF5727DFDF730097436A /* SSH_TunnelBuilderApp.swift */; };
 		F4ABBF5A27DFDF730097436A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4ABBF5927DFDF730097436A /* ContentView.swift */; };
 		F4ABBF5C27DFDF740097436A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F4ABBF5B27DFDF740097436A /* Assets.xcassets */; };
@@ -49,6 +53,9 @@
 		F49EBCB129D367A500A43775 /* ConnectionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionStore.swift; sourceTree = "<group>"; };
 		F49EBCB329D367A900A43775 /* Connection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Connection.swift; sourceTree = "<group>"; };
 		F4A368BF2EE9943A00762D9D /* PEMDecryptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PEMDecryptor.swift; sourceTree = "<group>"; };
+		F4AA684E2F3533540065E097 /* SampleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleData.swift; sourceTree = "<group>"; };
+		F4AA68502F3533F80065E097 /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
+		F4AA685C2F35400A0065E097 /* SSHTunnelError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHTunnelError.swift; sourceTree = "<group>"; };
 		F4ABBF5427DFDF730097436A /* SSH TunnelBuilder.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "SSH TunnelBuilder.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F4ABBF5727DFDF730097436A /* SSH_TunnelBuilderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSH_TunnelBuilderApp.swift; sourceTree = "<group>"; };
 		F4ABBF5927DFDF730097436A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.swift; };
@@ -133,6 +140,7 @@
 				F422C57929E46B2B007306BC /* DataCounterView.swift */,
 				F4E7E8BC2F1BD86E00EEDB5D /* BUILD_SUCCESS.md */,
 				F4E7E8BE2F1BD8FC00EEDB5D /* FINAL_BUILD_STATUS.md */,
+				F4AA684E2F3533540065E097 /* SampleData.swift */,
 			);
 			path = GUI;
 			sourceTree = "<group>";
@@ -145,6 +153,8 @@
 				F4B4CA452EBBCA31003F7C53 /* SSHManager.swift */,
 				F4B4CA4A2EBBD995003F7C53 /* KeychainService.swift */,
 				F4A368BF2EE9943A00762D9D /* PEMDecryptor.swift */,
+				F4AA68502F3533F80065E097 /* Logger.swift */,
+				F4AA685C2F35400A0065E097 /* SSHTunnelError.swift */,
 			);
 			path = Classes;
 			sourceTree = "<group>";
@@ -295,22 +305,26 @@
 		F4ABBF5027DFDF730097436A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
+				F4AA685E2F35400A0065E097 /* SSHTunnelError.swift in Sources */,
 				F4A368C02EE9964400762D9D /* PEMDecryptor.swift in Sources */,
 				F49EBCB429D367A900A43775 /* Connection.swift in Sources */,
 				F4700F8529D768E20069DC6D /* ConnectionRow.swift in Sources */,
 				F4700F8329D7670D0069DC6D /* MainView.swift in Sources */,
 				F4B4CA4B2EBBD995003F7C53 /* KeychainService.swift in Sources */,
 				F4ABBF5A27DFDF730097436A /* ContentView.swift in Sources */,
+				F4AA684F2F3533540065E097 /* SampleData.swift in Sources */,
 				F4700F8129D7669E0069DC6D /* NavigationView.swift in Sources */,
 				F4B4CA462EBBCA31003F7C53 /* SSHManager.swift in Sources */,
 				F422C57A29E46B2B007306BC /* DataCounterView.swift in Sources */,
 				F49EBCB229D367A500A43775 /* ConnectionStore.swift in Sources */,
 				F4ABBF5827DFDF730097436A /* SSH_TunnelBuilderApp.swift in Sources */,
+				F4AA68512F3533F80065E097 /* Logger.swift in Sources */,
 			);
 		};
 		F4CB86672EE49D1D0066AEDA /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
+				F4AA68602F35400A0065E097 /* SSHTunnelError.swift in Sources */,
 			);
 		};
 /* End PBXSourcesBuildPhase section */

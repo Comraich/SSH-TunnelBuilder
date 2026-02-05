@@ -55,9 +55,10 @@ struct ContentView: View {
 // Moved to ConnectionStore.swift as it's used there primarily
 
 #Preview("Empty State") {
-    ContentView(connectionStore: ConnectionStore())
+    ContentView(connectionStore: ConnectionStore(mode: .view, connections: []))
 }
+
 #Preview("With Connections") {
-    ContentView(connectionStore: ConnectionStore.mockWithSampleData())
+    ContentView(connectionStore: ConnectionStore(mode: .view, connections: SampleData.connections))
 }
 

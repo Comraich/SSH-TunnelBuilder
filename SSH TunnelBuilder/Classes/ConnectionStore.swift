@@ -63,7 +63,7 @@ class ConnectionStore: ObservableObject {
     
     @Published var migrationNotice: String? = nil
     @Published var cloudNotice: String? = nil
-    @Published private(set) var errorAlert: ErrorAlert? = nil
+    @Published var errorAlert: ErrorAlert? = nil
     @Published var hostKeyRequest: HostKeyRequest? = nil
 
     private var managers: [UUID: SSHManager] = [:]
@@ -91,6 +91,12 @@ class ConnectionStore: ObservableObject {
             notified.append(uuid.uuidString)
             defaults.set(notified, forKey: migrationNotifiedKey)
         }
+    }
+    
+    private enum CloudKitOperationError: Error {
+        case fetchFailed(String)
+        case saveFailed(String)
+        case deleteFailed(String)
     }
     
     init(credentialsStore: CredentialsStore = KeychainService.shared) {
@@ -247,7 +253,9 @@ class ConnectionStore: ObservableObject {
         }
 
         let query = CKQuery(recordType: CloudKitKeys.recordType, predicate: NSPredicate(value: true))
-        query.sortDescriptors = []
+        // Explicitly sort by name to avoid CloudKit defaulting to recordName (which requires a special index).
+        // Sorting by a user field often prompts CloudKit to auto-create the necessary index in Development.
+        query.sortDescriptors = [NSSortDescriptor(key: CloudKitKeys.name, ascending: true)]
         
         let queryOperation: CKQueryOperation
         if let cursor = cursor {
@@ -351,7 +359,7 @@ class ConnectionStore: ObservableObject {
                 } else if let error = error {
                     continuation.resume(throwing: error)
                 } else {
-                    continuation.resume(throwing: SSHTunnelError.cloudKitFetchFailed("Unknown error"))
+                    continuation.resume(throwing: CloudKitOperationError.fetchFailed("Unknown error"))
                 }
             }
         }
@@ -366,7 +374,7 @@ class ConnectionStore: ObservableObject {
                 } else if let error = error {
                     continuation.resume(throwing: error)
                 } else {
-                    continuation.resume(throwing: SSHTunnelError.cloudKitSaveFailed("Unknown error"))
+                    continuation.resume(throwing: CloudKitOperationError.saveFailed("Unknown error"))
                 }
             }
         }
@@ -381,7 +389,7 @@ class ConnectionStore: ObservableObject {
                 } else if let error = error {
                     continuation.resume(throwing: error)
                 } else {
-                    continuation.resume(throwing: SSHTunnelError.cloudKitDeleteFailed("Unknown error"))
+                    continuation.resume(throwing: CloudKitOperationError.deleteFailed("Unknown error"))
                 }
             }
         }

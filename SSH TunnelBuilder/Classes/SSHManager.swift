@@ -4,40 +4,6 @@ import NIOSSH
 import CryptoKit
 import Combine
 
-// MARK: - SSH Error Types
-
-enum SSHConnectionError: LocalizedError {
-    case missingCredentials
-    case keyParseFailed(String)
-    case hostKeyMismatch
-    case userRejectedHostKey
-    case authenticationFailed
-    case connectionTimeout
-    case networkError(Error)
-    case tunnelSetupFailed(Error)
-    
-    var errorDescription: String? {
-        switch self {
-        case .missingCredentials:
-            return "Missing password or private key. Please provide authentication credentials."
-        case .keyParseFailed(let detail):
-            return "Failed to parse private key: \(detail). Ensure it's in PEM format (PKCS#8 or EC)."
-        case .hostKeyMismatch:
-            return "Security Warning: The server's host key has changed! This could indicate a security threat."
-        case .userRejectedHostKey:
-            return "Connection cancelled: Host key was not trusted."
-        case .authenticationFailed:
-            return "Authentication failed. Please check your username and credentials."
-        case .connectionTimeout:
-            return "Connection timed out. Please check the server address and network connectivity."
-        case .networkError(let error):
-            return "Network error: \(error.localizedDescription)"
-        case .tunnelSetupFailed(let error):
-            return "Failed to set up local tunnel: \(error.localizedDescription)"
-        }
-    }
-}
-
 // NOTE: PEMKeyKind, detectPEMKeyKind, isPEMEncrypted are assumed to be defined in MainView.swift or another file.
 // If they are not visible here, move them to a shared utility file.
 
@@ -156,7 +122,7 @@ private final class GenericRelayHandler<InboundType, OutboundType>: ChannelInbou
 }
 
 internal enum OpenSSHKeyParser {
-    enum OpenSSHParsingError: Error, Equatable {
+    enum OpenSSHParsingError: LocalizedError, Equatable {
         case insufficientData
         case invalidPEMFormat
         case invalidKeyFormat(reason: String)
@@ -164,6 +130,25 @@ internal enum OpenSSHKeyParser {
         case unsupportedKeyType(String)
         case unsupportedCurve(String)
         case invalidStringData
+
+        var errorDescription: String? {
+            switch self {
+            case .insufficientData:
+                return "Insufficient data while parsing the key."
+            case .invalidPEMFormat:
+                return "Invalid PEM format."
+            case .invalidKeyFormat(let reason):
+                return "Invalid key format: \(reason)"
+            case .encryptedKeyNotSupported:
+                return "Encrypted OpenSSH keys are not supported. Please remove the passphrase or convert to PKCS#8."
+            case .unsupportedKeyType(let type):
+                return "Unsupported key type: '\(type)'."
+            case .unsupportedCurve(let curve):
+                return "Unsupported elliptic curve: '\(curve)'. Supported curves are nistp256, nistp384, and nistp521."
+            case .invalidStringData:
+                return "Invalid string data in key."
+            }
+        }
     }
 
     static func extractOpenSSHData(from pem: String) throws -> Data { return try FlexibleAuthDelegate.extractOpenSSHData(from: pem) }
@@ -830,5 +815,4 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
         }
     }
 }
-
 
