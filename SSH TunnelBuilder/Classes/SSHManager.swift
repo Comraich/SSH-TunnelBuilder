@@ -490,27 +490,26 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
     func connect() async throws {
         // 1. Capture connection info on MainActor to avoid races and allow background processing
         let (connInfo, tunnelInfo) = await MainActor.run { () -> (ConnectionInfo?, TunnelInfo?) in
-            if connection.isActive {
+            if connection.state.isActive {
                 return (nil, nil)
             }
-            connection.isConnecting = true
+            connection.state = .connecting
             return (connection.connectionInfo, connection.tunnelInfo)
         }
-        
+
         guard let connectionInfo = connInfo, let tunnelInfo = tunnelInfo else { return }
-        
+
         lock.withLock {
             self.activeTunnelInfo = tunnelInfo
         }
-        
+
         let hasPassword = !connectionInfo.password.isEmpty
         let hasKey = !connectionInfo.privateKey.isEmpty
-        
+
         guard hasPassword || hasKey else {
             Logger.error("Missing credentials for authentication", log: Logger.ssh)
             await MainActor.run {
-                connection.isConnecting = false
-                connection.isActive = false
+                connection.state = .failed("Missing password or private key")
             }
             throw SSHTunnelError.missingCredentials
         }
@@ -536,15 +535,14 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
         }
         
         if hasKey && authDelegate.privateKey == nil && !hasPassword {
-            await MainActor.run { connection.isConnecting = false }
-            await shutdown()
-            
             let detail = authDelegate.initializationError ?? "Unknown key error"
             let errorMsg = "Failed to initialize key: \(detail). If this is an OpenSSH encrypted key, remove the passphrase or convert to PKCS#8/Ed25519/ECDSA."
 
             await MainActor.run {
                 self.lastErrorMessage = errorMsg
+                connection.state = .failed(errorMsg)
             }
+            await shutdown()
 
             throw SSHTunnelError.keyParsingFailed(detail)
         }
@@ -589,11 +587,10 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
             
             lock.withLock { self.sshClientChannel = channel }
             await MainActor.run {
-                self.connection.isActive = true
+                self.connection.state = .connected
                 self.lastErrorMessage = nil
-                self.connection.isConnecting = false
             }
-            
+
             try await startLocalListener()
         } catch {
             Logger.error("SSH connect failed: \(error)", log: Logger.ssh)
@@ -603,9 +600,11 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
             }
             self.sessionReadyPromise = nil
 
-            await MainActor.run { self.connection.isConnecting = false }
+            await MainActor.run {
+                self.connection.state = .failed(error.localizedDescription)
+            }
             await shutdown()
-            throw error 
+            throw error
         }
     }
     
@@ -725,9 +724,11 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
             }
         } catch {
             Logger.error("Local listener bind failed: \(error)", log: Logger.ssh)
-            await MainActor.run { self.connection.isConnecting = false }
+            await MainActor.run {
+                self.connection.state = .failed("Local port bind failed: \(error.localizedDescription)")
+            }
             await self.disconnect()
-            throw error 
+            throw error
         }
     }
     
@@ -757,19 +758,20 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
     }
 
     func disconnect() async {
+        await MainActor.run {
+            connection.state = .disconnecting
+        }
         await shutdown()
     }
 
     private func shutdown() async {
-        await MainActor.run { connection.isConnecting = false }
-        
         await withTaskGroup(of: Void.self) { group in
             var mutableGroup = group
             let (ssh, local) = lock.withLock { (self.sshClientChannel, self.localServerChannel) }
             mutableGroup.closeChannel(ssh, name: "SSH client")
             mutableGroup.closeChannel(local, name: "local server")
         }
-        
+
         lock.withLock {
             sshClientChannel = nil
             localServerChannel = nil
@@ -793,9 +795,17 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
             }
             lock.withLock { self.eventLoopGroup = nil }
         }
-        
+
         await MainActor.run {
-            self.connection.isActive = false
+            // Only transition to idle if we're disconnecting normally
+            // Preserve .failed state so UI can show the error
+            if case .disconnecting = self.connection.state {
+                self.connection.state = .idle
+            } else if case .connecting = self.connection.state {
+                // Connection attempt was aborted
+                self.connection.state = .idle
+            }
+            // If state is .failed, preserve it for UI display
             self.connection.bytesSent = 0
             self.connection.bytesReceived = 0
             self.lastErrorMessage = nil

@@ -79,9 +79,11 @@
 
 ### Architecture Suggestions
 
-- [ ] **Connection state machine**
-  - Current: `isActive`/`isConnecting` booleans can have invalid states
-  - Suggested: `enum ConnectionState { case idle, connecting, connected, disconnecting, failed(Error) }`
+- [x] **Connection state machine**
+  - Replaced `isActive`/`isConnecting` booleans with `ConnectionState` enum
+  - States: `.idle`, `.connecting`, `.connected`, `.disconnecting`, `.failed(String)`
+  - Computed `isActive`/`isConnecting` properties for backward compatibility
+  - Updated `ConnectionIndicatorView` to show all states with appropriate colors/spinners
 
 - [x] **Dependency injection for KeychainService**
   - Current: `ConnectionStore` used `KeychainService.shared` directly
