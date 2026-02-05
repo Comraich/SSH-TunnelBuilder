@@ -83,9 +83,10 @@
   - Current: `isActive`/`isConnecting` booleans can have invalid states
   - Suggested: `enum ConnectionState { case idle, connecting, connected, disconnecting, failed(Error) }`
 
-- [ ] **Dependency injection for KeychainService**
-  - Current: `ConnectionStore` uses `KeychainService.shared` directly
-  - Suggested: Inject via init for better testability
+- [x] **Dependency injection for KeychainService**
+  - Current: `ConnectionStore` used `KeychainService.shared` directly
+  - Fixed: Now accepts `CredentialsStore` via init (defaults to `KeychainService.shared`)
+  - Test init defaults to `MockCredentialsStore()` for isolated testing
 
 - [ ] **OpenSSH Ed25519 support status**
   - UI warns Ed25519 unsupported (`MainView.swift:137-139`)

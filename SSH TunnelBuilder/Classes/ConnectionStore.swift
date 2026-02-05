@@ -67,12 +67,15 @@ class ConnectionStore: ObservableObject {
     @Published var hostKeyRequest: HostKeyRequest? = nil
 
     private var managers: [UUID: SSHManager] = [:]
-    
+
+    /// Credentials storage (Keychain in production, mock for tests)
+    private let credentialsStore: CredentialsStore
+
     private let container = CKContainer.default()
     private let database = CKContainer.default().privateCloudDatabase
     private var customZone: CKRecordZone?
     private let customZoneName = "ConnectionZone"
-    
+
     private let migrationNotifiedKey = "MigratedCredentialsNotified"
 
     private func hasShownMigrationNotice(for uuid: UUID) -> Bool {
@@ -90,7 +93,8 @@ class ConnectionStore: ObservableObject {
         }
     }
     
-    init() {
+    init(credentialsStore: CredentialsStore = KeychainService.shared) {
+        self.credentialsStore = credentialsStore
         // Since init is run on the Main Actor, we can use Task {} here.
         Task {
             await self.createCustomZoneAsync()
@@ -120,9 +124,11 @@ class ConnectionStore: ObservableObject {
     /// - Parameters:
     ///   - mode: Initial mode
     ///   - connections: Pre-populated connections
-    internal init(mode: Mode, connections: [Connection]) {
+    ///   - credentialsStore: Credential storage (defaults to mock for tests)
+    internal init(mode: Mode, connections: [Connection], credentialsStore: CredentialsStore = MockCredentialsStore()) {
         self.mode = mode
         self.connections = connections
+        self.credentialsStore = credentialsStore
         // Don't start CloudKit tasks for test/preview instances
     }
     
@@ -442,8 +448,8 @@ class ConnectionStore: ObservableObject {
         record[CloudKitKeys.knownHostKey] = connection.connectionInfo.knownHostKey
         
         // Keychain operations remain synchronous but are protected by @MainActor scope
-        KeychainService.shared.savePassword(connection.connectionInfo.password, for: connection.id)
-        KeychainService.shared.savePrivateKey(connection.connectionInfo.privateKey, for: connection.id)
+        credentialsStore.savePassword(connection.connectionInfo.password, for: connection.id)
+        credentialsStore.savePrivateKey(connection.connectionInfo.privateKey, for: connection.id)
         
         record[CloudKitKeys.localPort] = connection.tunnelInfo.localPort
         record[CloudKitKeys.remoteServer] = connection.tunnelInfo.remoteServer
@@ -454,7 +460,7 @@ class ConnectionStore: ObservableObject {
         // Always clean up keychain regardless of CloudKit state
         self.disconnect(connection)
         self.managers[connection.id] = nil
-        KeychainService.shared.deleteCredentials(for: connection.id)
+        credentialsStore.deleteCredentials(for: connection.id)
         
         guard let recordID = connection.recordID else {
             // Connection exists only locally (no CloudKit record yet)
@@ -487,8 +493,8 @@ class ConnectionStore: ObservableObject {
         
         let friendlyName: String = (record[CloudKitKeys.name] as? String) ?? "connection"
         
-        let passwordMigrated = migrateSecret(from: record, field: CloudKitKeys.password, for: uuid, saveAction: KeychainService.shared.savePassword)
-        let keyMigrated = migrateSecret(from: record, field: CloudKitKeys.privateKey, for: uuid, saveAction: KeychainService.shared.savePrivateKey)
+        let passwordMigrated = migrateSecret(from: record, field: CloudKitKeys.password, for: uuid, saveAction: credentialsStore.savePassword)
+        let keyMigrated = migrateSecret(from: record, field: CloudKitKeys.privateKey, for: uuid, saveAction: credentialsStore.savePrivateKey)
 
         if passwordMigrated || keyMigrated {
             Task {
@@ -522,8 +528,8 @@ class ConnectionStore: ObservableObject {
         let knownHostKey = (record[CloudKitKeys.knownHostKey] as? String) ?? ""
         
         // Keychain operations are synchronous
-        let password = KeychainService.shared.loadPassword(for: uuid) ?? ""
-        let privateKey = KeychainService.shared.loadPrivateKey(for: uuid) ?? ""
+        let password = credentialsStore.loadPassword(for: uuid) ?? ""
+        let privateKey = credentialsStore.loadPrivateKey(for: uuid) ?? ""
         // Note: privateKeyPassphrase is not persisted long-term
 
         let connectionInfo = ConnectionInfo(name: name, serverAddress: serverAddress, portNumber: portNumber, username: username, password: password, privateKey: privateKey, privateKeyPassphrase: "", knownHostKey: knownHostKey)
