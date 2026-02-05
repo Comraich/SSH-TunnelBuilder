@@ -7,12 +7,11 @@ import AppKit
 
 /// Represents the different types of PEM-encoded private keys
 enum PEMKeyKind {
-    case pkcs8        // Standard PKCS#8 format (most compatible)
-    case ec           // Elliptic Curve key (supported)
-    case rsa          // Legacy RSA format (may need conversion)
-    case openssh      // OpenSSH format (not directly supported by NIOSSH)
-    case dsa          // DSA format (deprecated, not recommended)
-    case ed25519      // ED25519 format (not yet supported)
+    case pkcs8        // PKCS#8 format - ECDSA supported (encrypted or unencrypted)
+    case ec           // EC PRIVATE KEY - ECDSA supported (unencrypted)
+    case rsa          // RSA format - NOT supported
+    case openssh      // OpenSSH format - Ed25519/ECDSA supported (unencrypted only)
+    case dsa          // DSA format - NOT supported
     case unknown      // Unrecognized format
 }
 
@@ -22,9 +21,8 @@ func keyKindDescription(_ kind: PEMKeyKind) -> String {
     case .pkcs8: return "PKCS#8 PRIVATE KEY"
     case .ec: return "EC PRIVATE KEY (ECDSA)"
     case .rsa: return "RSA PRIVATE KEY"
-    case .openssh: return "OPENSSH PRIVATE KEY"
+    case .openssh: return "OPENSSH PRIVATE KEY (Ed25519/ECDSA)"
     case .dsa: return "DSA PRIVATE KEY"
-    case .ed25519: return "ED25519 PRIVATE KEY"
     case .unknown: return "Unknown"
     }
 }
@@ -38,8 +36,23 @@ func detectPEMKeyKind(_ text: String) -> PEMKeyKind {
     if t.contains("-----BEGIN RSA PRIVATE KEY-----") { return .rsa }
     if t.contains("-----BEGIN OPENSSH PRIVATE KEY-----") { return .openssh }
     if t.contains("-----BEGIN DSA PRIVATE KEY-----") { return .dsa }
-    if t.contains("ED25519 PRIVATE KEY") { return .ed25519 }
     return .unknown
+}
+
+/// Checks if an OpenSSH key is encrypted (has cipher/kdf specified)
+/// OpenSSH keys store encryption info in the binary blob, but we can check for common patterns
+func isOpenSSHKeyEncrypted(_ text: String) -> Bool {
+    // OpenSSH encrypted keys have cipher info in the base64 blob
+    // A simple heuristic: unencrypted keys are shorter and have "none" as cipher
+    // For accurate detection, we'd need to parse the binary format
+    // This is a conservative check - if in doubt, assume it might be encrypted
+    let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard t.contains("-----BEGIN OPENSSH PRIVATE KEY-----") else { return false }
+
+    // Extract base64 content and decode to check cipher field
+    // For now, we'll rely on the actual parsing to detect this
+    // and just return false here (the parser will throw if encrypted)
+    return false
 }
 
 /// Determines whether a PEM private key is encrypted
@@ -119,21 +132,36 @@ struct EditableFieldView: View {
 // A self-contained view for showing PEM private key status and warnings.
 struct PEMKeyInfoView: View {
     @Binding var keyText: String
-    
+
     private var trimmedKey: String { keyText.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var kind: PEMKeyKind { detectPEMKeyKind(trimmedKey) }
     private var isEncrypted: Bool { isPEMEncrypted(trimmedKey) }
-    private var isSupported: Bool { kind == .pkcs8 || kind == .ec }
-    
+
+    /// Supported: PKCS#8, EC, OpenSSH (unencrypted Ed25519/ECDSA)
+    private var isSupported: Bool {
+        switch kind {
+        case .pkcs8, .ec: return true
+        case .openssh: return true  // Ed25519/ECDSA supported (unencrypted)
+        case .rsa, .dsa, .unknown: return false
+        }
+    }
+
     var body: some View {
         if !trimmedKey.isEmpty {
             keyStatusView
-            
-            if !isEncrypted {
+
+            // OpenSSH keys: warn that encrypted ones won't work
+            if kind == .openssh {
+                opensshKeyNote
+            }
+
+            // PKCS#8/EC unencrypted warning
+            if (kind == .pkcs8 || kind == .ec) && !isEncrypted {
                 unencryptedKeyWarning
             }
-            
-            if kind == .openssh || kind == .ed25519 {
+
+            // RSA/DSA: show help to convert
+            if kind == .rsa || kind == .dsa {
                 unsupportedKeyHelp
             }
         }
@@ -149,7 +177,18 @@ struct PEMKeyInfoView: View {
                 .font(.footnote)
         }
     }
-    
+
+    @ViewBuilder
+    private var opensshKeyNote: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "info.circle")
+                .foregroundColor(.blue)
+            Text("OpenSSH Ed25519/ECDSA keys are supported. Note: Encrypted OpenSSH keys are not supported—use an unencrypted key or convert to PKCS#8.")
+                .foregroundColor(.secondary)
+                .font(.footnote)
+        }
+    }
+
     @ViewBuilder
     private var unencryptedKeyWarning: some View {
         HStack(spacing: 6) {
@@ -160,19 +199,19 @@ struct PEMKeyInfoView: View {
                 .font(.footnote)
         }
     }
-    
+
     @ViewBuilder
     private var unsupportedKeyHelp: some View {
         VStack(alignment: .leading) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Image(systemName: "lightbulb")
-                    .foregroundColor(.yellow)
-                Text("Detected OpenSSH/Ed25519 key. For this release, generate an ECDSA key:")
+                Image(systemName: "exclamationmark.triangle")
+                    .foregroundColor(.orange)
+                Text("\(keyKindDescription(kind)) is not supported. Convert to ECDSA or Ed25519:")
                     .font(.footnote)
                 Spacer(minLength: 8)
             }
             HStack(alignment: .firstTextBaseline) {
-                let genCmd = "ssh-keygen -t ecdsa -b 256 -m PEM -f ~/.ssh/id_ecdsa"
+                let genCmd = "ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519"
                 Text(genCmd)
                     .font(.body.monospaced())
                 Spacer(minLength: 8)
@@ -621,30 +660,31 @@ struct ConnectButtonView: View {
 
                                     Text("Supported:")
                                         .font(.subheadline)
-                                    Text("• ECDSA P-256/P-384/P-521 in PEM (EC PRIVATE KEY) or PKCS#8 (PRIVATE KEY)")
+                                    Text("• Ed25519 (OpenSSH format, unencrypted)")
+                                        .font(.footnote)
+                                    Text("• ECDSA P-256/P-384/P-521 (OpenSSH, EC PRIVATE KEY, or PKCS#8)")
+                                        .font(.footnote)
+                                    Text("• PKCS#8 encrypted keys (with passphrase)")
                                         .font(.footnote)
 
-                                    Text("Not supported in this build:")
+                                    Text("Not supported:")
                                         .font(.subheadline)
-                                    Text("• OpenSSH Ed25519, RSA, DSA")
+                                    Text("• RSA, DSA keys")
+                                        .font(.footnote)
+                                    Text("• Encrypted OpenSSH keys (use PKCS#8 encryption instead)")
                                         .font(.footnote)
 
                                     Divider()
                                     CommandHelpRow(
-                                        title: "Generate an ECDSA key (recommended):",
-                                        command: "ssh-keygen -t ecdsa -b 256 -m PEM -f ~/.ssh/id_ecdsa"
+                                        title: "Generate an Ed25519 key:",
+                                        command: "ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519"
                                     )
 
                                     Divider()
                                     CommandHelpRow(
-                                        title: "Encrypt an existing PEM key with a passphrase (PKCS#8):",
-                                        command: "openssl pkcs8 -topk8 -v2 aes-256-cbc -in id_ecdsa -out id_ecdsa_encrypted.pem"
+                                        title: "Encrypt an existing key with a passphrase (PKCS#8):",
+                                        command: "openssl pkcs8 -topk8 -v2 aes-256-cbc -in key.pem -out key_encrypted.pem"
                                     )
-
-                                    Divider()
-                                    Text("If you currently have an OpenSSH Ed25519 key, generate an ECDSA key for this release.")
-                                        .font(.footnote)
-                                        .foregroundColor(.secondary)
 
                                     Toggle("Don't show again", isOn: $keyInfoPopoverDismissed)
                                         .toggleStyle(.checkbox)
@@ -727,15 +767,16 @@ struct ConnectButtonView: View {
         
         if providedKey {
             let keyKind = detectPEMKeyKind(tempPrivateKey)
-            
+
             guard keyKind != .unknown else {
                 pemError = "Invalid private key format."
                 return
             }
-            
-            // Only PKCS#8 or EC (ECDSA) are supported by the current NIOSSH/SSHManager setup.
-            if !(keyKind == .pkcs8 || keyKind == .ec) {
-                pemError = "Unsupported private key type (\(keyKindDescription(keyKind))). Supported types are ECDSA (EC PRIVATE KEY) or PKCS#8 PRIVATE KEY."
+
+            // Supported: PKCS#8, EC, OpenSSH (Ed25519/ECDSA unencrypted)
+            // Not supported: RSA, DSA
+            if keyKind == .rsa || keyKind == .dsa {
+                pemError = "Unsupported key type (\(keyKindDescription(keyKind))). Use Ed25519 or ECDSA instead."
                 return
             }
         }

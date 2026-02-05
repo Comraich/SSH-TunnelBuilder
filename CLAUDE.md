@@ -90,10 +90,13 @@
   - Fixed: Now accepts `CredentialsStore` via init (defaults to `KeychainService.shared`)
   - Test init defaults to `MockCredentialsStore()` for isolated testing
 
-- [ ] **OpenSSH Ed25519 support status**
-  - UI warns Ed25519 unsupported (`MainView.swift:137-139`)
-  - But `SSHManager.swift:360-367` handles it via NIOSSH
-  - Verify: Update UI if Ed25519 is actually supported
+- [x] **OpenSSH Ed25519 support status**
+  - Investigated: Ed25519 IS supported via `NIOSSHPrivateKey(openSSHEd25519PrivateKeyBlob:)`
+  - The limitation is encrypted OpenSSH keys, not Ed25519 itself
+  - Fixed: Updated UI to accurately show supported formats:
+    - Supported: Ed25519, ECDSA (OpenSSH unencrypted, PKCS#8, EC PRIVATE KEY)
+    - Not supported: RSA, DSA, encrypted OpenSSH keys
+  - Removed misleading `.ed25519` PEMKeyKind case (Ed25519 uses OpenSSH format)
 
 ### Test Coverage Gaps
 
