@@ -5,6 +5,12 @@
 - Open `SSH TunnelBuilder.xcodeproj` or workspace
 - Dependencies: SwiftNIO, NIOSSH (via Swift Package Manager)
 
+## Git Workflow
+- **Development branch is protected** - never push directly
+- Create feature branches for all changes: `git checkout -b feature/description`
+- Push feature branch and create PR to merge into Development
+- Branch naming: `feature/...`, `fix/...`, `refactor/...`
+
 ## Architecture Overview
 - **Connection.swift**: Data model with `@MainActor` isolation
 - **ConnectionStore.swift**: CloudKit sync + Keychain + SSHManager lifecycle
