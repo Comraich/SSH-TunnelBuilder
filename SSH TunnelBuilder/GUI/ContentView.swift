@@ -1,5 +1,19 @@
 import SwiftUI
 
+// MARK: - Reusable Error Alert Modifier
+
+extension View {
+    func errorAlert(_ errorAlert: Binding<ErrorAlert?>) -> some View {
+        self.alert(item: errorAlert) { error in
+            Alert(
+                title: Text("Error"),
+                message: Text(error.message),
+                dismissButton: .default(Text("OK"))
+            )
+        }
+    }
+}
+
 struct ContentView: View {
     @StateObject var connectionStore: ConnectionStore
     @State private var selectedConnection: Connection?
@@ -22,13 +36,7 @@ struct ContentView: View {
                 .environmentObject(connectionStore)
                 .accessibilityIdentifier("MainView")
         }
-        .alert(item: $connectionStore.errorAlert) { errorAlert in
-            Alert(
-                title: Text("Error"),
-                message: Text(errorAlert.message),
-                dismissButton: .default(Text("OK"))
-            )
-        }
+        .errorAlert($connectionStore.errorAlert)
         .alert(item: $connectionStore.hostKeyRequest) { request in
             Alert(
                 title: Text("Unknown Host"),
@@ -44,21 +52,12 @@ struct ContentView: View {
     }
 }
 
-enum ConnectionState {
-    case connected
-    case disconnected
-    case connecting
+// Moved to ConnectionStore.swift as it's used there primarily
+
+#Preview("Empty State") {
+    ContentView(connectionStore: ConnectionStore())
+}
+#Preview("With Connections") {
+    ContentView(connectionStore: ConnectionStore.mockWithSampleData())
 }
 
-enum MainViewMode {
-    case create
-    case edit
-    case view
-    case loading
-}
-
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView(connectionStore: ConnectionStore())
-    }
-}
