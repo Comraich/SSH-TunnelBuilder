@@ -1,7 +1,19 @@
 import Foundation
 import Security
 
-final class KeychainService {
+// MARK: - Protocol
+
+protocol CredentialsStore {
+    func savePassword(_ password: String, for id: UUID)
+    func savePrivateKey(_ key: String, for id: UUID)
+    func loadPassword(for id: UUID) -> String?
+    func loadPrivateKey(for id: UUID) -> String?
+    func deleteCredentials(for id: UUID)
+}
+
+// MARK: - Keychain Implementation
+
+final class KeychainService: CredentialsStore {
     static let shared = KeychainService()
     private init() {}
 
@@ -44,7 +56,10 @@ final class KeychainService {
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
         ]
-        SecItemAdd(query as CFDictionary, nil)
+        let status = SecItemAdd(query as CFDictionary, nil)
+        if status != errSecSuccess {
+            Logger.error("Failed to save item for account '\(account)'. OSStatus: \(status)", log: Logger.keychain)
+        }
     }
 
     private func loadString(account: String) -> String? {
@@ -70,3 +85,30 @@ final class KeychainService {
         SecItemDelete(query as CFDictionary)
     }
 }
+// MARK: - Mock Implementation for Testing
+
+final class MockCredentialsStore: CredentialsStore {
+    private var storage: [String: String] = [:]
+    
+    func savePassword(_ password: String, for id: UUID) {
+        storage["password:\(id.uuidString)"] = password
+    }
+    
+    func savePrivateKey(_ key: String, for id: UUID) {
+        storage["privateKey:\(id.uuidString)"] = key
+    }
+    
+    func loadPassword(for id: UUID) -> String? {
+        storage["password:\(id.uuidString)"]
+    }
+    
+    func loadPrivateKey(for id: UUID) -> String? {
+        storage["privateKey:\(id.uuidString)"]
+    }
+    
+    func deleteCredentials(for id: UUID) {
+        storage.removeValue(forKey: "password:\(id.uuidString)")
+        storage.removeValue(forKey: "privateKey:\(id.uuidString)")
+    }
+}
+

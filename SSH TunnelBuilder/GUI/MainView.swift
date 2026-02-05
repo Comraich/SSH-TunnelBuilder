@@ -3,10 +3,20 @@ import SwiftUI
 import AppKit
 #endif
 
-// MARK: - PEM Key Helpers (File-private)
+// MARK: - PEM Key Detection Utilities
 
-enum PEMKeyKind { case pkcs8, ec, rsa, openssh, dsa, ed25519, unknown }
+/// Represents the different types of PEM-encoded private keys
+enum PEMKeyKind {
+    case pkcs8        // Standard PKCS#8 format (most compatible)
+    case ec           // Elliptic Curve key (supported)
+    case rsa          // Legacy RSA format (may need conversion)
+    case openssh      // OpenSSH format (not directly supported by NIOSSH)
+    case dsa          // DSA format (deprecated, not recommended)
+    case ed25519      // ED25519 format (not yet supported)
+    case unknown      // Unrecognized format
+}
 
+/// Returns a human-readable description of the key type
 func keyKindDescription(_ kind: PEMKeyKind) -> String {
     switch kind {
     case .pkcs8: return "PKCS#8 PRIVATE KEY"
@@ -19,6 +29,7 @@ func keyKindDescription(_ kind: PEMKeyKind) -> String {
     }
 }
 
+/// Detects the type of PEM private key from its text content
 func detectPEMKeyKind(_ text: String) -> PEMKeyKind {
     let t = text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
     if t.contains("-----BEGIN ENCRYPTED PRIVATE KEY-----") { return .pkcs8 }
@@ -31,6 +42,7 @@ func detectPEMKeyKind(_ text: String) -> PEMKeyKind {
     return .unknown
 }
 
+/// Determines whether a PEM private key is encrypted
 func isPEMEncrypted(_ text: String) -> Bool {
     let t = text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
     if t.contains("-----BEGIN ENCRYPTED PRIVATE KEY-----") { return true }
@@ -39,7 +51,17 @@ func isPEMEncrypted(_ text: String) -> Bool {
     return false
 }
 
-// A reusable view for displaying a shell command with a copy button.
+/// Copies text to the system clipboard (macOS only)
+func copyToClipboard(_ text: String) {
+    #if os(macOS)
+    let pb = NSPasteboard.general
+    pb.clearContents()
+    pb.setString(text, forType: .string)
+    #endif
+}
+
+// MARK: - Command Help Row View
+
 struct CommandHelpRow: View {
     let title: String
     let command: String
@@ -56,17 +78,11 @@ struct CommandHelpRow: View {
             Button("Copy") { copyToClipboard(command) }
         }
     }
-    
-    private func copyToClipboard(_ text: String) {
-        #if os(macOS)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
-        #endif
-    }
 }
 
-// A view that switches between a Text label and a TextField/SecureField
-// based on the current MainViewMode.
+// MARK: - Editable Field View
+// MARK: - Editable Field View
+
 struct EditableFieldView: View {
     let value: Binding<String>
     let placeholder: String
@@ -164,15 +180,9 @@ struct PEMKeyInfoView: View {
             }
         }
     }
-    
-    private func copyToClipboard(_ text: String) {
-        #if os(macOS)
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.setString(text, forType: .string)
-        #endif
-    }
 }
+
+// MARK: - Main View
 
 struct MainView: View {
     @EnvironmentObject var connectionStore: ConnectionStore
@@ -181,9 +191,9 @@ struct MainView: View {
         
     var body: some View {
         if connectionStore.mode == .loading {
-            Text("Loading connections...")
-                .font(.largeTitle)
-                .padding()
+            loadingView
+        } else if connectionStore.mode == .view && selectedConnection == nil {
+            emptySelectionView
         } else {
             VStack {
                 connectionNameRow(label: "Connection Name:", value: connectionNameBinding)
@@ -456,9 +466,57 @@ struct MainView: View {
         }
     }
 
-    func changeMode(to newMode: MainViewMode) {
+    func changeMode(to newMode: ConnectionStore.Mode) {
         connectionStore.mode = newMode
-    } 
+    }
+    
+    // MARK: - Helper Views
+    
+    private var loadingView: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .scaleEffect(1.5)
+            Text("Loading connections...")
+                .font(.title2)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    private var emptySelectionView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "network")
+                .font(.system(size: 60))
+                .foregroundColor(.secondary)
+            
+            Text("No Connection Selected")
+                .font(.title)
+                .fontWeight(.semibold)
+            
+            Text("Select a connection from the sidebar or create a new one")
+                .font(.body)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+            
+            if connectionStore.connections.isEmpty {
+                Button(action: {
+                    connectionStore.mode = .create
+                }) {
+                    Label("Create Connection", systemImage: "plus.circle.fill")
+                        .font(.headline)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(Color.accentColor)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 8)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding()
+    }
 }
 
 struct ConnectionIndicatorView: View {
@@ -603,7 +661,7 @@ struct ConnectButtonView: View {
 
                     Toggle("Save credentials to this connection", isOn: $saveCredentials)
 
-                    Text("Provide either a password or a private key (PEM). If you choose not to save, the credentials will be used for this session only.")
+                    Text("Provide either a password or a private key (PEM). If you choose not to save, the credentials will be used for this session only. Note: Passphrases are never saved and must be re-entered each time.")
                         .font(.footnote)
                         .foregroundColor(.secondary)
 
@@ -683,12 +741,6 @@ struct ConnectButtonView: View {
         tempPrivateKey = ""
         tempPassphrase = ""
         saveCredentials = false
-    }
-
-    private func isValidPEMPrivateKey(_ text: String) -> Bool {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let tokens = ["OPENSSH PRIVATE KEY", "RSA PRIVATE KEY", "EC PRIVATE KEY", "DSA PRIVATE KEY", "ED25519 PRIVATE KEY", "PRIVATE KEY"]
-        return tokens.contains { trimmed.contains("-----BEGIN \($0)-----") && trimmed.contains("-----END \($0)-----") }
     }
 }
 

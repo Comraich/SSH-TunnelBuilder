@@ -4,6 +4,40 @@ import NIOSSH
 import CryptoKit
 import Combine
 
+// MARK: - SSH Error Types
+
+enum SSHConnectionError: LocalizedError {
+    case missingCredentials
+    case keyParseFailed(String)
+    case hostKeyMismatch
+    case userRejectedHostKey
+    case authenticationFailed
+    case connectionTimeout
+    case networkError(Error)
+    case tunnelSetupFailed(Error)
+    
+    var errorDescription: String? {
+        switch self {
+        case .missingCredentials:
+            return "Missing password or private key. Please provide authentication credentials."
+        case .keyParseFailed(let detail):
+            return "Failed to parse private key: \(detail). Ensure it's in PEM format (PKCS#8 or EC)."
+        case .hostKeyMismatch:
+            return "Security Warning: The server's host key has changed! This could indicate a security threat."
+        case .userRejectedHostKey:
+            return "Connection cancelled: Host key was not trusted."
+        case .authenticationFailed:
+            return "Authentication failed. Please check your username and credentials."
+        case .connectionTimeout:
+            return "Connection timed out. Please check the server address and network connectivity."
+        case .networkError(let error):
+            return "Network error: \(error.localizedDescription)"
+        case .tunnelSetupFailed(let error):
+            return "Failed to set up local tunnel: \(error.localizedDescription)"
+        }
+    }
+}
+
 // NOTE: PEMKeyKind, detectPEMKeyKind, isPEMEncrypted are assumed to be defined in MainView.swift or another file.
 // If they are not visible here, move them to a shared utility file.
 
@@ -69,7 +103,7 @@ private extension TaskGroup where ChildTaskResult == Void {
             do {
                 try await channel.close(mode: .all).get()
             } catch {
-                print("Error closing \(name) channel: \(error)")
+                Logger.error("Error closing \(name) channel: \(error)", log: Logger.ssh)
             }
         }
     }
@@ -112,7 +146,7 @@ private final class GenericRelayHandler<InboundType, OutboundType>: ChannelInbou
     }
 
     func errorCaught(context: ChannelHandlerContext, error: Error) {
-        print("GenericRelayHandler error: \(error)")
+        Logger.error("GenericRelayHandler error: \(error)", log: Logger.ssh)
         // Ensure close happens on the peer's event loop for thread safety.
         peer.eventLoop.execute {
             self.peer.close(mode: .all, promise: nil)
@@ -157,12 +191,12 @@ private final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate
         if let keyString = privateKeyString, !keyString.isEmpty {
             do {
                 parsedKey = try FlexibleAuthDelegate.parsePrivateKey(pemString: keyString, passphrase: privateKeyPassphrase)
-                print("[SSH] Private key parsed successfully.")
+                Logger.info("Private key parsed successfully", log: Logger.ssh)
             } catch {
                 let errorMsg = "Failed to parse private key: \(error.localizedDescription)"
                 initError = error.localizedDescription
                 reportError?(errorMsg)
-                print(errorMsg)
+                Logger.error(errorMsg, log: Logger.ssh)
             }
         }
         self.privateKey = parsedKey
@@ -211,15 +245,15 @@ private extension FlexibleAuthDelegate {
         }
         
         guard kind == .pkcs8 || kind == .ec else {
-            throw NSError(domain: "FlexibleAuthDelegate", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unsupported key type: \(keyKindDescription(kind))"])
+            throw SSHTunnelError.unsupportedKeyType(keyKindDescription(kind))
         }
 
         let isEncrypted = isPEMEncrypted(trimmed)
         let derData: Data
-        
+
         if isEncrypted {
             guard let passphrase = passphrase, !passphrase.isEmpty else {
-                 throw NSError(domain: "FlexibleAuthDelegate", code: 0, userInfo: [NSLocalizedDescriptionKey: "Key is encrypted but no passphrase provided."])
+                throw SSHTunnelError.encryptedKeyNoPassphrase
             }
             derData = try PEMDecryptor.decryptEncryptedPKCS8PEM(trimmed, passphrase: passphrase)
         } else if trimmed.contains("-----BEGIN PRIVATE KEY-----") || trimmed.contains("-----BEGIN EC PRIVATE KEY-----") {
@@ -243,10 +277,10 @@ private extension FlexibleAuthDelegate {
                 let key = try P521.Signing.PrivateKey(rawRepresentation: privateScalar)
                 return NIOSSHPrivateKey(p521Key: key)
             default:
-                throw NSError(domain: "FlexibleAuthDelegate", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unsupported ECDSA curve length."])
+                throw SSHTunnelError.unsupportedCurveLength
             }
         case .rsa:
-            throw NSError(domain: "FlexibleAuthDelegate", code: 0, userInfo: [NSLocalizedDescriptionKey: "RSA keys are not currently supported by the underlying cryptographic library setup. Convert your key to Ed25519 or ECDSA (nistp256/384/521)."])
+            throw SSHTunnelError.rsaNotSupported
         }
     }
     
@@ -428,12 +462,15 @@ private extension FlexibleAuthDelegate {
 // MARK: - SSHManager
 
 final class SSHManager: ObservableObject, @unchecked Sendable {
+    /// Connection timeout in seconds. Increase for high-latency networks.
+    static var connectionTimeoutSeconds: Int64 = 10
+
     let connection: Connection
     private var eventLoopGroup: MultiThreadedEventLoopGroup?
     private var sshClientChannel: Channel?
     private var localServerChannel: Channel?
     private let lock = NSLock()
-    
+
     // Store active config safely for background threads
     private var activeTunnelInfo: TunnelInfo?
 
@@ -470,12 +507,12 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
         let hasKey = !connectionInfo.privateKey.isEmpty
         
         guard hasPassword || hasKey else {
-            print("SSHManager.connect: Missing credentials for authentication.")
+            Logger.error("Missing credentials for authentication", log: Logger.ssh)
             await MainActor.run {
                 connection.isConnecting = false
                 connection.isActive = false
             }
-            throw NSError(domain: "SSHManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing password or private key"])
+            throw SSHTunnelError.missingCredentials
         }
 
         let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
@@ -504,12 +541,12 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
             
             let detail = authDelegate.initializationError ?? "Unknown key error"
             let errorMsg = "Failed to initialize key: \(detail). If this is an OpenSSH encrypted key, remove the passphrase or convert to PKCS#8/Ed25519/ECDSA."
-            
+
             await MainActor.run {
                 self.lastErrorMessage = errorMsg
             }
-            
-            throw NSError(domain: "SSHManager", code: 1, userInfo: [NSLocalizedDescriptionKey: errorMsg])
+
+            throw SSHTunnelError.keyParsingFailed(detail)
         }
         
         let host = connectionInfo.serverAddress
@@ -523,7 +560,7 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
         self.sessionReadyCompleted = false
 
         let bootstrap = ClientBootstrap(group: group)
-            .channelOption(ChannelOptions.connectTimeout, value: .seconds(10))
+            .channelOption(ChannelOptions.connectTimeout, value: .seconds(Self.connectionTimeoutSeconds))
             .channelInitializer { channel in
                 let clientConfig = SSHClientConfiguration(userAuthDelegate: authDelegate,
                                                           serverAuthDelegate: serverDelegate)
@@ -533,8 +570,7 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
                     inboundChildChannelInitializer: nil
                 )
                 guard let sessionReadyPromise = self.sessionReadyPromise else {
-                    let error = NSError(domain: "SSHManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing sessionReadyPromise"])
-                    return channel.eventLoop.makeFailedFuture(error)
+                    return channel.eventLoop.makeFailedFuture(SSHTunnelError.internalError("Missing sessionReadyPromise"))
                 }
                 let sessionReadyHandler = SSHSessionReadyHandler(sessionReadyPromise: sessionReadyPromise)
                 
@@ -560,7 +596,7 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
             
             try await startLocalListener()
         } catch {
-            print("SSH connect failed: \(error)")
+            Logger.error("SSH connect failed: \(error)", log: Logger.ssh)
             if let p = self.sessionReadyPromise, self.sessionReadyCompleted == false {
                 self.sessionReadyCompleted = true
                 p.fail(error)
@@ -595,29 +631,30 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
                 promise.succeed(())
                 return
             }
-            let error = NSError(domain: "SSHManager", code: 2, userInfo: [NSLocalizedDescriptionKey: "SECURITY WARNING: Host key mismatch! The server key has changed. This could be a Man-in-the-Middle attack."])
-            promise.fail(error)
+            promise.fail(SSHTunnelError.hostKeyMismatch)
             return
         }
-        
+
         guard let callback = self.hostKeyValidationCallback else {
-            promise.fail(NSError(domain: "SSHManager", code: 3, userInfo: [NSLocalizedDescriptionKey: "Unknown host key and no validation callback configured."]))
+            promise.fail(SSHTunnelError.hostKeyValidationMissing)
             return
         }
-        
+
         let keyType = keyData == nil ? "Unknown (Legacy Lib)" : "Unknown"
         callback(host, fingerprint, keyType, keyData ?? Data()) { allowed in
             if allowed {
                 promise.succeed(())
             } else {
-                promise.fail(NSError(domain: "SSHManager", code: 4, userInfo: [NSLocalizedDescriptionKey: "User rejected host key."]))
+                promise.fail(SSHTunnelError.hostKeyRejected)
             }
         }
     }
     
     private func serialize(key _: NIOSSHPublicKey) -> Data? {
-        // If NIOSSH supports serializing the key (e.g. key.write(to:)), return raw key bytes.
-        // Otherwise return nil and we will fall back to fingerprint-based verification.
+        // NIOSSH does not currently expose a public API to serialize host keys to raw bytes.
+        // Returning nil causes handleHostKeyValidation to use fingerprint-based verification,
+        // which compares the SHA256 fingerprint string stored in knownHostKey.
+        // If NIOSSH adds serialization support in the future, implement it here for raw key matching.
         return nil
     }
 
@@ -627,7 +664,10 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
               let sshChannel = lock.withLock({ self.sshClientChannel }),
               let tunnelInfo = lock.withLock({ self.activeTunnelInfo }) else { return }
 
-        let localPort = Int(tunnelInfo.localPort) ?? 0
+        guard let localPort = Int(tunnelInfo.localPort),
+              localPort >= 1 && localPort <= 65535 else {
+            throw SSHTunnelError.invalidPort(tunnelInfo.localPort)
+        }
 
         let serverBootstrap = ServerBootstrap(group: group)
             .serverChannelOption(ChannelOptions.backlog, value: 8)
@@ -645,7 +685,7 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
                 let sshChildChannelFuture = sshChannel.eventLoop.flatSubmit {
                     sshChannel.pipeline.handler(type: NIOSSHHandler.self).flatMap { sshHandler -> EventLoopFuture<Channel> in
                         let childChannelPromise = sshChannel.eventLoop.makePromise(of: Channel.self)
-                        print("Opening direct-tcpip to \(tunnelInfo.remoteServer):\(Int(tunnelInfo.remotePort) ?? 0) from originator: \(originator)")
+                        Logger.debug("Opening direct-tcpip to \(tunnelInfo.remoteServer):\(Int(tunnelInfo.remotePort) ?? 0) from originator: \(originator)", log: Logger.ssh)
                         
                         let directTCPIP = NIOSSH.SSHChannelType.DirectTCPIP(
                             targetHost: tunnelInfo.remoteServer,
@@ -669,7 +709,7 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
                 }
 
                 setupFuture.whenFailure { error in
-                    print("Failed to establish forwarding channel to \(tunnelInfo.remoteServer):\(Int(tunnelInfo.remotePort) ?? 0) — error: \(error)")
+                    Logger.error("Failed to establish forwarding channel to \(tunnelInfo.remoteServer):\(Int(tunnelInfo.remotePort) ?? 0) — error: \(error)", log: Logger.ssh)
                     inbound.close(promise: nil)
                 }
                 
@@ -681,10 +721,10 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
             let server = try await serverBootstrap.bind(host: "127.0.0.1", port: localPort).get()
             lock.withLock { self.localServerChannel = server }
             if let localPort = server.localAddress?.port {
-                print("Local listener bound on 127.0.0.1:\(localPort)")
+                Logger.info("Local listener bound on 127.0.0.1:\(localPort)", log: Logger.ssh)
             }
         } catch {
-            print("Local listener bind failed: \(error)")
+            Logger.error("Local listener bind failed: \(error)", log: Logger.ssh)
             await MainActor.run { self.connection.isConnecting = false }
             await self.disconnect()
             throw error 
@@ -739,18 +779,17 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
                 self.sessionReadyCompleted = true
                 p.fail(ChannelError.ioOnClosedChannel)
             }
+            self.sessionReadyPromise = nil
+            self.sessionReadyCompleted = false
             self.internalBytesSent = 0
             self.internalBytesReceived = 0
         }
-        
-        self.sessionReadyPromise = nil
-        self.sessionReadyCompleted = false
 
         if let group = lock.withLock({ self.eventLoopGroup }) {
             do {
                 try await group.shutdownGracefully()
             } catch {
-                print("EventLoopGroup shutdown error: \(error)")
+                Logger.error("EventLoopGroup shutdown error: \(error)", log: Logger.ssh)
             }
             lock.withLock { self.eventLoopGroup = nil }
         }

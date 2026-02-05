@@ -51,11 +51,11 @@ class Connection: Identifiable, Equatable, Hashable, ObservableObject {
         return newConnection
     }
     
-    // Identifiable comfirmity
+    // Equatable conformity
     nonisolated static func == (lhs: Connection, rhs: Connection) -> Bool {
         return lhs.id == rhs.id
     }
-    
+
     // Hashable conformity
     nonisolated func hash(into hasher: inout Hasher) {
         hasher.combine(id)

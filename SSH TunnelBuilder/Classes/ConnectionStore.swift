@@ -22,7 +22,9 @@ struct ErrorAlert: Identifiable {
     let message: String
 }
 
-// Structure to hold host key verification details for UI
+// MARK: - Structure to hold host key verification details for UI
+
+/// Represents a host key validation request that requires user confirmation
 struct HostKeyRequest: Identifiable {
     let id = UUID()
     let hostname: String
@@ -31,11 +33,22 @@ struct HostKeyRequest: Identifiable {
     let completion: (Bool) -> Void
 }
 
+/// Main data store for SSH connections, managing CloudKit sync and local state
 @MainActor // Mark the store to run updates on the MainActor
 class ConnectionStore: ObservableObject {
-    @Published var mode: MainViewMode = .loading
-    @Published var connections: [Connection] = []
-    @Published var tempConnection: Connection?
+    
+    // MARK: - Nested Types
+    
+    enum Mode: CaseIterable, Codable {
+        case create
+        case edit
+        case view
+        case loading
+    }
+    
+    @Published var mode: Mode = .loading
+    @Published private(set) var connections: [Connection] = []
+    @Published private(set) var tempConnection: Connection?
     
     // Properties for the "Create" form
     @Published var connectionName = ""
@@ -50,7 +63,7 @@ class ConnectionStore: ObservableObject {
     
     @Published var migrationNotice: String? = nil
     @Published var cloudNotice: String? = nil
-    @Published var errorAlert: ErrorAlert? = nil
+    @Published private(set) var errorAlert: ErrorAlert? = nil
     @Published var hostKeyRequest: HostKeyRequest? = nil
 
     private var managers: [UUID: SSHManager] = [:]
@@ -90,12 +103,11 @@ class ConnectionStore: ObservableObject {
             }
             
             // Fallback: if we're still loading after a short delay, allow creating locally
-            // Using Task.sleep(for: .seconds(3.0)) can throw, so needs guarding or handling
             do {
-                try await Task.sleep(for: .seconds(3.0))
+                try await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
             } catch {
                 // Sleep was cancelled; proceed without delay.
-                print("Task.sleep cancelled: \(error.localizedDescription)")
+                Logger.debug("Task.sleep cancelled: \(error.localizedDescription)", log: Logger.cloudKit)
             }
             
             if self.mode == .loading {
@@ -104,6 +116,17 @@ class ConnectionStore: ObservableObject {
         }
     }
     
+    /// Internal initializer for testing and previews
+    /// - Parameters:
+    ///   - mode: Initial mode
+    ///   - connections: Pre-populated connections
+    internal init(mode: Mode, connections: [Connection]) {
+        self.mode = mode
+        self.connections = connections
+        // Don't start CloudKit tasks for test/preview instances
+    }
+    
+    /// Clears all fields in the create connection form
     func clearCreateForm() {
         connectionName = ""
         serverAddress = ""
@@ -115,6 +138,12 @@ class ConnectionStore: ObservableObject {
         remoteServer = ""
         remotePort = ""
     }
+    
+    /// Displays an error alert to the user
+    /// - Parameter message: The error message to display
+    func showError(_ message: String) {
+        errorAlert = ErrorAlert(message: message)
+    }
 
     private func manager(for connection: Connection) -> SSHManager {
         if let existing = managers[connection.id] { return existing }
@@ -124,6 +153,8 @@ class ConnectionStore: ObservableObject {
         return new
     }
 
+    /// Initiates an SSH connection for the given connection object
+    /// - Parameter connection: The connection to establish
     func connect(_ connection: Connection) {
         let mgr = manager(for: connection)
         
@@ -152,6 +183,8 @@ class ConnectionStore: ObservableObject {
         }
     }
 
+    /// Disconnects an active SSH connection
+    /// - Parameter connection: The connection to disconnect
     func disconnect(_ connection: Connection) {
         if let mgr = managers[connection.id] {
             Task {
@@ -195,7 +228,7 @@ class ConnectionStore: ObservableObject {
             }
             self.customZone = savedZone
         } catch {
-            print("Failed to create custom zone: \(error.localizedDescription)")
+            Logger.error("Failed to create custom zone: \(error.localizedDescription)", log: Logger.cloudKit)
             self.errorAlert = ErrorAlert(message: "Failed to create iCloud zone: \(error.localizedDescription)")
         }
     }
@@ -237,10 +270,10 @@ class ConnectionStore: ObservableObject {
                 if let connection = self.recordToConnection(record: record) {
                     fetchedConnections.append(connection)
                 } else {
-                    print("Failed to convert record to connection: \(record)")
+                    Logger.error("Failed to convert record to connection: \(record)", log: Logger.cloudKit)
                 }
             case .failure(let error):
-                print("Failed to fetch record \(recordID): \(error.localizedDescription)")
+                Logger.error("Failed to fetch record \(recordID): \(error.localizedDescription)", log: Logger.cloudKit)
             }
         }
 
@@ -262,15 +295,15 @@ class ConnectionStore: ObservableObject {
 
         switch result {
         case .failure(let error):
-            print("Error fetching connections: \(error.localizedDescription)")
+            Logger.error("Error fetching connections: \(error.localizedDescription)", log: Logger.cloudKit)
             self.errorAlert = ErrorAlert(message: "Failed to fetch connections: \(error.localizedDescription)")
-            
+
         case .success:
             if let nextCursor = cursor {
-                print("Fetching more connections")
+                Logger.debug("Fetching more connections", log: Logger.cloudKit)
                 await self.fetchConnectionsAsync(cursor: nextCursor)
             } else {
-                print("Finished fetching connections")
+                Logger.info("Finished fetching connections", log: Logger.cloudKit)
             }
         }
 
@@ -285,6 +318,10 @@ class ConnectionStore: ObservableObject {
     
     func updateTempConnection(with connection: Connection) {
         self.tempConnection = connection.copy() // Use a copy for editing
+    }
+    
+    func clearTempConnection() {
+        self.tempConnection = nil
     }
 
     func saveConnection(_ connection: Connection, connectionToUpdate: Connection? = nil) {
@@ -308,7 +345,7 @@ class ConnectionStore: ObservableObject {
                 } else if let error = error {
                     continuation.resume(throwing: error)
                 } else {
-                    continuation.resume(throwing: NSError(domain: "CKError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unknown CloudKit fetch error."]))
+                    continuation.resume(throwing: SSHTunnelError.cloudKitFetchFailed("Unknown error"))
                 }
             }
         }
@@ -323,12 +360,12 @@ class ConnectionStore: ObservableObject {
                 } else if let error = error {
                     continuation.resume(throwing: error)
                 } else {
-                    continuation.resume(throwing: NSError(domain: "CKError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unknown CloudKit save error."]))
+                    continuation.resume(throwing: SSHTunnelError.cloudKitSaveFailed("Unknown error"))
                 }
             }
         }
     }
-    
+
     // Helper to wrap CKDatabase.delete(withRecordID:completionHandler:)
     private func deleteRecord(with recordID: CKRecord.ID) async throws -> CKRecord.ID {
         return try await withCheckedThrowingContinuation { continuation in
@@ -338,7 +375,7 @@ class ConnectionStore: ObservableObject {
                 } else if let error = error {
                     continuation.resume(throwing: error)
                 } else {
-                    continuation.resume(throwing: NSError(domain: "CKError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unknown CloudKit delete error."]))
+                    continuation.resume(throwing: SSHTunnelError.cloudKitDeleteFailed("Unknown error"))
                 }
             }
         }
@@ -414,20 +451,24 @@ class ConnectionStore: ObservableObject {
     }
 
     func deleteConnection(_ connection: Connection) {
-        guard let recordID = connection.recordID else { return }
+        // Always clean up keychain regardless of CloudKit state
+        self.disconnect(connection)
+        self.managers[connection.id] = nil
+        KeychainService.shared.deleteCredentials(for: connection.id)
+        
+        guard let recordID = connection.recordID else {
+            // Connection exists only locally (no CloudKit record yet)
+            self.connections.removeAll { $0.id == connection.id }
+            return
+        }
         
         Task {
             do {
                 let deletedRecordID = try await deleteRecord(with: recordID)
-                
-                if let toDelete = self.connections.first(where: { $0.recordID == deletedRecordID }) {
-                    self.disconnect(toDelete)
-                    self.managers[toDelete.id] = nil
-                    KeychainService.shared.deleteCredentials(for: toDelete.id)
-                }
                 self.connections.removeAll { $0.recordID == deletedRecordID }
             } catch {
-                self.errorAlert = ErrorAlert(message: "Failed to delete connection: \(error.localizedDescription)")
+                self.errorAlert = ErrorAlert(message: "Failed to delete connection from iCloud: \(error.localizedDescription)")
+                // Note: Local state and keychain were already cleaned up above
             }
         }
     }
@@ -457,9 +498,9 @@ class ConnectionStore: ObservableObject {
                         self.migrationNotice = "Credentials for '\(friendlyName)' were moved to Keychain and removed from iCloud."
                         self.markMigrationNoticeShown(for: uuid)
                     }
-                    print("Migrated secrets to Keychain and cleared CloudKit for record: \(record.recordID.recordName)")
+                    Logger.info("Migrated secrets to Keychain and cleared CloudKit for record: \(record.recordID.recordName)", log: Logger.cloudKit)
                 } catch {
-                    print("Migration save error: \(error)")
+                    Logger.error("Migration save error: \(error)", log: Logger.cloudKit)
                 }
             }
         }

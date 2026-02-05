@@ -280,9 +280,12 @@ private enum AESCBC {
 // MARK: - ASN.1 Minimal Parser
 
 private struct ASN1Parser {
+    /// Maximum number of bytes for ASN.1 length encoding (supports lengths up to 4GB)
+    private static let maxLengthBytes = 4
+
     private let data: Data
     private var offset: Int = 0
-    
+
     init(data: Data) throws {
         self.data = data
     }
@@ -318,8 +321,8 @@ private struct ASN1Parser {
             return Int(first & 0x7F)
         }
         let count = Int(first & 0x7F)
-        guard count > 0 && count <= 4 else {
-            throw PEMDecryptorError.asn1ParseError("Invalid length byte count")
+        guard count > 0 && count <= Self.maxLengthBytes else {
+            throw PEMDecryptorError.asn1ParseError("Invalid length byte count: \(count)")
         }
         var length = 0
         for _ in 0..<count {
@@ -412,6 +415,10 @@ private struct ASN1Parser {
     
     private func parseInteger(_ data: Data) throws -> Int {
         guard !data.isEmpty else { throw PEMDecryptorError.asn1ParseError("Invalid INTEGER encoding") }
+        // Limit to 8 bytes to prevent overflow on 64-bit systems
+        guard data.count <= 8 else {
+            throw PEMDecryptorError.asn1ParseError("INTEGER too large (\(data.count) bytes)")
+        }
         // Support positive integers only
         var value = 0
         for byte in data {
