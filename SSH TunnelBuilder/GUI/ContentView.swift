@@ -38,7 +38,7 @@ struct ContentView: View {
                 .environmentObject(connectionStore)
                 .accessibilityIdentifier("MainView")
         }
-        .onChange(of: connectionStore.errorAlert) { oldValue, newValue in
+        .onChange(of: connectionStore.errorAlert) { _, newValue in
             if let error = newValue {
                 errorMessage = error.message
                 showingErrorSheet = true
