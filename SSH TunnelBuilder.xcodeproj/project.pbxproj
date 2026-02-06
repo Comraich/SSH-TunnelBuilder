@@ -30,8 +30,6 @@
 		F4ABBF5F27DFDF740097436A /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F4ABBF5E27DFDF740097436A /* Preview Assets.xcassets */; };
 		F4B4CA462EBBCA31003F7C53 /* SSHManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4B4CA452EBBCA31003F7C53 /* SSHManager.swift */; };
 		F4B4CA4B2EBBD995003F7C53 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4B4CA4A2EBBD995003F7C53 /* KeychainService.swift */; };
-		F4E7E8BD2F1BD86E00EEDB5D /* BUILD_SUCCESS.md in Resources */ = {isa = PBXBuildFile; fileRef = F4E7E8BC2F1BD86E00EEDB5D /* BUILD_SUCCESS.md */; };
-		F4E7E8BF2F1BD8FC00EEDB5D /* FINAL_BUILD_STATUS.md in Resources */ = {isa = PBXBuildFile; fileRef = F4E7E8BE2F1BD8FC00EEDB5D /* FINAL_BUILD_STATUS.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -68,8 +66,6 @@
 		F4B4CA452EBBCA31003F7C53 /* SSHManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHManager.swift; sourceTree = "<group>"; };
 		F4B4CA4A2EBBD995003F7C53 /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
 		F4CB866B2EE49D1D0066AEDA /* SSH TunnelBuilderTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "SSH TunnelBuilderTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		F4E7E8BC2F1BD86E00EEDB5D /* BUILD_SUCCESS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = BUILD_SUCCESS.md; sourceTree = "<group>"; };
-		F4E7E8BE2F1BD8FC00EEDB5D /* FINAL_BUILD_STATUS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = FINAL_BUILD_STATUS.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -138,8 +134,6 @@
 				F4700F8229D7670D0069DC6D /* MainView.swift */,
 				F4700F8429D768E20069DC6D /* ConnectionRow.swift */,
 				F422C57929E46B2B007306BC /* DataCounterView.swift */,
-				F4E7E8BC2F1BD86E00EEDB5D /* BUILD_SUCCESS.md */,
-				F4E7E8BE2F1BD8FC00EEDB5D /* FINAL_BUILD_STATUS.md */,
 				F4AA684E2F3533540065E097 /* SampleData.swift */,
 			);
 			path = GUI;
@@ -288,9 +282,7 @@
 		F4ABBF5227DFDF730097436A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
-				F4E7E8BF2F1BD8FC00EEDB5D /* FINAL_BUILD_STATUS.md in Resources */,
 				F4ABBF5F27DFDF740097436A /* Preview Assets.xcassets in Resources */,
-				F4E7E8BD2F1BD86E00EEDB5D /* BUILD_SUCCESS.md in Resources */,
 				F4ABBF5C27DFDF740097436A /* Assets.xcassets in Resources */,
 			);
 		};
