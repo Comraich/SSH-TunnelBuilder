@@ -1,5 +1,7 @@
 import Foundation
+import CloudKit
 
+@MainActor
 enum SampleData {
     
     // MARK: - Sample Connections
@@ -80,16 +82,11 @@ enum SampleData {
 extension ConnectionStore {
     
     /// Creates a mock ConnectionStore pre-populated with sample data for previews
+    @MainActor
     static func mockWithSampleData() -> ConnectionStore {
-        let store = ConnectionStore()
-        
-        // Simulate loaded state with sample connections
-        Task { @MainActor in
-            store.mode = .view
-            // Note: We can't directly set connections since it's private(set),
-            // but in a real mock we'd use a different initializer or test-only setter
-        }
-        
-        return store
+        return ConnectionStore(
+            mode: .view,
+            connections: SampleData.allSamples
+        )
     }
 }

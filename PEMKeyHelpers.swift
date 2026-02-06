@@ -5,16 +5,18 @@ import AppKit
 
 // MARK: - PEM Key Detection and Validation
 
+/// Represents the different types of PEM-encoded private keys
 enum PEMKeyKind {
-    case pkcs8
-    case ec
-    case rsa
-    case openssh
-    case dsa
-    case ed25519
-    case unknown
+    case pkcs8        // Standard PKCS#8 format (most compatible)
+    case ec           // Elliptic Curve key (supported)
+    case rsa          // Legacy RSA format (may need conversion)
+    case openssh      // OpenSSH format (not directly supported by NIOSSH)
+    case dsa          // DSA format (deprecated, not recommended)
+    case ed25519      // ED25519 format (not yet supported)
+    case unknown      // Unrecognized format
 }
 
+/// Returns a human-readable description of the key type
 func keyKindDescription(_ kind: PEMKeyKind) -> String {
     switch kind {
     case .pkcs8: return "PKCS#8 PRIVATE KEY"
@@ -27,6 +29,9 @@ func keyKindDescription(_ kind: PEMKeyKind) -> String {
     }
 }
 
+/// Detects the type of PEM private key from its text content
+/// - Parameter text: The PEM-encoded key text
+/// - Returns: The detected key type
 func detectPEMKeyKind(_ text: String) -> PEMKeyKind {
     let t = text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
     if t.contains("-----BEGIN ENCRYPTED PRIVATE KEY-----") { return .pkcs8 }
@@ -39,6 +44,9 @@ func detectPEMKeyKind(_ text: String) -> PEMKeyKind {
     return .unknown
 }
 
+/// Determines whether a PEM private key is encrypted
+/// - Parameter text: The PEM-encoded key text
+/// - Returns: `true` if the key is encrypted and requires a passphrase
 func isPEMEncrypted(_ text: String) -> Bool {
     let t = text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
     if t.contains("-----BEGIN ENCRYPTED PRIVATE KEY-----") { return true }

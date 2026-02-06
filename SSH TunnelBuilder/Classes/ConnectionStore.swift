@@ -17,9 +17,13 @@ private enum CloudKitKeys {
 }
 
 // A wrapper to make error strings identifiable for SwiftUI Alerts
-struct ErrorAlert: Identifiable {
+struct ErrorAlert: Identifiable, Equatable {
     let id = UUID()
     let message: String
+
+    static func == (lhs: ErrorAlert, rhs: ErrorAlert) -> Bool {
+        lhs.message == rhs.message
+    }
 }
 
 // MARK: - Structure to hold host key verification details for UI
@@ -63,7 +67,7 @@ class ConnectionStore: ObservableObject {
     
     @Published var migrationNotice: String? = nil
     @Published var cloudNotice: String? = nil
-    @Published private(set) var errorAlert: ErrorAlert? = nil
+    @Published var errorAlert: ErrorAlert? = nil
     @Published var hostKeyRequest: HostKeyRequest? = nil
 
     private var managers: [UUID: SSHManager] = [:]
@@ -91,6 +95,12 @@ class ConnectionStore: ObservableObject {
             notified.append(uuid.uuidString)
             defaults.set(notified, forKey: migrationNotifiedKey)
         }
+    }
+    
+    private enum CloudKitOperationError: Error {
+        case fetchFailed(String)
+        case saveFailed(String)
+        case deleteFailed(String)
     }
     
     init(credentialsStore: CredentialsStore = KeychainService.shared) {
@@ -163,7 +173,7 @@ class ConnectionStore: ObservableObject {
     /// - Parameter connection: The connection to establish
     func connect(_ connection: Connection) {
         let mgr = manager(for: connection)
-        
+
         // Configure the host key validation callback
         mgr.hostKeyValidationCallback = { [weak self] host, fingerprint, _, keyData, completion in
             Task { @MainActor in
@@ -179,12 +189,26 @@ class ConnectionStore: ObservableObject {
                 }
             }
         }
-        
+
+        // Configure the error callback to show alerts
+        mgr.errorCallback = { [weak self] errorMsg in
+            Task { @MainActor in
+                self?.showError(errorMsg)
+            }
+        }
+
         Task {
             do {
+                Logger.info("Starting SSH connection for \(connection.connectionInfo.name)", log: Logger.ssh)
                 try await mgr.connect()
+                Logger.info("SSH connection successful for \(connection.connectionInfo.name)", log: Logger.ssh)
             } catch {
-                self.errorAlert = ErrorAlert(message: "Connection failed: \(error.localizedDescription)")
+                // Show the error - SSHTunnelError provides good localized descriptions
+                let errorMsg = error.localizedDescription
+                Logger.error("SSH connection failed for \(connection.connectionInfo.name): \(errorMsg)", log: Logger.ssh)
+                await MainActor.run {
+                    self.errorAlert = ErrorAlert(message: errorMsg)
+                }
             }
         }
     }
@@ -247,7 +271,8 @@ class ConnectionStore: ObservableObject {
         }
 
         let query = CKQuery(recordType: CloudKitKeys.recordType, predicate: NSPredicate(value: true))
-        query.sortDescriptors = []
+        // Don't set sortDescriptors to avoid CloudKit queryable index requirements
+        // We'll sort the results in memory after fetching
         
         let queryOperation: CKQueryOperation
         if let cursor = cursor {
@@ -310,6 +335,8 @@ class ConnectionStore: ObservableObject {
                 await self.fetchConnectionsAsync(cursor: nextCursor)
             } else {
                 Logger.info("Finished fetching connections", log: Logger.cloudKit)
+                // Sort connections by name in memory (CloudKit sorting requires queryable indexes)
+                self.connections.sort { $0.connectionInfo.name.localizedCaseInsensitiveCompare($1.connectionInfo.name) == .orderedAscending }
             }
         }
 
@@ -351,7 +378,7 @@ class ConnectionStore: ObservableObject {
                 } else if let error = error {
                     continuation.resume(throwing: error)
                 } else {
-                    continuation.resume(throwing: SSHTunnelError.cloudKitFetchFailed("Unknown error"))
+                    continuation.resume(throwing: CloudKitOperationError.fetchFailed("Unknown error"))
                 }
             }
         }
@@ -366,7 +393,7 @@ class ConnectionStore: ObservableObject {
                 } else if let error = error {
                     continuation.resume(throwing: error)
                 } else {
-                    continuation.resume(throwing: SSHTunnelError.cloudKitSaveFailed("Unknown error"))
+                    continuation.resume(throwing: CloudKitOperationError.saveFailed("Unknown error"))
                 }
             }
         }
@@ -381,7 +408,7 @@ class ConnectionStore: ObservableObject {
                 } else if let error = error {
                     continuation.resume(throwing: error)
                 } else {
-                    continuation.resume(throwing: SSHTunnelError.cloudKitDeleteFailed("Unknown error"))
+                    continuation.resume(throwing: CloudKitOperationError.deleteFailed("Unknown error"))
                 }
             }
         }

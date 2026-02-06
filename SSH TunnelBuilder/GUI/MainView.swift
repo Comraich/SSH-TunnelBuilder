@@ -64,6 +64,60 @@ func isPEMEncrypted(_ text: String) -> Bool {
     return false
 }
 
+// MARK: - Key Validation
+
+/// Describes an issue detected during early key validation inside the credentials sheet
+enum KeyValidationIssue {
+    /// No issue — key is usable
+    case none
+    /// Encrypted PKCS#8 key contains RSA — must generate a new key
+    case encryptedPKCS8ContainsRSA
+    /// Encrypted OpenSSH key — can convert to supported format
+    case encryptedOpenSSHKey
+    /// Encrypted key provided without a passphrase
+    case passphraseRequired
+    /// Decryption failed (wrong passphrase or corrupt key)
+    case decryptionFailed
+}
+
+/// Validates a private key *before* attempting connection.
+/// Returns a `KeyValidationIssue` describing any problem found.
+func validatePrivateKey(pemString: String, passphrase: String) -> KeyValidationIssue {
+    let trimmed = pemString.trimmingCharacters(in: .whitespacesAndNewlines)
+    let kind = detectPEMKeyKind(trimmed)
+
+    switch kind {
+    case .openssh:
+        // Try to parse — encrypted OpenSSH keys throw .encryptedKeyNotSupported
+        do {
+            let data = try OpenSSHKeyParser.extractOpenSSHData(from: trimmed)
+            _ = try OpenSSHKeyParser.parseOpenSSHPrivateKey(data)
+            return .none
+        } catch OpenSSHKeyParser.OpenSSHParsingError.encryptedKeyNotSupported {
+            return .encryptedOpenSSHKey
+        } catch {
+            return .none  // Other parse errors — let the connection flow handle them
+        }
+
+    case .pkcs8 where isPEMEncrypted(trimmed):
+        // Encrypted PKCS#8 — try to decrypt and inspect contents
+        guard !passphrase.isEmpty else { return .passphraseRequired }
+        do {
+            let der = try PEMDecryptor.decryptEncryptedPKCS8PEM(trimmed, passphrase: passphrase)
+            let key = try PEMDecryptor.parsePKCS8PrivateKey(der)
+            if case .rsa = key {
+                return .encryptedPKCS8ContainsRSA
+            }
+            return .none  // EC key inside — all good
+        } catch {
+            return .decryptionFailed
+        }
+
+    default:
+        return .none
+    }
+}
+
 /// Copies text to the system clipboard (macOS only)
 func copyToClipboard(_ text: String) {
     #if os(macOS)
@@ -217,6 +271,112 @@ struct PEMKeyInfoView: View {
                 Spacer(minLength: 8)
                 Button("Copy") { copyToClipboard(genCmd) }
             }
+        }
+    }
+}
+
+// MARK: - Key Validation Alert
+
+/// Identifiable wrapper so `.sheet(item:)` can present a `KeyValidationIssue`
+struct KeyIssuePresentation: Identifiable {
+    let id = UUID()
+    let issue: KeyValidationIssue
+}
+
+/// Rich dialog shown when early key validation detects an actionable problem
+struct KeyValidationAlertView: View {
+    let issue: KeyValidationIssue
+    let dismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            header
+            Divider()
+            explanation
+            Divider()
+            commands
+            HStack {
+                Spacer()
+                Button("OK") { dismiss() }
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
+        .frame(minWidth: 480, maxWidth: 560)
+    }
+
+    @ViewBuilder
+    private var header: some View {
+        switch issue {
+        case .encryptedPKCS8ContainsRSA:
+            Label("RSA Key Detected", systemImage: "shield.lefthalf.filled")
+                .font(.title2.bold())
+                .foregroundColor(.red)
+        case .encryptedOpenSSHKey:
+            Label("Encrypted OpenSSH Key", systemImage: "lock.fill")
+                .font(.title2.bold())
+                .foregroundColor(.orange)
+        default:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var explanation: some View {
+        switch issue {
+        case .encryptedPKCS8ContainsRSA:
+            Text("Your encrypted key contains an RSA private key. RSA is not supported and cannot be converted to another algorithm. You need to generate a new Ed25519 or ECDSA key pair.")
+                .font(.body)
+        case .encryptedOpenSSHKey:
+            Text("Your key is in encrypted OpenSSH format. The key type itself is supported, but the encryption format is not. You can convert it to an unencrypted key or to PKCS#8 format.")
+                .font(.body)
+        default:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var commands: some View {
+        switch issue {
+        case .encryptedPKCS8ContainsRSA:
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Generate a new key:")
+                    .font(.subheadline.bold())
+                CommandHelpRow(
+                    title: "Ed25519 (recommended):",
+                    command: "ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519"
+                )
+                CommandHelpRow(
+                    title: "ECDSA (P-256):",
+                    command: "ssh-keygen -t ecdsa -b 256 -f ~/.ssh/id_ecdsa"
+                )
+                Divider()
+                CommandHelpRow(
+                    title: "Copy the new public key to your server:",
+                    command: "ssh-copy-id -i ~/.ssh/id_ed25519.pub user@host"
+                )
+            }
+
+        case .encryptedOpenSSHKey:
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Convert your key:")
+                    .font(.subheadline.bold())
+                CommandHelpRow(
+                    title: "Remove encryption (keep OpenSSH format):",
+                    command: "ssh-keygen -p -N \"\" -f ~/.ssh/id_ed25519"
+                )
+                CommandHelpRow(
+                    title: "Convert to PKCS#8 (keeps encryption with passphrase):",
+                    command: "openssl pkey -in ~/.ssh/id_ed25519 -out key.pem"
+                )
+                CommandHelpRow(
+                    title: "Or convert to encrypted PKCS#8:",
+                    command: "openssl pkcs8 -topk8 -v2 aes-256-cbc -in key.pem -out key_encrypted.pem"
+                )
+            }
+
+        default:
+            EmptyView()
         }
     }
 }
@@ -610,6 +770,7 @@ struct ConnectButtonView: View {
     @State private var saveCredentials: Bool = false
     @State private var pemError: String? = nil
     @State private var showKeyInfo: Bool = false
+    @State private var keyIssuePresentation: KeyIssuePresentation? = nil
     @AppStorage("KeyInfoPopoverDismissed") private var keyInfoPopoverDismissed: Bool = false
 
     var body: some View {
@@ -629,142 +790,153 @@ struct ConnectButtonView: View {
             Text(connection.isActive ? "Disconnect" : "Connect")
         }
         .sheet(isPresented: $showCredentialsSheet) {
-            HStack {
-                Spacer()
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Enter Credentials")
-                        .font(.title2).bold()
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Password")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        SecureField("Enter password", text: $tempPassword)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 6) {
-                            Text("Private Key (PEM)")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            Button(action: { if !keyInfoPopoverDismissed { showKeyInfo.toggle() } }) {
-                                Image(systemName: "info.circle")
-                            }
-                            .buttonStyle(.plain)
-                            .help("Key format help")
-                            .popover(isPresented: $showKeyInfo) {
-                                VStack(alignment: .leading, spacing: 10) {
-                                    Text("Key format help")
-                                        .font(.headline)
-
-                                    Text("Supported:")
-                                        .font(.subheadline)
-                                    Text("• Ed25519 (OpenSSH format, unencrypted)")
-                                        .font(.footnote)
-                                    Text("• ECDSA P-256/P-384/P-521 (OpenSSH, EC PRIVATE KEY, or PKCS#8)")
-                                        .font(.footnote)
-                                    Text("• PKCS#8 encrypted keys (with passphrase)")
-                                        .font(.footnote)
-
-                                    Text("Not supported:")
-                                        .font(.subheadline)
-                                    Text("• RSA, DSA keys")
-                                        .font(.footnote)
-                                    Text("• Encrypted OpenSSH keys (use PKCS#8 encryption instead)")
-                                        .font(.footnote)
-
-                                    Divider()
-                                    CommandHelpRow(
-                                        title: "Generate an Ed25519 key:",
-                                        command: "ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519"
-                                    )
-
-                                    Divider()
-                                    CommandHelpRow(
-                                        title: "Encrypt an existing key with a passphrase (PKCS#8):",
-                                        command: "openssl pkcs8 -topk8 -v2 aes-256-cbc -in key.pem -out key_encrypted.pem"
-                                    )
-
-                                    Toggle("Don't show again", isOn: $keyInfoPopoverDismissed)
-                                        .toggleStyle(.checkbox)
-                                }
-                                .padding(14)
-                                .frame(minWidth: 480)
-                            }
-                        }
-                        TextEditor(text: $tempPrivateKey)
-                            .frame(minHeight: 140)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .stroke(Color.secondary.opacity(0.2))
-                            )
-                            .font(.body.monospaced())
-                            .accessibilityLabel("Private Key (PEM)")
-                    }
-                    
-                    PEMKeyInfoView(keyText: $tempPrivateKey)
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 6) {
-                            Text("Passphrase (optional)")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            if isPEMEncrypted(tempPrivateKey) {
-                                Image(systemName: "lock")
-                                    .foregroundColor(.secondary)
-                                    .help("This key appears to be encrypted; enter the passphrase.")
-                            }
-                        }
-                        SecureField("Enter passphrase", text: $tempPassphrase)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                    }
-                    
-                    if let pemError = pemError {
-                        Text(pemError)
-                            .foregroundColor(.red)
-                            .font(.footnote)
-                    }
-
-                    Toggle("Save credentials to this connection", isOn: $saveCredentials)
-
-                    Text("Provide either a password or a private key (PEM). If you choose not to save, the credentials will be used for this session only. Note: Passphrases are never saved and must be re-entered each time.")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-
-                    HStack {
-                        Spacer()
-                        Button("Cancel") { showCredentialsSheet = false }
-                        Button("Connect") {
-                            // Logic to validate and connect...
-                            handleConnect()
-                        }
-                        .keyboardShortcut(.defaultAction)
-                    }
+            if let presentation = keyIssuePresentation {
+                // Show the key validation alert inside the same sheet
+                KeyValidationAlertView(issue: presentation.issue) {
+                    keyIssuePresentation = nil
                 }
-                .padding(20)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color(.windowBackgroundColor))
-                )
-                .shadow(radius: 12)
-                .frame(maxWidth: 560)
-                Spacer()
+            } else {
+                credentialsSheetContent
             }
-            .frame(minWidth: 480, minHeight: 420)
-#if os(macOS)
-            .presentationSizing(.fitted)
-#endif
         }
     }
-    
+
+    @ViewBuilder
+    private var credentialsSheetContent: some View {
+        HStack {
+            Spacer()
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Enter Credentials")
+                    .font(.title2).bold()
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Password")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    SecureField("Enter password", text: $tempPassword)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Text("Private Key (PEM)")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Button(action: { if !keyInfoPopoverDismissed { showKeyInfo.toggle() } }) {
+                            Image(systemName: "info.circle")
+                        }
+                        .buttonStyle(.plain)
+                        .help("Key format help")
+                        .popover(isPresented: $showKeyInfo) {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Key format help")
+                                    .font(.headline)
+
+                                Text("Supported:")
+                                    .font(.subheadline)
+                                Text("• Ed25519 (OpenSSH format, unencrypted)")
+                                    .font(.footnote)
+                                Text("• ECDSA P-256/P-384/P-521 (OpenSSH, EC PRIVATE KEY, or PKCS#8)")
+                                    .font(.footnote)
+                                Text("• PKCS#8 encrypted keys (with passphrase)")
+                                    .font(.footnote)
+
+                                Text("Not supported:")
+                                    .font(.subheadline)
+                                Text("• RSA, DSA keys")
+                                    .font(.footnote)
+                                Text("• Encrypted OpenSSH keys (use PKCS#8 encryption instead)")
+                                    .font(.footnote)
+
+                                Divider()
+                                CommandHelpRow(
+                                    title: "Generate an Ed25519 key:",
+                                    command: "ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519"
+                                )
+
+                                Divider()
+                                CommandHelpRow(
+                                    title: "Encrypt an existing key with a passphrase (PKCS#8):",
+                                    command: "openssl pkcs8 -topk8 -v2 aes-256-cbc -in key.pem -out key_encrypted.pem"
+                                )
+
+                                Toggle("Don't show again", isOn: $keyInfoPopoverDismissed)
+                                    .toggleStyle(.checkbox)
+                            }
+                            .padding(14)
+                            .frame(minWidth: 480)
+                        }
+                    }
+                    TextEditor(text: $tempPrivateKey)
+                        .frame(minHeight: 140)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(Color.secondary.opacity(0.2))
+                        )
+                        .font(.body.monospaced())
+                        .accessibilityLabel("Private Key (PEM)")
+                }
+
+                PEMKeyInfoView(keyText: $tempPrivateKey)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Text("Passphrase (optional)")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        if isPEMEncrypted(tempPrivateKey) {
+                            Image(systemName: "lock")
+                                .foregroundColor(.secondary)
+                                .help("This key appears to be encrypted; enter the passphrase.")
+                        }
+                    }
+                    SecureField("Enter passphrase", text: $tempPassphrase)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                }
+
+                if let pemError = pemError {
+                    Text(pemError)
+                        .foregroundColor(.red)
+                        .font(.footnote)
+                }
+
+                Toggle("Save credentials to this connection", isOn: $saveCredentials)
+
+                Text("Provide either a password or a private key (PEM). If you choose not to save, the credentials will be used for this session only. Note: Passphrases are never saved and must be re-entered each time.")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+
+                HStack {
+                    Spacer()
+                    Button("Cancel") { showCredentialsSheet = false }
+                    Button("Connect") {
+                        handleConnect()
+                    }
+                    .keyboardShortcut(.defaultAction)
+                }
+            }
+            .padding(20)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(.windowBackgroundColor))
+            )
+            .shadow(radius: 12)
+            .frame(maxWidth: 560)
+            Spacer()
+        }
+        .frame(minWidth: 480, minHeight: 420)
+#if os(macOS)
+        .presentationSizing(.fitted)
+#endif
+    }
+
     private func handleConnect() {
         let providedPassword = !tempPassword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let providedKey = !tempPrivateKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         guard providedPassword || providedKey else { return }
 
         pemError = nil
-        
+
         if providedKey {
             let keyKind = detectPEMKeyKind(tempPrivateKey)
 
@@ -774,26 +946,43 @@ struct ConnectButtonView: View {
             }
 
             // Supported: PKCS#8, EC, OpenSSH (Ed25519/ECDSA unencrypted)
-            // Not supported: RSA, DSA
+            // Not supported: RSA, DSA, public keys, PuTTY format
             if keyKind == .rsa || keyKind == .dsa {
                 pemError = "Unsupported key type (\(keyKindDescription(keyKind))). Use Ed25519 or ECDSA instead."
                 return
             }
+
+            // Early key validation — detect issues before attempting connection
+            let issue = validatePrivateKey(pemString: tempPrivateKey, passphrase: tempPassphrase)
+            switch issue {
+            case .none:
+                break
+            case .passphraseRequired:
+                pemError = "This key is encrypted. Please enter the passphrase."
+                return
+            case .decryptionFailed:
+                pemError = "Could not decrypt the key. Check your passphrase and try again."
+                return
+            case .encryptedPKCS8ContainsRSA, .encryptedOpenSSHKey:
+                // Swap the sheet content to show the rich validation dialog
+                keyIssuePresentation = KeyIssuePresentation(issue: issue)
+                return
+            }
         }
-        
+
         // At this point, validation passed. Store credentials temporarily/permanently.
-        
+
         // If password field was filled, use it.
         if providedPassword { connection.connectionInfo.password = tempPassword }
-        
+
         // If key field was filled, use it.
-        if providedKey { 
+        if providedKey {
             connection.connectionInfo.privateKey = tempPrivateKey
             connection.connectionInfo.privateKeyPassphrase = tempPassphrase
         } else {
              connection.connectionInfo.privateKeyPassphrase = ""
         }
-        
+
         // Ensure we clear the opposing field if only one was provided in the modal
         if providedPassword && !providedKey { connection.connectionInfo.privateKey = "" }
         if providedKey && !providedPassword { connection.connectionInfo.password = "" }

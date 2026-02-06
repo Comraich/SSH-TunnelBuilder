@@ -4,40 +4,6 @@ import NIOSSH
 import CryptoKit
 import Combine
 
-// MARK: - SSH Error Types
-
-enum SSHConnectionError: LocalizedError {
-    case missingCredentials
-    case keyParseFailed(String)
-    case hostKeyMismatch
-    case userRejectedHostKey
-    case authenticationFailed
-    case connectionTimeout
-    case networkError(Error)
-    case tunnelSetupFailed(Error)
-    
-    var errorDescription: String? {
-        switch self {
-        case .missingCredentials:
-            return "Missing password or private key. Please provide authentication credentials."
-        case .keyParseFailed(let detail):
-            return "Failed to parse private key: \(detail). Ensure it's in PEM format (PKCS#8 or EC)."
-        case .hostKeyMismatch:
-            return "Security Warning: The server's host key has changed! This could indicate a security threat."
-        case .userRejectedHostKey:
-            return "Connection cancelled: Host key was not trusted."
-        case .authenticationFailed:
-            return "Authentication failed. Please check your username and credentials."
-        case .connectionTimeout:
-            return "Connection timed out. Please check the server address and network connectivity."
-        case .networkError(let error):
-            return "Network error: \(error.localizedDescription)"
-        case .tunnelSetupFailed(let error):
-            return "Failed to set up local tunnel: \(error.localizedDescription)"
-        }
-    }
-}
-
 // NOTE: PEMKeyKind, detectPEMKeyKind, isPEMEncrypted are assumed to be defined in MainView.swift or another file.
 // If they are not visible here, move them to a shared utility file.
 
@@ -156,7 +122,7 @@ private final class GenericRelayHandler<InboundType, OutboundType>: ChannelInbou
 }
 
 internal enum OpenSSHKeyParser {
-    enum OpenSSHParsingError: Error, Equatable {
+    enum OpenSSHParsingError: LocalizedError, Equatable {
         case insufficientData
         case invalidPEMFormat
         case invalidKeyFormat(reason: String)
@@ -164,6 +130,25 @@ internal enum OpenSSHKeyParser {
         case unsupportedKeyType(String)
         case unsupportedCurve(String)
         case invalidStringData
+
+        var errorDescription: String? {
+            switch self {
+            case .insufficientData:
+                return "Insufficient data while parsing the key."
+            case .invalidPEMFormat:
+                return "Invalid PEM format."
+            case .invalidKeyFormat(let reason):
+                return "Invalid key format: \(reason)"
+            case .encryptedKeyNotSupported:
+                return "Encrypted OpenSSH keys are not supported. Please remove the passphrase or convert to PKCS#8."
+            case .unsupportedKeyType(let type):
+                return "Unsupported key type: '\(type)'."
+            case .unsupportedCurve(let curve):
+                return "Unsupported elliptic curve: '\(curve)'. Supported curves are nistp256, nistp384, and nistp521."
+            case .invalidStringData:
+                return "Invalid string data in key."
+            }
+        }
     }
 
     static func extractOpenSSHData(from pem: String) throws -> Data { return try FlexibleAuthDelegate.extractOpenSSHData(from: pem) }
@@ -485,6 +470,9 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
     // Callback: (hostname, fingerprint, keyType, keyData, completion)
     var hostKeyValidationCallback: (@Sendable (String, String, String, Data, @escaping @Sendable (Bool) -> Void) -> Void)?
 
+    /// Callback invoked when an error occurs that should be shown to the user
+    var errorCallback: (@Sendable (String) -> Void)?
+
     init(connection: Connection) { self.connection = connection }
 
     func connect() async throws {
@@ -507,9 +495,11 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
         let hasKey = !connectionInfo.privateKey.isEmpty
 
         guard hasPassword || hasKey else {
+            let errorMsg = "Missing password or private key"
             Logger.error("Missing credentials for authentication", log: Logger.ssh)
             await MainActor.run {
-                connection.state = .failed("Missing password or private key")
+                connection.state = .failed(errorMsg)
+                self.errorCallback?(errorMsg)
             }
             throw SSHTunnelError.missingCredentials
         }
@@ -518,22 +508,34 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
         lock.withLock { self.eventLoopGroup = group }
 
         // 2. Offload auth delegate creation (heavy crypto) to detached task
+        // Capture errorCallback outside the detached task to ensure it's available
+        let errorHandler = self.errorCallback
         let authDelegate = await Task.detached { () -> FlexibleAuthDelegate in
             return FlexibleAuthDelegate(
                 username: connectionInfo.username,
                 password: hasPassword ? connectionInfo.password : nil,
                 privateKeyString: hasKey ? connectionInfo.privateKey : nil,
                 privateKeyPassphrase: connectionInfo.privateKeyPassphrase,
-                reportError: nil // We will check initializationError directly
+                reportError: { errorMsg in
+                    Task { @MainActor in
+                        errorHandler?(errorMsg)
+                    }
+                }
             )
         }.value
         
+        // Check for initialization errors first - these are fatal
         if let initError = authDelegate.initializationError {
+            let errorMsg = "Failed to parse private key: \(initError)"
             await MainActor.run {
-                self.lastErrorMessage = "Failed to parse private key: \(initError)"
+                self.lastErrorMessage = errorMsg
+                connection.state = .failed(errorMsg)
+                self.errorCallback?(errorMsg)
             }
+            await shutdown()
+            throw SSHTunnelError.keyParsingFailed(initError)
         }
-        
+
         if hasKey && authDelegate.privateKey == nil && !hasPassword {
             let detail = authDelegate.initializationError ?? "Unknown key error"
             let errorMsg = "Failed to initialize key: \(detail). If this is an OpenSSH encrypted key, remove the passphrase or convert to PKCS#8/Ed25519/ECDSA."
@@ -541,6 +543,7 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
             await MainActor.run {
                 self.lastErrorMessage = errorMsg
                 connection.state = .failed(errorMsg)
+                self.errorCallback?(errorMsg)
             }
             await shutdown()
 
@@ -602,6 +605,7 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
 
             await MainActor.run {
                 self.connection.state = .failed(error.localizedDescription)
+                self.errorCallback?(error.localizedDescription)
             }
             await shutdown()
             throw error
@@ -707,8 +711,12 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
                     inbound.setOption(ChannelOptions.autoRead, value: true)
                 }
 
-                setupFuture.whenFailure { error in
-                    Logger.error("Failed to establish forwarding channel to \(tunnelInfo.remoteServer):\(Int(tunnelInfo.remotePort) ?? 0) — error: \(error)", log: Logger.ssh)
+                setupFuture.whenFailure { [weak self] error in
+                    let errorMsg = "Failed to establish forwarding channel to \(tunnelInfo.remoteServer):\(Int(tunnelInfo.remotePort) ?? 0) — \(error.localizedDescription)"
+                    Logger.error(errorMsg, log: Logger.ssh)
+                    Task { @MainActor in
+                        self?.errorCallback?(errorMsg)
+                    }
                     inbound.close(promise: nil)
                 }
                 
@@ -723,9 +731,11 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
                 Logger.info("Local listener bound on 127.0.0.1:\(localPort)", log: Logger.ssh)
             }
         } catch {
+            let errorMsg = "Local port bind failed: \(error.localizedDescription)"
             Logger.error("Local listener bind failed: \(error)", log: Logger.ssh)
             await MainActor.run {
-                self.connection.state = .failed("Local port bind failed: \(error.localizedDescription)")
+                self.connection.state = .failed(errorMsg)
+                self.errorCallback?(errorMsg)
             }
             await self.disconnect()
             throw error
@@ -830,5 +840,4 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
         }
     }
 }
-
 

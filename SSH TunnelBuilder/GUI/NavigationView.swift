@@ -3,7 +3,7 @@ import SwiftUI
 struct NavigationList: View {
     @ObservedObject var connectionStore: ConnectionStore
     @Binding var selectedConnection: Connection?
-    @Binding var mode: MainViewMode
+    @Binding var mode: ConnectionStore.Mode
     
     var body: some View {
         List(selection: $selectedConnection) {

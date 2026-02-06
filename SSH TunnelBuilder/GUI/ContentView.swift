@@ -1,13 +1,29 @@
 import SwiftUI
 
+// MARK: - Reusable Error Alert Modifier (deprecated - using sheet instead)
+
+extension View {
+    func errorAlert(_ errorAlert: Binding<ErrorAlert?>) -> some View {
+        self.alert(item: errorAlert) { error in
+            Alert(
+                title: Text("Error"),
+                message: Text(error.message),
+                dismissButton: .default(Text("OK"))
+            )
+        }
+    }
+}
+
 struct ContentView: View {
     @StateObject var connectionStore: ConnectionStore
     @State private var selectedConnection: Connection?
-    
+    @State private var showingErrorSheet = false
+    @State private var errorMessage = ""
+
     init(connectionStore: ConnectionStore) {
         _connectionStore = StateObject(wrappedValue: connectionStore)
     }
-    
+
     var body: some View {
         NavigationSplitView {
             NavigationList(
@@ -22,12 +38,18 @@ struct ContentView: View {
                 .environmentObject(connectionStore)
                 .accessibilityIdentifier("MainView")
         }
-        .alert(item: $connectionStore.errorAlert) { errorAlert in
-            Alert(
-                title: Text("Error"),
-                message: Text(errorAlert.message),
-                dismissButton: .default(Text("OK"))
-            )
+        .onChange(of: connectionStore.errorAlert) { _, newValue in
+            if let error = newValue {
+                errorMessage = error.message
+                showingErrorSheet = true
+                // Clear the error after capturing it
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    connectionStore.errorAlert = nil
+                }
+            }
+        }
+        .sheet(isPresented: $showingErrorSheet) {
+            ErrorSheetView(message: errorMessage, isPresented: $showingErrorSheet)
         }
         .alert(item: $connectionStore.hostKeyRequest) { request in
             Alert(
@@ -44,21 +66,45 @@ struct ContentView: View {
     }
 }
 
-enum ConnectionState {
-    case connected
-    case disconnected
-    case connecting
-}
+// MARK: - Error Sheet View
 
-enum MainViewMode {
-    case create
-    case edit
-    case view
-    case loading
-}
+struct ErrorSheetView: View {
+    let message: String
+    @Binding var isPresented: Bool
 
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView(connectionStore: ConnectionStore())
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 50))
+                .foregroundColor(.red)
+
+            Text("Error")
+                .font(.title)
+                .fontWeight(.bold)
+
+            Text(message)
+                .font(.body)
+                .multilineTextAlignment(.center)
+                .padding()
+
+            Button("OK") {
+                isPresented = false
+            }
+            .keyboardShortcut(.defaultAction)
+            .buttonStyle(.borderedProminent)
+        }
+        .padding(30)
+        .frame(minWidth: 400, minHeight: 250)
     }
 }
+
+// Moved to ConnectionStore.swift as it's used there primarily
+
+#Preview("Empty State") {
+    ContentView(connectionStore: ConnectionStore(mode: .view, connections: []))
+}
+
+#Preview("With Connections") {
+    ContentView(connectionStore: ConnectionStore(mode: .view, connections: SampleData.connections))
+}
+

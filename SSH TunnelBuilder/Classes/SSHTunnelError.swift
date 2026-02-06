@@ -5,16 +5,18 @@ import Foundation
 enum SSHTunnelError: LocalizedError {
     // MARK: - Authentication Errors
     case missingCredentials
+    case authenticationFailed
     case unsupportedKeyType(String)
     case keyParsingFailed(String)
     case encryptedKeyNoPassphrase
     case unsupportedCurveLength
     case rsaNotSupported
+    case invalidPEM
 
     // MARK: - Connection Errors
     case connectionTimeout
     case networkError(Error)
-    case tunnelSetupFailed(String)
+    case tunnelSetupFailed(Error)
     case invalidPort(String)
 
     // MARK: - Host Key Errors
@@ -25,35 +27,33 @@ enum SSHTunnelError: LocalizedError {
     // MARK: - Internal Errors
     case internalError(String)
 
-    // MARK: - CloudKit Errors
-    case cloudKitFetchFailed(String)
-    case cloudKitSaveFailed(String)
-    case cloudKitDeleteFailed(String)
-    case cloudKitZoneUnavailable
-
     var errorDescription: String? {
         switch self {
         // Authentication
         case .missingCredentials:
             return "Missing password or private key. Please provide authentication credentials."
+        case .authenticationFailed:
+            return "Authentication failed. Please check your username and credentials."
         case .unsupportedKeyType(let type):
             return "Unsupported key type: \(type)"
         case .keyParsingFailed(let detail):
-            return "Failed to parse private key: \(detail). Ensure it's in PEM format (PKCS#8 or EC)."
+            return "Failed to parse private key: \(detail). Ensure it's in PEM format (PKCS#8, Ed25519, or EC)."
         case .encryptedKeyNoPassphrase:
             return "Key is encrypted but no passphrase provided."
         case .unsupportedCurveLength:
             return "Unsupported ECDSA curve length."
         case .rsaNotSupported:
             return "RSA keys are not currently supported. Convert your key to Ed25519 or ECDSA (nistp256/384/521)."
+        case .invalidPEM:
+            return "Invalid PEM format."
 
         // Connection
         case .connectionTimeout:
             return "Connection timed out. Please check the server address and network connectivity."
         case .networkError(let error):
             return "Network error: \(error.localizedDescription)"
-        case .tunnelSetupFailed(let detail):
-            return "Failed to set up tunnel: \(detail)"
+        case .tunnelSetupFailed(let error):
+            return "Failed to set up tunnel: \(error.localizedDescription)"
         case .invalidPort(let port):
             return "Invalid port: '\(port)'. Must be between 1 and 65535."
 
@@ -68,16 +68,6 @@ enum SSHTunnelError: LocalizedError {
         // Internal
         case .internalError(let detail):
             return "Internal error: \(detail)"
-
-        // CloudKit
-        case .cloudKitFetchFailed(let detail):
-            return "Failed to fetch from iCloud: \(detail)"
-        case .cloudKitSaveFailed(let detail):
-            return "Failed to save to iCloud: \(detail)"
-        case .cloudKitDeleteFailed(let detail):
-            return "Failed to delete from iCloud: \(detail)"
-        case .cloudKitZoneUnavailable:
-            return "iCloud zone not available. Please check your iCloud settings."
         }
     }
 }
