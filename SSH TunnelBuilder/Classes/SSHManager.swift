@@ -470,6 +470,9 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
     // Callback: (hostname, fingerprint, keyType, keyData, completion)
     var hostKeyValidationCallback: (@Sendable (String, String, String, Data, @escaping @Sendable (Bool) -> Void) -> Void)?
 
+    /// Callback invoked when an error occurs that should be shown to the user
+    var errorCallback: (@Sendable (String) -> Void)?
+
     init(connection: Connection) { self.connection = connection }
 
     func connect() async throws {
@@ -492,9 +495,11 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
         let hasKey = !connectionInfo.privateKey.isEmpty
 
         guard hasPassword || hasKey else {
+            let errorMsg = "Missing password or private key"
             Logger.error("Missing credentials for authentication", log: Logger.ssh)
             await MainActor.run {
-                connection.state = .failed("Missing password or private key")
+                connection.state = .failed(errorMsg)
+                self.errorCallback?(errorMsg)
             }
             throw SSHTunnelError.missingCredentials
         }
@@ -503,22 +508,34 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
         lock.withLock { self.eventLoopGroup = group }
 
         // 2. Offload auth delegate creation (heavy crypto) to detached task
+        // Capture errorCallback outside the detached task to ensure it's available
+        let errorHandler = self.errorCallback
         let authDelegate = await Task.detached { () -> FlexibleAuthDelegate in
             return FlexibleAuthDelegate(
                 username: connectionInfo.username,
                 password: hasPassword ? connectionInfo.password : nil,
                 privateKeyString: hasKey ? connectionInfo.privateKey : nil,
                 privateKeyPassphrase: connectionInfo.privateKeyPassphrase,
-                reportError: nil // We will check initializationError directly
+                reportError: { errorMsg in
+                    Task { @MainActor in
+                        errorHandler?(errorMsg)
+                    }
+                }
             )
         }.value
         
+        // Check for initialization errors first - these are fatal
         if let initError = authDelegate.initializationError {
+            let errorMsg = "Failed to parse private key: \(initError)"
             await MainActor.run {
-                self.lastErrorMessage = "Failed to parse private key: \(initError)"
+                self.lastErrorMessage = errorMsg
+                connection.state = .failed(errorMsg)
+                self.errorCallback?(errorMsg)
             }
+            await shutdown()
+            throw SSHTunnelError.keyParsingFailed(initError)
         }
-        
+
         if hasKey && authDelegate.privateKey == nil && !hasPassword {
             let detail = authDelegate.initializationError ?? "Unknown key error"
             let errorMsg = "Failed to initialize key: \(detail). If this is an OpenSSH encrypted key, remove the passphrase or convert to PKCS#8/Ed25519/ECDSA."
@@ -526,6 +543,7 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
             await MainActor.run {
                 self.lastErrorMessage = errorMsg
                 connection.state = .failed(errorMsg)
+                self.errorCallback?(errorMsg)
             }
             await shutdown()
 
@@ -587,6 +605,7 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
 
             await MainActor.run {
                 self.connection.state = .failed(error.localizedDescription)
+                self.errorCallback?(error.localizedDescription)
             }
             await shutdown()
             throw error
@@ -692,8 +711,12 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
                     inbound.setOption(ChannelOptions.autoRead, value: true)
                 }
 
-                setupFuture.whenFailure { error in
-                    Logger.error("Failed to establish forwarding channel to \(tunnelInfo.remoteServer):\(Int(tunnelInfo.remotePort) ?? 0) — error: \(error)", log: Logger.ssh)
+                setupFuture.whenFailure { [weak self] error in
+                    let errorMsg = "Failed to establish forwarding channel to \(tunnelInfo.remoteServer):\(Int(tunnelInfo.remotePort) ?? 0) — \(error.localizedDescription)"
+                    Logger.error(errorMsg, log: Logger.ssh)
+                    Task { @MainActor in
+                        self?.errorCallback?(errorMsg)
+                    }
                     inbound.close(promise: nil)
                 }
                 
@@ -708,9 +731,11 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
                 Logger.info("Local listener bound on 127.0.0.1:\(localPort)", log: Logger.ssh)
             }
         } catch {
+            let errorMsg = "Local port bind failed: \(error.localizedDescription)"
             Logger.error("Local listener bind failed: \(error)", log: Logger.ssh)
             await MainActor.run {
-                self.connection.state = .failed("Local port bind failed: \(error.localizedDescription)")
+                self.connection.state = .failed(errorMsg)
+                self.errorCallback?(errorMsg)
             }
             await self.disconnect()
             throw error

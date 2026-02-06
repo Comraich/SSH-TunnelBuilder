@@ -17,9 +17,13 @@ private enum CloudKitKeys {
 }
 
 // A wrapper to make error strings identifiable for SwiftUI Alerts
-struct ErrorAlert: Identifiable {
+struct ErrorAlert: Identifiable, Equatable {
     let id = UUID()
     let message: String
+
+    static func == (lhs: ErrorAlert, rhs: ErrorAlert) -> Bool {
+        lhs.message == rhs.message
+    }
 }
 
 // MARK: - Structure to hold host key verification details for UI
@@ -169,7 +173,7 @@ class ConnectionStore: ObservableObject {
     /// - Parameter connection: The connection to establish
     func connect(_ connection: Connection) {
         let mgr = manager(for: connection)
-        
+
         // Configure the host key validation callback
         mgr.hostKeyValidationCallback = { [weak self] host, fingerprint, _, keyData, completion in
             Task { @MainActor in
@@ -185,12 +189,26 @@ class ConnectionStore: ObservableObject {
                 }
             }
         }
-        
+
+        // Configure the error callback to show alerts
+        mgr.errorCallback = { [weak self] errorMsg in
+            Task { @MainActor in
+                self?.showError(errorMsg)
+            }
+        }
+
         Task {
             do {
+                Logger.info("Starting SSH connection for \(connection.connectionInfo.name)", log: Logger.ssh)
                 try await mgr.connect()
+                Logger.info("SSH connection successful for \(connection.connectionInfo.name)", log: Logger.ssh)
             } catch {
-                self.errorAlert = ErrorAlert(message: "Connection failed: \(error.localizedDescription)")
+                // Show the error - SSHTunnelError provides good localized descriptions
+                let errorMsg = error.localizedDescription
+                Logger.error("SSH connection failed for \(connection.connectionInfo.name): \(errorMsg)", log: Logger.ssh)
+                await MainActor.run {
+                    self.errorAlert = ErrorAlert(message: errorMsg)
+                }
             }
         }
     }
@@ -253,9 +271,8 @@ class ConnectionStore: ObservableObject {
         }
 
         let query = CKQuery(recordType: CloudKitKeys.recordType, predicate: NSPredicate(value: true))
-        // Explicitly sort by name to avoid CloudKit defaulting to recordName (which requires a special index).
-        // Sorting by a user field often prompts CloudKit to auto-create the necessary index in Development.
-        query.sortDescriptors = [NSSortDescriptor(key: CloudKitKeys.name, ascending: true)]
+        // Don't set sortDescriptors to avoid CloudKit queryable index requirements
+        // We'll sort the results in memory after fetching
         
         let queryOperation: CKQueryOperation
         if let cursor = cursor {
@@ -318,6 +335,8 @@ class ConnectionStore: ObservableObject {
                 await self.fetchConnectionsAsync(cursor: nextCursor)
             } else {
                 Logger.info("Finished fetching connections", log: Logger.cloudKit)
+                // Sort connections by name in memory (CloudKit sorting requires queryable indexes)
+                self.connections.sort { $0.connectionInfo.name.localizedCaseInsensitiveCompare($1.connectionInfo.name) == .orderedAscending }
             }
         }
 

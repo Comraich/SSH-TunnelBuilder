@@ -109,4 +109,52 @@
 
 ## Session Notes
 
-_Add notes here during development sessions_
+### 2026-02-06: Error Alert Implementation
+
+**Issue**: Errors were only logged to console, not shown to users in alert dialogs
+
+**Root Cause**: Standard SwiftUI `.alert()` modifiers were not reliably presenting on macOS
+
+**Fixed**:
+- Added `errorCallback` property to `SSHManager` to propagate errors to UI
+- Wired up `errorCallback` in `ConnectionStore.connect()` to call `showError()`
+- Updated all critical error paths in `SSHManager` to invoke `errorCallback`:
+  - Key parsing failures (`FlexibleAuthDelegate` initialization)
+  - Missing credentials errors
+  - Forwarding channel setup failures
+  - Local port bind failures
+  - Connection initialization errors
+- **Replaced invisible `.alert()` with visible `.sheet()` presentation**:
+  - Created `ErrorSheetView` with large red warning icon
+  - Used `.onChange(of: errorAlert)` to detect errors and show sheet
+  - Sheet is modal and impossible to miss (vs. alerts which could be invisible)
+- Made `ErrorAlert` conform to `Equatable` for `.onChange()` compatibility
+
+**Files Modified**:
+- `SSHManager.swift:474` - Added `errorCallback` property
+- `SSHManager.swift:509-521` - Captured errorCallback outside Task.detached to ensure availability
+- `SSHManager.swift:525-536` - Made initialization errors fatal (throw immediately)
+- `SSHManager.swift:540,603,732` - Added `errorCallback` invocations
+- `SSHManager.swift:697-702` - Added error reporting for forwarding channel failures
+- `ConnectionStore.swift:20-26` - Made `ErrorAlert` conform to `Equatable`
+- `ConnectionStore.swift:159` - Simplified `showError()` implementation
+- `ConnectionStore.swift:191-196` - Configured `errorCallback` in `connect()`
+- `ConnectionStore.swift:203-210` - Enhanced catch block with proper MainActor handling
+- `ContentView.swift:45-53` - Added `.onChange()` to detect errors and trigger sheet
+- `ContentView.swift:54-56` - Added `.sheet()` to present error modal
+- `ContentView.swift:75-98` - Created `ErrorSheetView` with visible error UI
+
+### 2026-02-06: CloudKit Query Fix
+
+**Issue**: CloudKit error on app launch: "Field 'recordName' is not marked queryable"
+
+**Root Cause**: CKQuery with sortDescriptors requires fields to be marked as queryable in CloudKit schema. Using sortDescriptors on custom fields or recordName can fail if indexes aren't configured.
+
+**Fixed**:
+- Removed `query.sortDescriptors` from CloudKit fetch operations
+- Added in-memory sorting after all connections are fetched: `connections.sort { ... }`
+- Uses `localizedCaseInsensitiveCompare` for proper alphabetical sorting
+
+**Files Modified**:
+- `ConnectionStore.swift:272-274` - Removed sortDescriptors from CKQuery
+- `ConnectionStore.swift:337-338` - Added in-memory sorting after fetch completes

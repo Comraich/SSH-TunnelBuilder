@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Reusable Error Alert Modifier
+// MARK: - Reusable Error Alert Modifier (deprecated - using sheet instead)
 
 extension View {
     func errorAlert(_ errorAlert: Binding<ErrorAlert?>) -> some View {
@@ -17,11 +17,13 @@ extension View {
 struct ContentView: View {
     @StateObject var connectionStore: ConnectionStore
     @State private var selectedConnection: Connection?
-    
+    @State private var showingErrorSheet = false
+    @State private var errorMessage = ""
+
     init(connectionStore: ConnectionStore) {
         _connectionStore = StateObject(wrappedValue: connectionStore)
     }
-    
+
     var body: some View {
         NavigationSplitView {
             NavigationList(
@@ -36,7 +38,19 @@ struct ContentView: View {
                 .environmentObject(connectionStore)
                 .accessibilityIdentifier("MainView")
         }
-        .errorAlert($connectionStore.errorAlert)
+        .onChange(of: connectionStore.errorAlert) { oldValue, newValue in
+            if let error = newValue {
+                errorMessage = error.message
+                showingErrorSheet = true
+                // Clear the error after capturing it
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    connectionStore.errorAlert = nil
+                }
+            }
+        }
+        .sheet(isPresented: $showingErrorSheet) {
+            ErrorSheetView(message: errorMessage, isPresented: $showingErrorSheet)
+        }
         .alert(item: $connectionStore.hostKeyRequest) { request in
             Alert(
                 title: Text("Unknown Host"),
@@ -49,6 +63,38 @@ struct ContentView: View {
                 }
             )
         }
+    }
+}
+
+// MARK: - Error Sheet View
+
+struct ErrorSheetView: View {
+    let message: String
+    @Binding var isPresented: Bool
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 50))
+                .foregroundColor(.red)
+
+            Text("Error")
+                .font(.title)
+                .fontWeight(.bold)
+
+            Text(message)
+                .font(.body)
+                .multilineTextAlignment(.center)
+                .padding()
+
+            Button("OK") {
+                isPresented = false
+            }
+            .keyboardShortcut(.defaultAction)
+            .buttonStyle(.borderedProminent)
+        }
+        .padding(30)
+        .frame(minWidth: 400, minHeight: 250)
     }
 }
 
