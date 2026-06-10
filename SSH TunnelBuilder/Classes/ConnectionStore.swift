@@ -75,8 +75,15 @@ class ConnectionStore: ObservableObject {
     /// Credentials storage (Keychain in production, mock for tests)
     private let credentialsStore: CredentialsStore
 
-    private let container = CKContainer.default()
-    private let database = CKContainer.default().privateCloudDatabase
+    /// Explicit CloudKit container identifier. Must match the value in
+    /// SSH_TunnelBuilder.entitlements. We reference the container explicitly
+    /// rather than via `CKContainer.default()` because `default()` resolves to
+    /// `iCloud.<bundleID>` (the legacy container) regardless of the entitlements
+    /// list, which would silently keep using the old container.
+    static let containerIdentifier = "iCloud.no.comraich.sshTunnelBuilder"
+
+    private let container = CKContainer(identifier: ConnectionStore.containerIdentifier)
+    private let database = CKContainer(identifier: ConnectionStore.containerIdentifier).privateCloudDatabase
     private var customZone: CKRecordZone?
     private let customZoneName = "ConnectionZone"
 
@@ -102,28 +109,67 @@ class ConnectionStore: ObservableObject {
         case saveFailed(String)
         case deleteFailed(String)
     }
+
+    /// Produces a detailed, log-friendly description of a CloudKit error.
+    /// Crucially this surfaces the underlying `CKError.Code` and any
+    /// per-item partial errors, which `localizedDescription` alone hides.
+    /// (e.g. the "Field 'recordName' is not marked queryable" condition.)
+    private func cloudKitErrorDescription(_ error: Error) -> String {
+        let ns = error as NSError
+        var parts: [String] = ["domain=\(ns.domain) code=\(ns.code) desc=\(ns.localizedDescription)"]
+        if let ckError = error as? CKError {
+            parts.append("ckCode=\(ckError.code.rawValue) (\(String(describing: ckError.code)))")
+            if let retry = ckError.retryAfterSeconds {
+                parts.append("retryAfter=\(retry)s")
+            }
+            if let partial = ckError.partialErrorsByItemID, !partial.isEmpty {
+                for (item, itemError) in partial {
+                    let itemNS = itemError as NSError
+                    parts.append("partial[\(item)]=code:\(itemNS.code) \(itemNS.localizedDescription)")
+                }
+            }
+        }
+        if let underlying = ns.userInfo[NSUnderlyingErrorKey] as? NSError {
+            parts.append("underlying=domain:\(underlying.domain) code:\(underlying.code) \(underlying.localizedDescription)")
+        }
+        return parts.joined(separator: " | ")
+    }
     
+    /// If CloudKit setup hasn't resolved within this window, fall back to local
+    /// create mode so the UI never gets stuck on the loading screen.
+    private static let loadingFallbackSeconds: UInt64 = 8
+
     init(credentialsStore: CredentialsStore = KeychainService.shared) {
         self.credentialsStore = credentialsStore
-        // Since init is run on the Main Actor, we can use Task {} here.
+        // init runs on the Main Actor, so these Tasks inherit @MainActor isolation.
         Task {
+            // Watchdog runs concurrently with the CloudKit setup below. Because the
+            // store is @MainActor, it gets to run during any `await` suspension in
+            // the setup, so it genuinely times out a slow/hung fetch — unlike a
+            // sequential sleep, which only runs *after* the fetch has returned.
+            // Captures self strongly to match the enclosing Task; the `defer`
+            // below cancels this watchdog as soon as setup finishes, so it never
+            // outlives the work it is guarding.
+            let watchdog = Task {
+                try? await Task.sleep(nanoseconds: ConnectionStore.loadingFallbackSeconds * 1_000_000_000)
+                guard !Task.isCancelled else { return }
+                if self.mode == .loading {
+                    self.mode = .create
+                    self.cloudNotice = "CloudKit is taking a while or is unavailable. You can create connections locally; credentials are stored in Keychain."
+                }
+            }
+            defer { watchdog.cancel() }
+
             await self.createCustomZoneAsync()
             if self.customZone != nil {
                 await self.fetchConnectionsAsync(cursor: nil)
             } else {
+                 Logger.error("Custom zone unavailable after createCustomZoneAsync; falling back to local create mode", log: Logger.cloudKit)
                  self.mode = .create
                 // Show a notice explaining the fallback
                 self.cloudNotice = "CloudKit unavailable. You can create connections locally; credentials will be stored in Keychain."
             }
-            
-            // Fallback: if we're still loading after a short delay, allow creating locally
-            do {
-                try await Task.sleep(nanoseconds: 3_000_000_000) // 3 seconds
-            } catch {
-                // Sleep was cancelled; proceed without delay.
-                Logger.debug("Task.sleep cancelled: \(error.localizedDescription)", log: Logger.cloudKit)
-            }
-            
+
             if self.mode == .loading {
                 self.mode = .create
             }
@@ -258,7 +304,7 @@ class ConnectionStore: ObservableObject {
             }
             self.customZone = savedZone
         } catch {
-            Logger.error("Failed to create custom zone: \(error.localizedDescription)", log: Logger.cloudKit)
+            Logger.error("Failed to create custom zone: \(self.cloudKitErrorDescription(error))", log: Logger.cloudKit)
             self.errorAlert = ErrorAlert(message: "Failed to create iCloud zone: \(error.localizedDescription)")
         }
     }
@@ -288,23 +334,20 @@ class ConnectionStore: ObservableObject {
         ]
         queryOperation.zoneID = customZoneID
         queryOperation.queuePriority = .veryHigh
-        
-        var fetchedConnections: [Connection] = []
 
-        queryOperation.recordMatchedBlock = { [weak self] recordID, result in
-            guard let self = self else { return }
+        // CKQueryOperation callbacks fire on a private background queue, NOT the
+        // MainActor. So here we only collect raw records/errors (no @MainActor or
+        // @Published access); all mapping and state mutation happens afterwards,
+        // back on the MainActor, once the operation completes.
+        var fetchedRecords: [CKRecord] = []
+        var recordErrors: [(name: String, error: Error)] = []
+
+        queryOperation.recordMatchedBlock = { recordID, result in
             switch result {
             case .success(let record):
-                // Ensure migration/parsing runs on the main actor if it affects @Published state, 
-                // but the code within migrateSecretsIfNeeded handles synchronization internally.
-                self.migrateSecretsIfNeeded(from: record)
-                if let connection = self.recordToConnection(record: record) {
-                    fetchedConnections.append(connection)
-                } else {
-                    Logger.error("Failed to convert record to connection: \(record)", log: Logger.cloudKit)
-                }
+                fetchedRecords.append(record)
             case .failure(let error):
-                Logger.error("Failed to fetch record \(recordID): \(error.localizedDescription)", log: Logger.cloudKit)
+                recordErrors.append((recordID.recordName, error))
             }
         }
 
@@ -321,20 +364,33 @@ class ConnectionStore: ObservableObject {
             database.add(queryOperation)
         }
 
+        // Back on the MainActor: report per-record failures, then map the records.
+        for failure in recordErrors {
+            Logger.error("Failed to fetch record \(failure.name): \(self.cloudKitErrorDescription(failure.error))", log: Logger.cloudKit)
+        }
+        var fetchedConnections: [Connection] = []
+        for record in fetchedRecords {
+            self.migrateSecretsIfNeeded(from: record)
+            if let connection = self.recordToConnection(record: record) {
+                fetchedConnections.append(connection)
+            }
+            // recordToConnection logs its own detail when it drops a record.
+        }
+
         // Update @Published properties only on completion of the operation
         self.connections.append(contentsOf: fetchedConnections)
 
         switch result {
         case .failure(let error):
-            Logger.error("Error fetching connections: \(error.localizedDescription)", log: Logger.cloudKit)
+            Logger.error("Error fetching connections: \(self.cloudKitErrorDescription(error))", log: Logger.cloudKit)
             self.errorAlert = ErrorAlert(message: "Failed to fetch connections: \(error.localizedDescription)")
 
         case .success:
             if let nextCursor = cursor {
-                Logger.debug("Fetching more connections", log: Logger.cloudKit)
+                Logger.debug("Fetching next page of connections", log: Logger.cloudKit)
                 await self.fetchConnectionsAsync(cursor: nextCursor)
             } else {
-                Logger.info("Finished fetching connections", log: Logger.cloudKit)
+                Logger.info("Finished fetching connections (total: \(self.connections.count))", log: Logger.cloudKit)
                 // Sort connections by name in memory (CloudKit sorting requires queryable indexes)
                 self.connections.sort { $0.connectionInfo.name.localizedCaseInsensitiveCompare($1.connectionInfo.name) == .orderedAscending }
             }
@@ -414,41 +470,57 @@ class ConnectionStore: ObservableObject {
         }
     }
 
+    /// Inserts the connection, or replaces the existing entry with the same id.
+    /// Keeps the in-memory list free of duplicates when re-fetching after a save.
+    private func upsertConnection(_ connection: Connection) {
+        if let index = self.connections.firstIndex(where: { $0.id == connection.id }) {
+            self.connections[index] = connection
+        } else {
+            self.connections.append(connection)
+        }
+    }
+
     private func updateConnectionAsync(_ connection: Connection, connectionToUpdate: Connection) async {
-        guard let recordID = connectionToUpdate.recordID else { return }
-        
+        guard let recordID = connectionToUpdate.recordID else {
+            // No server record exists yet (never synced) — create one instead of
+            // silently dropping the edit.
+            Logger.info("updateConnectionAsync: no existing recordID; creating a new record instead (id=\(connection.id))", log: Logger.cloudKit)
+            await createConnectionAsync(connection)
+            return
+        }
+
         do {
-            // FIX: Use async wrappers
             let fetchedRecord = try await fetchRecord(with: recordID)
             self.updateRecordFields(fetchedRecord, withConnection: connection)
             let savedRecord = try await saveRecord(fetchedRecord)
-            
-            if let index = self.connections.firstIndex(where: { $0.id == connection.id }) {
-                if let newConnect = self.recordToConnection(record: savedRecord) {
-                    self.connections[index] = newConnect
-                }
+
+            if let newConnect = self.recordToConnection(record: savedRecord) {
+                self.upsertConnection(newConnect)
             }
         } catch {
+            Logger.error("Failed to update connection: \(self.cloudKitErrorDescription(error))", log: Logger.cloudKit)
             self.errorAlert = ErrorAlert(message: "Failed to save changes: \(error.localizedDescription)")
         }
     }
 
     private func createConnectionAsync(_ connection: Connection) async {
         guard let zoneID = customZone?.zoneID else {
+            Logger.error("createConnectionAsync: customZone is nil; connection not persisted (id=\(connection.id))", log: Logger.cloudKit)
             self.errorAlert = ErrorAlert(message: "Cannot save connection: CloudKit zone not available.")
             return
         }
-        
+
         let recordID = CKRecord.ID(recordName: connection.id.uuidString, zoneID: zoneID)
         let record = CKRecord(recordType: CloudKitKeys.recordType, recordID: recordID)
         updateRecordFields(record, withConnection: connection)
-        
+
         record[CloudKitKeys.uuid] = connection.id.uuidString
-        
+
         do {
             let savedRecord = try await saveRecord(record)
             await self.fetchConnectionAsync(withId: savedRecord.recordID)
         } catch {
+            Logger.error("Failed to save connection: \(self.cloudKitErrorDescription(error))", log: Logger.cloudKit)
             self.errorAlert = ErrorAlert(message: "Failed to save connection: \(error.localizedDescription)")
         }
     }
@@ -458,29 +530,54 @@ class ConnectionStore: ObservableObject {
             let fetchedRecord = try await fetchRecord(with: recordID)
             self.migrateSecretsIfNeeded(from: fetchedRecord)
             if let connection = self.recordToConnection(record: fetchedRecord) {
-                self.connections.append(connection)
+                self.upsertConnection(connection)
             }
         } catch {
+            Logger.error("Failed to fetch connection: \(self.cloudKitErrorDescription(error))", log: Logger.cloudKit)
             self.errorAlert = ErrorAlert(message: "Failed to fetch connection: \(error.localizedDescription)")
         }
+    }
+
+    // MARK: - Port field bridging (CloudKit schema stores ports as NUMBER_INT64)
+
+    /// Writes a port-like value into a field that the CloudKit schema defines as
+    /// `NUMBER_INT64`. The app models ports as `String`, so we parse to `Int64`.
+    /// Blank or non-numeric values are stored as an absent field (read back as "").
+    private func setPortField(_ record: CKRecord, _ key: String, _ stringValue: String) {
+        let trimmed = stringValue.trimmingCharacters(in: .whitespaces)
+        if let intValue = Int64(trimmed) {
+            record[key] = intValue
+        } else {
+            record[key] = nil
+        }
+    }
+
+    /// Reads a port-like field back into the app's `String` model. Accepts the
+    /// current `Int64` schema as well as legacy `Int`/`String` representations,
+    /// so mapping is robust across environments. Returns "" when absent.
+    private func portString(_ record: CKRecord, _ key: String) -> String {
+        if let intValue = record[key] as? Int64 { return String(intValue) }
+        if let intValue = record[key] as? Int { return String(intValue) }
+        if let stringValue = record[key] as? String { return stringValue }
+        return ""
     }
 
     func updateRecordFields(_ record: CKRecord, withConnection connection: Connection) {
         record[CloudKitKeys.name] = connection.connectionInfo.name
         record[CloudKitKeys.serverAddress] = connection.connectionInfo.serverAddress
-        record[CloudKitKeys.portNumber] = connection.connectionInfo.portNumber
+        setPortField(record, CloudKitKeys.portNumber, connection.connectionInfo.portNumber)
         record[CloudKitKeys.username] = connection.connectionInfo.username
         record[CloudKitKeys.password] = "" // placeholder
         record[CloudKitKeys.privateKey] = "" // placeholder
         record[CloudKitKeys.knownHostKey] = connection.connectionInfo.knownHostKey
-        
+
         // Keychain operations remain synchronous but are protected by @MainActor scope
         credentialsStore.savePassword(connection.connectionInfo.password, for: connection.id)
         credentialsStore.savePrivateKey(connection.connectionInfo.privateKey, for: connection.id)
-        
-        record[CloudKitKeys.localPort] = connection.tunnelInfo.localPort
+
+        setPortField(record, CloudKitKeys.localPort, connection.tunnelInfo.localPort)
         record[CloudKitKeys.remoteServer] = connection.tunnelInfo.remoteServer
-        record[CloudKitKeys.remotePort] = connection.tunnelInfo.remotePort
+        setPortField(record, CloudKitKeys.remotePort, connection.tunnelInfo.remotePort)
     }
 
     func deleteConnection(_ connection: Connection) {
@@ -540,18 +637,29 @@ class ConnectionStore: ObservableObject {
     }
 
     func recordToConnection(record: CKRecord) -> Connection? {
-        guard let id = record[CloudKitKeys.uuid] as? String,
-              let uuid = UUID(uuidString: id),
-              let name = record[CloudKitKeys.name] as? String,
-              let serverAddress = record[CloudKitKeys.serverAddress] as? String,
-              let portNumber = record[CloudKitKeys.portNumber] as? String,
-              let username = record[CloudKitKeys.username] as? String,
-              let localPort = record[CloudKitKeys.localPort] as? String,
-              let remoteServer = record[CloudKitKeys.remoteServer] as? String,
-              let remotePort = record[CloudKitKeys.remotePort] as? String else {
+        // Per-field extraction so we can log exactly which field is missing
+        // when a record is silently dropped from the list.
+        func requireString(_ key: String) -> String? {
+            if let value = record[key] as? String { return value }
+            Logger.error("recordToConnection: record \(record.recordID.recordName) missing required field '\(key)'", log: Logger.cloudKit)
             return nil
         }
-        
+
+        guard let id = requireString(CloudKitKeys.uuid),
+              let uuid = UUID(uuidString: id),
+              let name = requireString(CloudKitKeys.name),
+              let serverAddress = requireString(CloudKitKeys.serverAddress),
+              let username = requireString(CloudKitKeys.username),
+              let remoteServer = requireString(CloudKitKeys.remoteServer) else {
+            return nil
+        }
+
+        // Port fields are stored as NUMBER_INT64 in the CloudKit schema; read
+        // them leniently and convert back to the app's String model.
+        let portNumber = portString(record, CloudKitKeys.portNumber)
+        let localPort = portString(record, CloudKitKeys.localPort)
+        let remotePort = portString(record, CloudKitKeys.remotePort)
+
         let knownHostKey = (record[CloudKitKeys.knownHostKey] as? String) ?? ""
         
         // Keychain operations are synchronous
