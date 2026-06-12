@@ -162,7 +162,7 @@ class ConnectionStore: ObservableObject {
 
             await self.createCustomZoneAsync()
             if self.customZone != nil {
-                await self.fetchConnectionsAsync(cursor: nil)
+                await self.fetchConnectionsAsync()
             } else {
                  Logger.error("Custom zone unavailable after createCustomZoneAsync; falling back to local create mode", log: Logger.cloudKit)
                  self.mode = .create
@@ -303,71 +303,100 @@ class ConnectionStore: ObservableObject {
                 self.database.add(createZoneOperation)
             }
             self.customZone = savedZone
+            Logger.error("[TEMP] custom zone ready: \(savedZone.zoneID.zoneName) owner=\(savedZone.zoneID.ownerName)", log: Logger.cloudKit)
         } catch {
+            Logger.error("[TEMP] custom zone creation FAILED: \(self.cloudKitErrorDescription(error))", log: Logger.cloudKit)
             Logger.error("Failed to create custom zone: \(self.cloudKitErrorDescription(error))", log: Logger.cloudKit)
             self.errorAlert = ErrorAlert(message: "Failed to create iCloud zone: \(error.localizedDescription)")
         }
     }
     
-    private func fetchConnectionsAsync(cursor: CKQueryOperation.Cursor? = nil) async {
+    private func fetchConnectionsAsync() async {
         guard let customZoneID = customZone?.zoneID else {
             self.mode = .create
             self.cloudNotice = "CloudKit not configured. Working locally with Keychain for credentials."
             return
         }
 
-        let query = CKQuery(recordType: CloudKitKeys.recordType, predicate: NSPredicate(value: true))
-        // Don't set sortDescriptors to avoid CloudKit queryable index requirements
-        // We'll sort the results in memory after fetching
-        
-        let queryOperation: CKQueryOperation
-        if let cursor = cursor {
-            queryOperation = CKQueryOperation(cursor: cursor)
-        } else {
-            queryOperation = CKQueryOperation(query: query)
-        }
-
-        queryOperation.desiredKeys = [
-            CloudKitKeys.uuid, CloudKitKeys.name, CloudKitKeys.serverAddress, CloudKitKeys.portNumber, CloudKitKeys.username,
-            CloudKitKeys.password, CloudKitKeys.privateKey, CloudKitKeys.localPort, CloudKitKeys.remoteServer, CloudKitKeys.remotePort,
-            CloudKitKeys.knownHostKey
-        ]
-        queryOperation.zoneID = customZoneID
-        queryOperation.queuePriority = .veryHigh
-
-        // CKQueryOperation callbacks fire on a private background queue, NOT the
-        // MainActor. So here we only collect raw records/errors (no @MainActor or
-        // @Published access); all mapping and state mutation happens afterwards,
-        // back on the MainActor, once the operation completes.
+        // Fetch via CKFetchRecordZoneChangesOperation rather than CKQuery: listing
+        // a custom zone this way needs NO queryable indexes (CKQuery requires a
+        // Queryable index on `recordName`, which is easy to forget when deploying
+        // to Production). We start from a nil change token to fetch every record
+        // and intentionally do NOT persist the token across launches — the app
+        // keeps no local record cache, so a persisted token would return only
+        // deltas and the list would appear empty on relaunch. (Persisting the
+        // token + caching records for incremental/offline sync is a future step.)
+        // The token is still used within this call to page through `moreComing`.
+        //
+        // Operation callbacks fire on a private background queue, NOT the
+        // MainActor, so they only collect raw records/errors; all mapping and
+        // @Published mutation happens afterwards, back on the MainActor.
         var fetchedRecords: [CKRecord] = []
         var recordErrors: [(name: String, error: Error)] = []
+        var deletedRecordNames: [String] = []
+        var fetchError: Error?
+        var token: CKServerChangeToken?
 
-        queryOperation.recordMatchedBlock = { recordID, result in
-            switch result {
-            case .success(let record):
-                fetchedRecords.append(record)
-            case .failure(let error):
-                recordErrors.append((recordID.recordName, error))
-            }
-        }
+        pageLoop: while true {
+            let configuration = CKFetchRecordZoneChangesOperation.ZoneConfiguration(
+                previousServerChangeToken: token
+            )
+            let operation = CKFetchRecordZoneChangesOperation(
+                recordZoneIDs: [customZoneID],
+                configurationsByRecordZoneID: [customZoneID: configuration]
+            )
+            operation.qualityOfService = .userInitiated
 
-        // Bridge CKOperation to async/await using CheckedContinuation
-        let (result, cursor) = await withCheckedContinuation { continuation in
-            queryOperation.queryResultBlock = { result in
+            operation.recordWasChangedBlock = { recordID, result in
                 switch result {
-                case .success(let cursor):
-                    continuation.resume(returning: (Result<Void, Error>.success(()), cursor))
+                case .success(let record):
+                    fetchedRecords.append(record)
                 case .failure(let error):
-                    continuation.resume(returning: (Result<Void, Error>.failure(error), nil))
+                    recordErrors.append((recordID.recordName, error))
                 }
             }
-            database.add(queryOperation)
+            operation.recordWithIDWasDeletedBlock = { recordID, _ in
+                deletedRecordNames.append(recordID.recordName)
+            }
+
+            var moreComing = false
+            let operationResult: Result<Void, Error> = await withCheckedContinuation { continuation in
+                operation.recordZoneFetchResultBlock = { _, zoneResult in
+                    switch zoneResult {
+                    case .success(let (serverChangeToken, _, more)):
+                        token = serverChangeToken
+                        moreComing = more
+                    case .failure(let error):
+                        fetchError = error
+                    }
+                }
+                operation.fetchRecordZoneChangesResultBlock = { result in
+                    continuation.resume(returning: result)
+                }
+                database.add(operation)
+            }
+
+            switch operationResult {
+            case .failure(let error):
+                fetchError = error
+                break pageLoop
+            case .success:
+                if !moreComing { break pageLoop }
+            }
         }
+
+        Logger.error("[TEMP] fetch done: records=\(fetchedRecords.count) recordErrors=\(recordErrors.count) deleted=\(deletedRecordNames.count) fetchError=\(fetchError.map { self.cloudKitErrorDescription($0) } ?? "none")", log: Logger.cloudKit)
 
         // Back on the MainActor: report per-record failures, then map the records.
         for failure in recordErrors {
             Logger.error("Failed to fetch record \(failure.name): \(self.cloudKitErrorDescription(failure.error))", log: Logger.cloudKit)
         }
+
+        if let fetchError {
+            Logger.error("Error fetching connections: \(self.cloudKitErrorDescription(fetchError))", log: Logger.cloudKit)
+            self.errorAlert = ErrorAlert(message: "Failed to fetch connections: \(fetchError.localizedDescription)")
+        }
+
         var fetchedConnections: [Connection] = []
         for record in fetchedRecords {
             self.migrateSecretsIfNeeded(from: record)
@@ -377,24 +406,19 @@ class ConnectionStore: ObservableObject {
             // recordToConnection logs its own detail when it drops a record.
         }
 
-        // Update @Published properties only on completion of the operation
-        self.connections.append(contentsOf: fetchedConnections)
-
-        switch result {
-        case .failure(let error):
-            Logger.error("Error fetching connections: \(self.cloudKitErrorDescription(error))", log: Logger.cloudKit)
-            self.errorAlert = ErrorAlert(message: "Failed to fetch connections: \(error.localizedDescription)")
-
-        case .success:
-            if let nextCursor = cursor {
-                Logger.debug("Fetching next page of connections", log: Logger.cloudKit)
-                await self.fetchConnectionsAsync(cursor: nextCursor)
-            } else {
-                Logger.info("Finished fetching connections (total: \(self.connections.count))", log: Logger.cloudKit)
-                // Sort connections by name in memory (CloudKit sorting requires queryable indexes)
-                self.connections.sort { $0.connectionInfo.name.localizedCaseInsensitiveCompare($1.connectionInfo.name) == .orderedAscending }
-            }
+        // Apply results: drop any reported deletions, then upsert fetched records.
+        if !deletedRecordNames.isEmpty {
+            let deleted = Set(deletedRecordNames)
+            self.connections.removeAll { deleted.contains($0.id.uuidString) }
         }
+        for connection in fetchedConnections {
+            self.upsertConnection(connection)
+        }
+
+        // Sort connections by name in memory (CloudKit sorting requires indexes).
+        self.connections.sort { $0.connectionInfo.name.localizedCaseInsensitiveCompare($1.connectionInfo.name) == .orderedAscending }
+
+        Logger.info("Finished fetching connections (total: \(self.connections.count))", log: Logger.cloudKit)
 
         self.mode = self.connections.isEmpty ? .create : .view
         self.cloudNotice = nil
