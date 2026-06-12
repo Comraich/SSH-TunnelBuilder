@@ -1,6 +1,6 @@
 import Foundation
 import NIO
-import NIOSSH
+@preconcurrency import NIOSSH
 import CryptoKit
 import Combine
 
@@ -345,11 +345,15 @@ private extension FlexibleAuthDelegate {
         if keyType == "ssh-ed25519" {
             // Pub key
             let _ = try readSSHBytes(from: &privateBuffer)
-            // Priv key
+            // Priv key — OpenSSH stores 64 bytes: seed (32) || public key (32).
+            // Curve25519.Signing.PrivateKey takes the 32-byte seed as rawRepresentation.
             let keyBytes = try readSSHBytes(from: &privateBuffer)
-            
-            // NIOSSH expects the OpenSSH Ed25519 blob
-            return try NIOSSHPrivateKey(openSSHEd25519PrivateKeyBlob: keyBytes)
+            guard keyBytes.count >= 32 else {
+                throw OpenSSHKeyParser.OpenSSHParsingError.invalidKeyFormat(reason: "Ed25519 private key blob too short (\(keyBytes.count) bytes)")
+            }
+            let seed = Data(keyBytes.prefix(32))
+            let ed25519Key = try Curve25519.Signing.PrivateKey(rawRepresentation: seed)
+            return NIOSSHPrivateKey(ed25519Key: ed25519Key)
         } else if keyType.hasPrefix("ecdsa-sha2-") {
             let curveName = try readSSHString(from: &privateBuffer)
             let _ = try readSSHBytes(from: &privateBuffer) // Public Key
