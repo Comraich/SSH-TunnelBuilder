@@ -18,7 +18,7 @@
 - **SSHManager.swift**: NIO-based SSH client with tunneling
 - **PEMDecryptor.swift**: PKCS#8 key decryption with PBKDF2
 - **BcryptPBKDF.swift**: Blowfish + `bcrypt_pbkdf` (from scratch; not in CryptoKit), used to key OpenSSH key decryption
-- **OpenSSHKeyDecryptor.swift**: decrypts encrypted `openssh-key-v1` private sections (AES-CTR)
+- **OpenSSHKeyDecryptor.swift**: decrypts encrypted `openssh-key-v1` private sections (AES-CTR/CBC/GCM)
 
 ## Private key support
 
@@ -34,13 +34,13 @@ Supported private-key formats (all for Ed25519 / ECDSA only):
 
 | Format | Plain | Encrypted |
 |---|---|---|
-| OpenSSH (`openssh-key-v1`) | ✅ | ✅ bcrypt + aes128/192/256-ctr |
-| PKCS#8 (`BEGIN PRIVATE KEY`) | ✅ (EC + Ed25519) | ✅ EC + Ed25519, PBES2/PBKDF2-SHA256/AES-256-CBC |
+| OpenSSH (`openssh-key-v1`) | ✅ | ✅ bcrypt + aes128/192/256 ctr/cbc/gcm |
+| PKCS#8 (`BEGIN PRIVATE KEY`) | ✅ (EC only) | ✅ EC only, PBES2/PBKDF2-SHA256/AES-256-CBC |
 | SEC1 (`BEGIN EC PRIVATE KEY`) | ✅ | — |
 
-Known gaps (not yet implemented): encrypted OpenSSH AES-CBC and AEAD ciphers
-(chacha20-poly1305, aes-gcm) — only AES-CTR is handled; broader PKCS#8
-ciphers/KDFs.
+Known gaps (not yet implemented): Ed25519 in PKCS#8 (OID 1.3.101.112); the
+`chacha20-poly1305@openssh.com` and `3des-cbc` OpenSSH ciphers (chacha20 is a
+non-standard construction absent from CryptoKit); broader PKCS#8 ciphers/KDFs.
 
 ---
 
