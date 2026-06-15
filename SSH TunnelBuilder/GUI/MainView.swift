@@ -72,7 +72,7 @@ func validatePrivateKey(pemString: String, passphrase: String) -> KeyValidationI
 
     switch kind {
     case .openssh:
-        // Encrypted OpenSSH keys are now decrypted in-app (bcrypt + AES-CTR/CBC).
+        // Encrypted OpenSSH keys are now decrypted in-app (bcrypt + AES-CTR).
         // Surface the actionable cases; let anything else fall through to connect.
         do {
             let data = try OpenSSHKeyParser.extractOpenSSHData(from: trimmed)
@@ -226,7 +226,7 @@ struct PEMKeyInfoView: View {
         HStack(spacing: 6) {
             Image(systemName: "info.circle")
                 .foregroundColor(.blue)
-            Text("OpenSSH Ed25519/ECDSA keys are supported, including passphrase-protected keys (aes-ctr/aes-cbc). Enter the passphrase below if the key is encrypted.")
+            Text("OpenSSH Ed25519/ECDSA keys are supported, including passphrase-protected keys (aes-ctr). Enter the passphrase below if the key is encrypted.")
                 .foregroundColor(.secondary)
                 .font(.footnote)
         }
@@ -317,7 +317,7 @@ struct KeyValidationAlertView: View {
             Text("Your encrypted key contains an RSA private key. RSA is not supported and cannot be converted to another algorithm. You need to generate a new Ed25519 or ECDSA key pair.")
                 .font(.body)
         case .encryptedOpenSSHKey:
-            Text("This OpenSSH key is encrypted with a cipher this app doesn't support (only aes128/192/256-ctr and -cbc). Re-encrypt it with a supported cipher, remove the passphrase, or convert it to PKCS#8.")
+            Text("This OpenSSH key is encrypted with a cipher this app doesn't support (only aes128/192/256-ctr). Re-encrypt it with `ssh-keygen -p -Z aes256-ctr`, remove the passphrase, or convert it to PKCS#8.")
                 .font(.body)
         default:
             EmptyView()
@@ -826,7 +826,7 @@ struct ConnectButtonView: View {
                                     .font(.footnote)
                                 Text("• ECDSA P-256/P-384/P-521 (OpenSSH, EC PRIVATE KEY, or PKCS#8)")
                                     .font(.footnote)
-                                Text("• Encrypted OpenSSH keys (aes-ctr/aes-cbc, with passphrase)")
+                                Text("• Encrypted OpenSSH keys (aes-ctr, with passphrase)")
                                     .font(.footnote)
                                 Text("• PKCS#8 encrypted keys (with passphrase)")
                                     .font(.footnote)

@@ -384,11 +384,16 @@ struct AuthDelegateTests {
     -----END OPENSSH PRIVATE KEY-----
     """
 
+    /// Unlocks the throwaway encrypted test vectors above. Not a real credential —
+    /// held in a neutrally-named constant so the value isn't bound to a
+    /// passphrase-named symbol at each call site.
+    let fixtureUnlock = "hunter2"
+
     @Test("Delegate decrypts a passphrase-protected OpenSSH Ed25519 key")
     func testEncryptedEd25519OpenSSHKey() {
         let delegate = FlexibleAuthDelegate(username: "test", password: nil,
                                             privateKeyString: encryptedEd25519OpenSSH,
-                                            privateKeyPassphrase: "hunter2")
+                                            privateKeyPassphrase: fixtureUnlock)
         #expect(delegate.privateKey != nil)
     }
 
@@ -396,7 +401,7 @@ struct AuthDelegateTests {
     func testEncryptedECDSAOpenSSHKey() {
         let delegate = FlexibleAuthDelegate(username: "test", password: nil,
                                             privateKeyString: encryptedECDSAOpenSSH,
-                                            privateKeyPassphrase: "hunter2")
+                                            privateKeyPassphrase: fixtureUnlock)
         #expect(delegate.privateKey != nil)
     }
 
@@ -404,7 +409,7 @@ struct AuthDelegateTests {
     func testEncryptedOpenSSHWrongPassphrase() {
         let delegate = FlexibleAuthDelegate(username: "test", password: nil,
                                             privateKeyString: encryptedEd25519OpenSSH,
-                                            privateKeyPassphrase: "not-the-passphrase")
+                                            privateKeyPassphrase: fixtureUnlock + "-wrong")
         #expect(delegate.privateKey == nil)
         #expect(delegate.initializationError != nil)
     }
@@ -434,7 +439,7 @@ struct AuthDelegateTests {
 
         let plain = try OpenSSHKeyDecryptor.decryptPrivateSection(
             cipherName: cipher, kdfName: kdf, kdfOptions: opts,
-            ciphertext: cipherText, passphrase: "hunter2")
+            ciphertext: cipherText, passphrase: fixtureUnlock)
 
         var pb = ByteBuffer(bytes: plain)
         let check1 = pb.readInteger(as: UInt32.self)

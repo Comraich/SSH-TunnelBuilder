@@ -30,25 +30,24 @@ enum OpenSSHCipherError: LocalizedError, Equatable {
 
 /// Decrypts the encrypted private section of an OpenSSH (`openssh-key-v1`)
 /// private key. OpenSSH derives the cipher key + IV from the passphrase with
-/// `bcrypt_pbkdf` (see ``BcryptPBKDF``) and encrypts with one of the AES-CTR /
-/// AES-CBC ciphers. AEAD ciphers (chacha20-poly1305, aes-gcm) are not handled.
+/// `bcrypt_pbkdf` (see ``BcryptPBKDF``) and encrypts with an AES-CTR cipher.
+///
+/// Only the AES-CTR ciphers are handled — those are what modern `ssh-keygen`
+/// produces. The legacy AES-CBC ciphers and the AEAD ciphers
+/// (chacha20-poly1305, aes-gcm) are reported as unsupported; convert such keys
+/// with `ssh-keygen -p -Z aes256-ctr` or to PKCS#8.
 enum OpenSSHKeyDecryptor {
     private struct CipherSpec {
-        enum Mode { case ctr, cbc }
         let keyLength: Int
         let ivLength: Int
         let blockSize: Int
-        let mode: Mode
     }
 
     private static func spec(for cipherName: String) -> CipherSpec? {
         switch cipherName {
-        case "aes256-ctr": return CipherSpec(keyLength: 32, ivLength: 16, blockSize: 16, mode: .ctr)
-        case "aes192-ctr": return CipherSpec(keyLength: 24, ivLength: 16, blockSize: 16, mode: .ctr)
-        case "aes128-ctr": return CipherSpec(keyLength: 16, ivLength: 16, blockSize: 16, mode: .ctr)
-        case "aes256-cbc": return CipherSpec(keyLength: 32, ivLength: 16, blockSize: 16, mode: .cbc)
-        case "aes192-cbc": return CipherSpec(keyLength: 24, ivLength: 16, blockSize: 16, mode: .cbc)
-        case "aes128-cbc": return CipherSpec(keyLength: 16, ivLength: 16, blockSize: 16, mode: .cbc)
+        case "aes256-ctr": return CipherSpec(keyLength: 32, ivLength: 16, blockSize: 16)
+        case "aes192-ctr": return CipherSpec(keyLength: 24, ivLength: 16, blockSize: 16)
+        case "aes128-ctr": return CipherSpec(keyLength: 16, ivLength: 16, blockSize: 16)
         default: return nil
         }
     }
@@ -89,10 +88,7 @@ enum OpenSSHKeyDecryptor {
         let key = Array(keyiv[0..<spec.keyLength])
         let iv = Array(keyiv[spec.keyLength..<(spec.keyLength + spec.ivLength)])
 
-        switch spec.mode {
-        case .ctr: return try aesCTR(key: key, iv: iv, input: ciphertext)
-        case .cbc: return try aesCBCNoPadding(key: key, iv: iv, input: ciphertext)
-        }
+        return try aesCTR(key: key, iv: iv, input: ciphertext)
     }
 
     /// `bcrypt` kdfoptions are `string salt || uint32 rounds`.
@@ -151,34 +147,6 @@ enum OpenSSHKeyDecryptor {
         guard updateStatus == kCCSuccess, moved == input.count else {
             throw OpenSSHCipherError.cipherFailure
         }
-        return output
-    }
-
-    /// AES-CBC with no padding — the OpenSSH private section is block-aligned by
-    /// construction (it is padded with `1,2,3,…` before encryption).
-    private static func aesCBCNoPadding(key: [UInt8], iv: [UInt8], input: [UInt8]) throws -> [UInt8] {
-        var output = [UInt8](repeating: 0, count: input.count + kCCBlockSizeAES128)
-        var moved = 0
-        let status = key.withUnsafeBytes { keyPtr in
-            iv.withUnsafeBytes { ivPtr in
-                input.withUnsafeBytes { inPtr in
-                    output.withUnsafeMutableBytes { outPtr in
-                        CCCrypt(
-                            CCOperation(kCCDecrypt),
-                            CCAlgorithm(kCCAlgorithmAES),
-                            CCOptions(0), // no padding
-                            keyPtr.baseAddress, key.count,
-                            ivPtr.baseAddress,
-                            inPtr.baseAddress, input.count,
-                            outPtr.baseAddress, outPtr.count,
-                            &moved
-                        )
-                    }
-                }
-            }
-        }
-        guard status == kCCSuccess else { throw OpenSSHCipherError.cipherFailure }
-        output.removeSubrange(moved..<output.count)
         return output
     }
 }

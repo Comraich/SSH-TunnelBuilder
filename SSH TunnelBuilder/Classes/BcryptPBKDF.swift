@@ -37,7 +37,8 @@ struct Blowfish {
     }
 
     private func encipher(_ xl: inout UInt32, _ xr: inout UInt32) {
-        var l = xl, r = xr
+        var l = xl
+        var r = xr
         for i in 0..<16 {
             l ^= p[i]
             r ^= f(l)
@@ -55,7 +56,8 @@ struct Blowfish {
         var j = 0
         for i in 0..<18 { p[i] ^= Blowfish.stream2word(key, &j) }
 
-        var dl: UInt32 = 0, dr: UInt32 = 0
+        var dl: UInt32 = 0
+        var dr: UInt32 = 0
         var i = 0
         while i < 18 {
             encipher(&dl, &dr)
@@ -80,7 +82,8 @@ struct Blowfish {
         var j = 0
         for i in 0..<18 { p[i] ^= Blowfish.stream2word(key, &j) }
 
-        var dl: UInt32 = 0, dr: UInt32 = 0
+        var dl: UInt32 = 0
+        var dr: UInt32 = 0
         var d = 0
         var i = 0
         while i < 18 {
@@ -108,7 +111,8 @@ struct Blowfish {
     func encrypt(_ cdata: inout [UInt32], blocks: Int) {
         var i = 0
         while i < blocks * 2 {
-            var l = cdata[i], r = cdata[i + 1]
+            var l = cdata[i]
+            var r = cdata[i + 1]
             encipher(&l, &r)
             cdata[i] = l
             cdata[i + 1] = r
