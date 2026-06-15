@@ -158,7 +158,7 @@ internal enum OpenSSHKeyParser {
     static func readSSHBytes(from buffer: inout ByteBuffer) throws -> [UInt8] { return try FlexibleAuthDelegate.readSSHBytes(from: &buffer) }
 }
 
-private final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate, Sendable {
+final class FlexibleAuthDelegate: NIOSSHClientUserAuthenticationDelegate, Sendable {
     let username: String
     let password: String?
     let privateKey: NIOSSHPrivateKey?
