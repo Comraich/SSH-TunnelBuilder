@@ -164,3 +164,26 @@
 **Files Modified**:
 - `ConnectionStore.swift:272-274` - Removed sortDescriptors from CKQuery
 - `ConnectionStore.swift:337-338` - Added in-memory sorting after fetch completes
+
+---
+
+## Swift API Modernization (2026-06-15)
+
+Full details and per-task notes live in [`MODERNIZATION_ROADMAP.md`](MODERNIZATION_ROADMAP.md).
+Each task ships on its own branch off `Development` with its own PR. Listed in
+priority order (impact, high → low):
+
+- [ ] **1. Adopt Observation framework (`@Observable`)** — `refactor/observable-macro` — *High*
+  - `Connection` + `ConnectionStore` → `@Observable`; drop `@Published`/Combine; migrate view property wrappers
+- [ ] **2. Native async CloudKit APIs** — `refactor/cloudkit-async-apis` — *High*
+  - Replace `withCheckedContinuation` bridging with `record(for:)`, `save(_:)`, `deleteRecord(for:)`, `modifyRecordZones`, `records(matching:)`
+- [ ] **3. `Task.sleep(for:)` with `Duration`** — `refactor/task-sleep-duration` — *Medium*
+  - `ConnectionStore.swift:154`
+- [ ] **4. `@Entry` macro for environment key** — `refactor/entry-macro-environment` — *Medium*
+  - `MainView.swift:1004-1013`
+- [ ] **5. `ByteCountFormatStyle` (`.formatted`)** — `refactor/bytecount-format-style` — *Medium*
+  - `DataCounterView.swift`
+- [ ] **6. Replace `DispatchQueue.main.asyncAfter`** — `refactor/async-error-clear` — *Low*
+  - `ContentView.swift:46`
+- [ ] **7. NIO singleton event-loop group** — `refactor/nio-singleton-eventloop` — *Low (optional)*
+  - `SSHManager.swift:511` (review lifecycle before adopting)
