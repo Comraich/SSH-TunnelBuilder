@@ -173,19 +173,47 @@ Full details and per-task notes live in [`MODERNIZATION_ROADMAP.md`](MODERNIZATI
 Each task ships on its own branch off `Development` with its own PR. Listed in
 priority order (impact, high → low):
 
-- [ ] **1. Adopt Observation framework (`@Observable`)** — `refactor/observable-macro` — *High*
-  - `Connection` + `ConnectionStore` → `@Observable`; drop `@Published`/Combine; migrate view property wrappers
-- [ ] **2. Native async CloudKit APIs** — `refactor/cloudkit-async-apis` — *High*
-  - Replace `withCheckedContinuation` bridging with `record(for:)`, `save(_:)`, `deleteRecord(for:)`, `modifyRecordZones`, `records(matching:)`
+All eight tasks are merged into `Development`:
+
+- [x] **1. Adopt Observation framework (`@Observable`)** — `refactor/observable-macro` — *High* — merged (PR #43)
+- [x] **2. Native async CloudKit APIs** — `refactor/cloudkit-async-apis` — *High* — merged (PR #42), using `recordZoneChanges(inZoneWith:since:)` (kept the zone-changes approach to avoid the queryable-index bug)
 - [x] **3. `Task.sleep(for:)` with `Duration`** — `refactor/task-sleep-duration` — *Medium* — merged (PR #35)
-  - `ConnectionStore.swift:154`
-- [x] **4. `@Entry` macro for environment key** — `refactor/entry-macro-environment` — *Medium* — in review (PR #36)
-  - `MainView.swift:1004-1013`
-- [ ] **5. `ByteCountFormatStyle` (`.formatted`)** — `refactor/bytecount-format-style` — *Medium*
-  - `DataCounterView.swift`
-- [ ] **6. Replace `DispatchQueue.main.asyncAfter`** — `refactor/async-error-clear` — *Low*
-  - `ContentView.swift:46`
-- [ ] **7. NIO singleton event-loop group** — `refactor/nio-singleton-eventloop` — *Low (optional)*
-  - `SSHManager.swift:511` (review lifecycle before adopting)
-- [ ] **8. Remove dead `connection` environment value** — `refactor/remove-dead-connection-env` — *Low (cleanup)*
-  - `MainView.swift` — `EnvironmentValues.connection` is never read/written; delete it (discovered during #4)
+- [x] **4. `@Entry` macro for environment key** — `refactor/entry-macro-environment` — *Medium* — merged (PR #36)
+- [x] **5. `ByteCountFormatStyle` (`.formatted`)** — `refactor/bytecount-format-style` — *Medium* — merged (PR #38)
+- [x] **6. Replace `DispatchQueue.main.asyncAfter`** — `refactor/async-error-clear` — *Low* — merged (PR #39)
+- [x] **7. NIO singleton event-loop group** — `refactor/nio-singleton-eventloop` — *Low* — merged (PR #41)
+- [x] **8. Remove dead `connection` environment value** — `refactor/remove-dead-connection-env` — *Low (cleanup)* — merged (PR #40)
+
+---
+
+## Known Issues
+
+### Test suite cannot run reliably on the macOS 26/27 beta toolchain (2026-06-15)
+
+**Symptom:** Running the test bundle crashes the test host in Swift Testing's
+`Runner._applyScopingTraits(for:testCase:_:)`. With the default (parallel)
+configuration *no* tests run at all — every suite reports
+`Crash: ... Runner._applyScopingTraits` before any test body executes, and the
+host hits "Exceeded max restart count". No `.ips` crash report is produced.
+
+**Diagnosis:** This is a Swift Testing **runtime** bug in the current
+Xcode-beta / macOS 27.0 (26A5353q) toolchain, not a defect in the test code or
+target configuration:
+- The test code is plain, idiomatic Swift Testing (no custom/scoping traits).
+- The test target settings are standard (`SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated`, Swift 6, hosted by the app).
+- It reproduces on a clean `Development` checkout, independent of the `@Observable`/CloudKit modernization work.
+- Behaviour scales with concurrency: 1–6 tests run fine in isolation; the full 30-test run crashes. It is also non-deterministic — the crashing test moves between runs.
+
+**Attempted workarounds (not adopted):** Serializing every suite (`.serialized`
+roots) plus disabling `SWIFT_APPROACHABLE_CONCURRENCY` on the test target raised
+the pass count from 0 to ~20–28/30, but runs still aborted non-deterministically
+partway through. We chose **not** to ship a flaky partial workaround. A couple of
+P256 EC-key-parsing `AuthDelegate` tests also appear to crash in isolation —
+possibly a genuine parser bug, but it's entangled with the runtime instability
+and can't be cleanly isolated while the runner itself is unstable.
+
+**Action:** Revisit when the Xcode/macOS toolchain updates (re-run the full
+suite; if it's green by default, this entry can be removed). If the EC-parsing
+tests still crash once the runner is stable, investigate
+`FlexibleAuthDelegate.parsePrivateKey` / `PEMDecryptor` for the `EC PRIVATE KEY`
+(SEC1) path as a separate bug.
