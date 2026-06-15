@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 import NIO
+import NIOFoundationCompat
 import NIOSSH
 import CloudKit
 import CryptoKit
@@ -356,6 +357,95 @@ struct AuthDelegateTests {
                                             privateKeyString: "invalid-key-string",
                                             privateKeyPassphrase: nil)
         #expect(delegate.privateKey == nil)
+    }
+
+    /// Passphrase-protected OpenSSH Ed25519 key (aes256-ctr + bcrypt). Passphrase: "hunter2".
+    let encryptedEd25519OpenSSH = """
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABCGuDeZnO
+    v7qptIAztAmpGuAAAAGAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAAIODWg9L7e5NYe+OR
+    Tnd2yR1iFBEQYCCB91Mnj0SNeDKgAAAAkA8WOCSuMcff2sis5T6Png55wOWmRORKgPy2VT
+    qT2bov2Co/I6s3yZHgaAtn7N1EbUFVZQfbnDoRp/OWXerfhZYoIQhfUpSBz3rSSM9sD/3F
+    I6lSv/ZVwAhsaL1guNNBkcMTCVS7ta68sVYLt4Q8C2pPQ7j59LeqS613Pa1qXbk59zS4fN
+    KJG+5qhAGobc9DKA==
+    -----END OPENSSH PRIVATE KEY-----
+    """
+
+    /// Passphrase-protected OpenSSH ECDSA P-256 key (aes256-ctr + bcrypt). Passphrase: "hunter2".
+    let encryptedECDSAOpenSSH = """
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABCDQFFoay
+    rJoOkz9wQU7ZosAAAAGAAAAAEAAABoAAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlz
+    dHAyNTYAAABBBIZqR2mWsSsdgFfgVL60Yv1FGSlZtcIWz/qwsQId2/VgE0eId3z8WQP8Ex
+    JB0VPPvQr3D45tVYVBBSe4tW+FNq0AAACglBD0VNzXp23K/gKDqkjOGf0oSIY/cvj1C9ui
+    3rA+walb4SMDk3tEGTc7UjKsLZmPizbMx5e5oItBuFKybIy9go81q/UFLi7zSzOd8Jf8RF
+    Vtv4Idu0SlN7K245nVpAY8aUdA3F7OnEvkgnKhgxGSWBfOd+J48AhsY8+fc9/KOj8rdgs7
+    iaZNQjgiCd+p+BS7GhcuTtKdsQf6mZDvXknVRQ==
+    -----END OPENSSH PRIVATE KEY-----
+    """
+
+    @Test("Delegate decrypts a passphrase-protected OpenSSH Ed25519 key")
+    func testEncryptedEd25519OpenSSHKey() {
+        let delegate = FlexibleAuthDelegate(username: "test", password: nil,
+                                            privateKeyString: encryptedEd25519OpenSSH,
+                                            privateKeyPassphrase: "hunter2")
+        #expect(delegate.privateKey != nil)
+    }
+
+    @Test("Delegate decrypts a passphrase-protected OpenSSH ECDSA key")
+    func testEncryptedECDSAOpenSSHKey() {
+        let delegate = FlexibleAuthDelegate(username: "test", password: nil,
+                                            privateKeyString: encryptedECDSAOpenSSH,
+                                            privateKeyPassphrase: "hunter2")
+        #expect(delegate.privateKey != nil)
+    }
+
+    @Test("A wrong passphrase is rejected for an encrypted OpenSSH key")
+    func testEncryptedOpenSSHWrongPassphrase() {
+        let delegate = FlexibleAuthDelegate(username: "test", password: nil,
+                                            privateKeyString: encryptedEd25519OpenSSH,
+                                            privateKeyPassphrase: "not-the-passphrase")
+        #expect(delegate.privateKey == nil)
+        #expect(delegate.initializationError != nil)
+    }
+
+    @Test("An encrypted OpenSSH key with no passphrase is rejected")
+    func testEncryptedOpenSSHMissingPassphrase() {
+        let delegate = FlexibleAuthDelegate(username: "test", password: nil,
+                                            privateKeyString: encryptedEd25519OpenSSH,
+                                            privateKeyPassphrase: nil)
+        #expect(delegate.privateKey == nil)
+    }
+
+    @Test("bcrypt_pbkdf decrypts to the exact original Ed25519 key")
+    func testEncryptedOpenSSHRecoversOriginalKey() throws {
+        // The known public key of the same (unencrypted) key pair.
+        let knownPub = Data(base64Encoded: "AAAAC3NzaC1lZDI1NTE5AAAAIODWg9L7e5NYe+ORTnd2yR1iFBEQYCCB91Mnj0SNeDKg")!.suffix(32)
+
+        let data = try OpenSSHKeyParser.extractOpenSSHData(from: encryptedEd25519OpenSSH)
+        var buf = ByteBuffer(data: data)
+        _ = buf.readBytes(length: 15) // magic
+        let cipher = String(bytes: try OpenSSHKeyParser.readSSHBytes(from: &buf), encoding: .utf8)!
+        let kdf = String(bytes: try OpenSSHKeyParser.readSSHBytes(from: &buf), encoding: .utf8)!
+        let opts = try OpenSSHKeyParser.readSSHBytes(from: &buf)
+        _ = buf.readInteger(as: UInt32.self) // numKeys
+        _ = try OpenSSHKeyParser.readSSHBytes(from: &buf) // pubKey blob
+        let cipherText = try OpenSSHKeyParser.readSSHBytes(from: &buf)
+
+        let plain = try OpenSSHKeyDecryptor.decryptPrivateSection(
+            cipherName: cipher, kdfName: kdf, kdfOptions: opts,
+            ciphertext: cipherText, passphrase: "hunter2")
+
+        var pb = ByteBuffer(bytes: plain)
+        let check1 = pb.readInteger(as: UInt32.self)
+        let check2 = pb.readInteger(as: UInt32.self)
+        #expect(check1 == check2, "integrity check (proves correct passphrase/KDF)")
+        _ = try OpenSSHKeyParser.readSSHBytes(from: &pb) // key type
+        _ = try OpenSSHKeyParser.readSSHBytes(from: &pb) // public key
+        let privField = try OpenSSHKeyParser.readSSHBytes(from: &pb) // seed(32) || pub(32)
+        let seed = Data(privField.prefix(32))
+        let derivedPub = try Curve25519.Signing.PrivateKey(rawRepresentation: seed).publicKey.rawRepresentation
+        #expect(Data(derivedPub) == Data(knownPub))
     }
 
     @Test("Delegate offers public key first when both key and password are available")

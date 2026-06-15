@@ -56,7 +56,7 @@ enum KeyValidationIssue {
     case none
     /// Encrypted PKCS#8 key contains RSA — must generate a new key
     case encryptedPKCS8ContainsRSA
-    /// Encrypted OpenSSH key — can convert to supported format
+    /// Encrypted OpenSSH key using a cipher we don't support — can convert
     case encryptedOpenSSHKey
     /// Encrypted key provided without a passphrase
     case passphraseRequired
@@ -72,13 +72,19 @@ func validatePrivateKey(pemString: String, passphrase: String) -> KeyValidationI
 
     switch kind {
     case .openssh:
-        // Try to parse — encrypted OpenSSH keys throw .encryptedKeyNotSupported
+        // Encrypted OpenSSH keys are now decrypted in-app (bcrypt + AES-CTR/CBC).
+        // Surface the actionable cases; let anything else fall through to connect.
         do {
             let data = try OpenSSHKeyParser.extractOpenSSHData(from: trimmed)
-            _ = try OpenSSHKeyParser.parseOpenSSHPrivateKey(data)
+            _ = try OpenSSHKeyParser.parseOpenSSHPrivateKey(data, passphrase: passphrase.isEmpty ? nil : passphrase)
             return .none
-        } catch OpenSSHKeyParser.OpenSSHParsingError.encryptedKeyNotSupported {
-            return .encryptedOpenSSHKey
+        } catch let error as OpenSSHCipherError {
+            switch error {
+            case .encryptedKeyNeedsPassphrase: return .passphraseRequired
+            case .incorrectPassphrase: return .decryptionFailed
+            case .unsupportedCipher, .unsupportedKDF: return .encryptedOpenSSHKey
+            case .malformedKDFOptions, .cipherFailure: return .none
+            }
         } catch {
             return .none  // Other parse errors — let the connection flow handle them
         }
@@ -220,7 +226,7 @@ struct PEMKeyInfoView: View {
         HStack(spacing: 6) {
             Image(systemName: "info.circle")
                 .foregroundColor(.blue)
-            Text("OpenSSH Ed25519/ECDSA keys are supported. Note: Encrypted OpenSSH keys are not supported—use an unencrypted key or convert to PKCS#8.")
+            Text("OpenSSH Ed25519/ECDSA keys are supported, including passphrase-protected keys (aes-ctr/aes-cbc). Enter the passphrase below if the key is encrypted.")
                 .foregroundColor(.secondary)
                 .font(.footnote)
         }
@@ -311,7 +317,7 @@ struct KeyValidationAlertView: View {
             Text("Your encrypted key contains an RSA private key. RSA is not supported and cannot be converted to another algorithm. You need to generate a new Ed25519 or ECDSA key pair.")
                 .font(.body)
         case .encryptedOpenSSHKey:
-            Text("Your key is in encrypted OpenSSH format. The key type itself is supported, but the encryption format is not. You can convert it to an unencrypted key or to PKCS#8 format.")
+            Text("This OpenSSH key is encrypted with a cipher this app doesn't support (only aes128/192/256-ctr and -cbc). Re-encrypt it with a supported cipher, remove the passphrase, or convert it to PKCS#8.")
                 .font(.body)
         default:
             EmptyView()
@@ -816,9 +822,11 @@ struct ConnectButtonView: View {
 
                                 Text("Supported:")
                                     .font(.subheadline)
-                                Text("• Ed25519 (OpenSSH format, unencrypted)")
+                                Text("• Ed25519 (OpenSSH format)")
                                     .font(.footnote)
                                 Text("• ECDSA P-256/P-384/P-521 (OpenSSH, EC PRIVATE KEY, or PKCS#8)")
+                                    .font(.footnote)
+                                Text("• Encrypted OpenSSH keys (aes-ctr/aes-cbc, with passphrase)")
                                     .font(.footnote)
                                 Text("• PKCS#8 encrypted keys (with passphrase)")
                                     .font(.footnote)
@@ -826,8 +834,6 @@ struct ConnectButtonView: View {
                                 Text("Not supported:")
                                     .font(.subheadline)
                                 Text("• RSA, DSA keys")
-                                    .font(.footnote)
-                                Text("• Encrypted OpenSSH keys (use PKCS#8 encryption instead)")
                                     .font(.footnote)
 
                                 Divider()

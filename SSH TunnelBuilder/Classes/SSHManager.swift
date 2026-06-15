@@ -136,7 +136,6 @@ internal enum OpenSSHKeyParser {
         case insufficientData
         case invalidPEMFormat
         case invalidKeyFormat(reason: String)
-        case encryptedKeyNotSupported
         case unsupportedKeyType(String)
         case unsupportedCurve(String)
         case invalidStringData
@@ -149,8 +148,6 @@ internal enum OpenSSHKeyParser {
                 return "Invalid PEM format."
             case .invalidKeyFormat(let reason):
                 return "Invalid key format: \(reason)"
-            case .encryptedKeyNotSupported:
-                return "Encrypted OpenSSH keys are not supported. Please remove the passphrase or convert to PKCS#8."
             case .unsupportedKeyType(let type):
                 return "Unsupported key type: '\(type)'."
             case .unsupportedCurve(let curve):
@@ -162,7 +159,7 @@ internal enum OpenSSHKeyParser {
     }
 
     static func extractOpenSSHData(from pem: String) throws -> Data { return try FlexibleAuthDelegate.extractOpenSSHData(from: pem) }
-    static func parseOpenSSHPrivateKey(_ data: Data) throws -> NIOSSHPrivateKey { return try FlexibleAuthDelegate.parseOpenSSHPrivateKey(data) }
+    static func parseOpenSSHPrivateKey(_ data: Data, passphrase: String? = nil) throws -> NIOSSHPrivateKey { return try FlexibleAuthDelegate.parseOpenSSHPrivateKey(data, passphrase: passphrase) }
     static func readSSHBytes(from buffer: inout ByteBuffer) throws -> [UInt8] { return try FlexibleAuthDelegate.readSSHBytes(from: &buffer) }
 }
 
@@ -231,10 +228,10 @@ private extension FlexibleAuthDelegate {
         
         let kind = detectPEMKeyKind(trimmed)
         
-        // Handle OpenSSH keys (Ed25519, ECDSA)
+        // Handle OpenSSH keys (Ed25519, ECDSA), encrypted or not
         if kind == .openssh {
             let data = try extractOpenSSHData(from: trimmed)
-            return try parseOpenSSHPrivateKey(data)
+            return try parseOpenSSHPrivateKey(data, passphrase: passphrase)
         }
         
         guard kind == .pkcs8 || kind == .ec else {
@@ -310,46 +307,59 @@ private extension FlexibleAuthDelegate {
         return data
     }
 
-    static func parseOpenSSHPrivateKey(_ data: Data) throws -> NIOSSHPrivateKey {
+    static func parseOpenSSHPrivateKey(_ data: Data, passphrase: String? = nil) throws -> NIOSSHPrivateKey {
         var buffer = ByteBuffer(data: data)
-        
+
         // 1. Magic "openssh-key-v1\0" (15 bytes)
         guard let magic = buffer.readBytes(length: 15),
               String(bytes: magic, encoding: .utf8) == "openssh-key-v1\0" else {
             throw OpenSSHKeyParser.OpenSSHParsingError.invalidKeyFormat(reason: "Invalid OpenSSH magic header")
         }
-        
-        // 2. Cipher
+
+        // 2-4. Cipher, KDF name, KDF options
         let cipherName = try readSSHString(from: &buffer)
-        // 3. KDF
         let kdfName = try readSSHString(from: &buffer)
-        // 4. KDF Options (Binary data)
-        let _ = try readSSHBytes(from: &buffer) // kdfOptions
-        
-        if cipherName != "none" || kdfName != "none" {
-            throw OpenSSHKeyParser.OpenSSHParsingError.encryptedKeyNotSupported
-        }
-        
+        let kdfOptions = try readSSHBytes(from: &buffer)
+        let isEncrypted = !(cipherName == "none" && kdfName == "none")
+
         // 5. Num Keys
         guard let numKeys = buffer.readInteger(as: UInt32.self) else {
              throw OpenSSHKeyParser.OpenSSHParsingError.invalidKeyFormat(reason: "Could not read number of keys from private key blob")
         }
-        
+
         guard numKeys >= 1 else {
              throw OpenSSHKeyParser.OpenSSHParsingError.invalidKeyFormat(reason: "No keys found in private key data")
         }
-        
+
         // 6. Public Key Blob (Binary data)
         let _ = try readSSHBytes(from: &buffer) // pubKeyBlob
-        
-        // 7. Private Key Blob
-        let privateBlobBytes = try readSSHBytes(from: &buffer)
+
+        // 7. Private Key section — encrypted unless cipher/KDF are both "none".
+        // When encrypted, OpenSSH derives the cipher key+IV from the passphrase
+        // with bcrypt_pbkdf; decrypt back to the same plaintext layout.
+        let privateSection = try readSSHBytes(from: &buffer)
+        let privateBlobBytes: [UInt8]
+        if isEncrypted {
+            privateBlobBytes = try OpenSSHKeyDecryptor.decryptPrivateSection(
+                cipherName: cipherName,
+                kdfName: kdfName,
+                kdfOptions: kdfOptions,
+                ciphertext: privateSection,
+                passphrase: passphrase
+            )
+        } else {
+            privateBlobBytes = privateSection
+        }
         var privateBuffer = ByteBuffer(bytes: privateBlobBytes)
-        
-        // Check Ints
+
+        // Check Ints — for an encrypted key this is also the proof that the
+        // passphrase was correct (a wrong passphrase yields garbage plaintext).
         guard let check1 = privateBuffer.readInteger(as: UInt32.self),
               let check2 = privateBuffer.readInteger(as: UInt32.self),
               check1 == check2 else {
+            if isEncrypted {
+                throw OpenSSHCipherError.incorrectPassphrase
+            }
             throw OpenSSHKeyParser.OpenSSHParsingError.invalidKeyFormat(reason: "Private key blob integrity check failed")
         }
         

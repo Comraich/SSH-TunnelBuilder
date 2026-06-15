@@ -17,6 +17,29 @@
 - **KeychainService.swift**: Secure credential storage with protocol for testing
 - **SSHManager.swift**: NIO-based SSH client with tunneling
 - **PEMDecryptor.swift**: PKCS#8 key decryption with PBKDF2
+- **BcryptPBKDF.swift**: Blowfish + `bcrypt_pbkdf` (from scratch; not in CryptoKit), used to key OpenSSH key decryption
+- **OpenSSHKeyDecryptor.swift**: decrypts encrypted `openssh-key-v1` private sections (AES-CTR/CBC)
+
+## Private key support
+
+NIOSSH 0.13.0 can only use **Ed25519** and **ECDSA P-256/384/521** — its
+`NIOSSHPrivateKey` is a closed type with no public custom-key API, so the app can
+only ever feed it those algorithms. **RSA and DSA are impossible to add in-app**:
+they require new signature algorithms negotiated/signed/encoded *inside* NIOSSH
+(RSA would need an upstream contribution or a fork; DSA is obsolete — removed in
+OpenSSH 10.0 — and should not be added anywhere). Anything that is just *parsing*
+a supported algorithm into a CryptoKit key, however, belongs in the app.
+
+Supported private-key formats (all for Ed25519 / ECDSA only):
+
+| Format | Plain | Encrypted |
+|---|---|---|
+| OpenSSH (`openssh-key-v1`) | ✅ | ✅ bcrypt + aes128/192/256-ctr/cbc |
+| PKCS#8 (`BEGIN PRIVATE KEY`) | ✅ (EC only) | ✅ EC only, PBES2/PBKDF2-SHA256/AES-256-CBC |
+| SEC1 (`BEGIN EC PRIVATE KEY`) | ✅ | — |
+
+Known gaps (not yet implemented): Ed25519 in PKCS#8 (OID 1.3.101.112); encrypted
+OpenSSH AEAD ciphers (chacha20-poly1305, aes-gcm); broader PKCS#8 ciphers/KDFs.
 
 ---
 
