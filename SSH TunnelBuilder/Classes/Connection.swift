@@ -1,6 +1,6 @@
 import Foundation
 import CloudKit
-import Combine
+import Observation
 
 struct ConnectionInfo {
     var name: String
@@ -60,15 +60,16 @@ enum ConnectionState: Equatable {
 }
 
 @MainActor
-class Connection: Identifiable, Equatable, Hashable, ObservableObject {
+@Observable
+class Connection: Identifiable, Equatable, Hashable {
     let id: UUID
     let recordID: CKRecord.ID?
-    @Published var connectionInfo: ConnectionInfo
-    @Published var tunnelInfo: TunnelInfo
-    
-    @Published var bytesSent: Int64 = 0
-    @Published var bytesReceived: Int64 = 0
-    @Published var state: ConnectionState = .idle
+    var connectionInfo: ConnectionInfo
+    var tunnelInfo: TunnelInfo
+
+    var bytesSent: Int64 = 0
+    var bytesReceived: Int64 = 0
+    var state: ConnectionState = .idle
 
     /// Convenience: whether the connection is active (connected)
     var isActive: Bool { state.isActive }

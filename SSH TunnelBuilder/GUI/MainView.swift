@@ -139,7 +139,7 @@ struct EditableFieldView: View {
     let placeholder: String
     let isSecure: Bool
     
-    @EnvironmentObject private var connectionStore: ConnectionStore
+    @Environment(ConnectionStore.self) private var connectionStore
 
     init(value: Binding<String>, placeholder: String, isSecure: Bool = false) {
         self.value = value
@@ -368,7 +368,7 @@ struct KeyValidationAlertView: View {
 // MARK: - Main View
 
 struct MainView: View {
-    @EnvironmentObject var connectionStore: ConnectionStore
+    @Environment(ConnectionStore.self) var connectionStore
     
     @Binding var selectedConnection: Connection?
         
@@ -460,7 +460,7 @@ struct MainView: View {
                     HStack {
                         if connectionStore.mode == .view, let connection = selectedConnection {
                             ConnectButtonView(connection: connection)
-                                .environmentObject(connectionStore)
+                                .environment(connectionStore)
                                 .padding()
                         } else {
                             Button(action: {
@@ -518,7 +518,10 @@ struct MainView: View {
     ) -> Binding<String> {
         switch connectionStore.mode {
         case .create:
-            return $connectionStore[dynamicMember: createKeyPath]
+            return Binding(
+                get: { connectionStore[keyPath: createKeyPath] },
+                set: { connectionStore[keyPath: createKeyPath] = $0 }
+            )
         case .edit:
             return Binding(
                 get: {
@@ -703,7 +706,7 @@ struct MainView: View {
 }
 
 struct ConnectionIndicatorView: View {
-    @ObservedObject var connection: Connection
+    var connection: Connection
 
     private var statusColor: Color {
         switch connection.state {
@@ -745,8 +748,8 @@ struct ConnectionIndicatorView: View {
 }
 
 struct ConnectButtonView: View {
-    @ObservedObject var connection: Connection
-    @EnvironmentObject var connectionStore: ConnectionStore
+    var connection: Connection
+    @Environment(ConnectionStore.self) var connectionStore
     @State private var showCredentialsSheet: Bool = false
     @State private var tempPassword: String = ""
     @State private var tempPrivateKey: String = ""

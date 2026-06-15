@@ -1,5 +1,6 @@
 import Foundation
 import CloudKit
+import Observation
 
 private enum CloudKitKeys {
     static let recordType = "Connection"
@@ -39,7 +40,8 @@ struct HostKeyRequest: Identifiable {
 
 /// Main data store for SSH connections, managing CloudKit sync and local state
 @MainActor // Mark the store to run updates on the MainActor
-class ConnectionStore: ObservableObject {
+@Observable
+class ConnectionStore {
     
     // MARK: - Nested Types
     
@@ -50,27 +52,27 @@ class ConnectionStore: ObservableObject {
         case loading
     }
     
-    @Published var mode: Mode = .loading
-    @Published private(set) var connections: [Connection] = []
-    @Published private(set) var tempConnection: Connection?
-    
-    // Properties for the "Create" form
-    @Published var connectionName = ""
-    @Published var serverAddress = ""
-    @Published var portNumber = ""
-    @Published var username = ""
-    @Published var password = ""
-    @Published var privateKey = ""
-    @Published var localPort = ""
-    @Published var remoteServer = ""
-    @Published var remotePort = ""
-    
-    @Published var migrationNotice: String? = nil
-    @Published var cloudNotice: String? = nil
-    @Published var errorAlert: ErrorAlert? = nil
-    @Published var hostKeyRequest: HostKeyRequest? = nil
+    var mode: Mode = .loading
+    private(set) var connections: [Connection] = []
+    private(set) var tempConnection: Connection?
 
-    private var managers: [UUID: SSHManager] = [:]
+    // Properties for the "Create" form
+    var connectionName = ""
+    var serverAddress = ""
+    var portNumber = ""
+    var username = ""
+    var password = ""
+    var privateKey = ""
+    var localPort = ""
+    var remoteServer = ""
+    var remotePort = ""
+
+    var migrationNotice: String? = nil
+    var cloudNotice: String? = nil
+    var errorAlert: ErrorAlert? = nil
+    var hostKeyRequest: HostKeyRequest? = nil
+
+    @ObservationIgnored private var managers: [UUID: SSHManager] = [:]
 
     /// Credentials storage (Keychain in production, mock for tests)
     private let credentialsStore: CredentialsStore
@@ -84,7 +86,7 @@ class ConnectionStore: ObservableObject {
 
     private let container = CKContainer(identifier: ConnectionStore.containerIdentifier)
     private let database = CKContainer(identifier: ConnectionStore.containerIdentifier).privateCloudDatabase
-    private var customZone: CKRecordZone?
+    @ObservationIgnored private var customZone: CKRecordZone?
     private let customZoneName = "ConnectionZone"
 
     private let migrationNotifiedKey = "MigratedCredentialsNotified"
