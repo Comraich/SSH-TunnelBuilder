@@ -132,7 +132,6 @@ struct CommandHelpRow: View {
 }
 
 // MARK: - Editable Field View
-// MARK: - Editable Field View
 
 struct EditableFieldView: View {
     let value: Binding<String>

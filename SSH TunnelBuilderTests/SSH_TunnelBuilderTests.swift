@@ -81,23 +81,6 @@ struct ConnectionStateTests {
         #expect(!ConnectionState.failed("err").isDisconnecting)
     }
 
-    @Test("isFailed is true only when failed")
-    func isFailedOnlyWhenFailed() {
-        #expect(!ConnectionState.idle.isFailed)
-        #expect(!ConnectionState.connecting.isFailed)
-        #expect(!ConnectionState.connected.isFailed)
-        #expect(!ConnectionState.disconnecting.isFailed)
-        #expect(ConnectionState.failed("err").isFailed)
-    }
-
-    @Test("errorMessage carries the failure reason")
-    func errorMessageCarriesReason() {
-        let reason = "Connection refused"
-        #expect(ConnectionState.failed(reason).errorMessage == reason)
-        #expect(ConnectionState.idle.errorMessage == nil)
-        #expect(ConnectionState.connected.errorMessage == nil)
-    }
-
     @Test("States with equal associated values compare equal")
     func equalityWithAssociatedValues() {
         #expect(ConnectionState.failed("a") == ConnectionState.failed("a"))

@@ -96,8 +96,6 @@ struct ErrorSheetView: View {
     }
 }
 
-// Moved to ConnectionStore.swift as it's used there primarily
-
 #Preview("Empty State") {
     ContentView(connectionStore: ConnectionStore(mode: .view, connections: []))
 }
