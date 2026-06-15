@@ -75,14 +75,20 @@ private extension TaskGroup where ChildTaskResult == Void {
     }
 }
 
-private final class GenericRelayHandler<InboundType, OutboundType>: ChannelInboundHandler {
+// `@unchecked Sendable`: a `ChannelHandler` is confined to its channel's event
+// loop, and every stored property here is immutable. NIO's pipeline APIs require
+// `Sendable` handlers under Swift 6, so we vouch for the confinement explicitly.
+// `OutboundType: Sendable` lets the transformed value cross into the peer's
+// event-loop closure without warning (the concrete types are `ByteBuffer` and
+// `SSHChannelData`, both `Sendable`).
+private final class GenericRelayHandler<InboundType, OutboundType: Sendable>: ChannelInboundHandler, @unchecked Sendable {
     typealias InboundIn = InboundType
 
     private let peer: Channel
-    private let onBytes: (Int) -> Void
-    private let transform: (InboundType) -> (OutboundType?, Int)
+    private let onBytes: @Sendable (Int) -> Void
+    private let transform: @Sendable (InboundType) -> (OutboundType?, Int)
 
-    init(peer: Channel, onBytes: @escaping (Int) -> Void, transform: @escaping (InboundType) -> (OutboundType?, Int)) {
+    init(peer: Channel, onBytes: @escaping @Sendable (Int) -> Void, transform: @escaping @Sendable (InboundType) -> (OutboundType?, Int)) {
         self.peer = peer
         self.onBytes = onBytes
         self.transform = transform
@@ -94,10 +100,12 @@ private final class GenericRelayHandler<InboundType, OutboundType>: ChannelInbou
 
         if count > 0 {
             self.onBytes(count)
-            if let outboundData = outboundData {
+            if let outboundData {
                 // Ensure write happens on the peer's event loop for thread safety.
+                // Capture `peer` (Sendable) rather than `self`.
+                let peer = self.peer
                 peer.eventLoop.execute {
-                    self.peer.writeAndFlush(outboundData, promise: nil)
+                    peer.writeAndFlush(outboundData, promise: nil)
                 }
             }
         }
@@ -105,8 +113,9 @@ private final class GenericRelayHandler<InboundType, OutboundType>: ChannelInbou
 
     func channelInactive(context: ChannelHandlerContext) {
         // Ensure close happens on the peer's event loop for thread safety.
+        let peer = self.peer
         peer.eventLoop.execute {
-            self.peer.close(mode: .all, promise: nil)
+            peer.close(mode: .all, promise: nil)
         }
         context.fireChannelInactive()
     }
@@ -114,8 +123,9 @@ private final class GenericRelayHandler<InboundType, OutboundType>: ChannelInbou
     func errorCaught(context: ChannelHandlerContext, error: Error) {
         Logger.error("GenericRelayHandler error: \(error)", log: Logger.ssh)
         // Ensure close happens on the peer's event loop for thread safety.
+        let peer = self.peer
         peer.eventLoop.execute {
-            self.peer.close(mode: .all, promise: nil)
+            peer.close(mode: .all, promise: nil)
         }
         context.close(promise: nil)
     }
@@ -571,20 +581,24 @@ final class SSHManager: @unchecked Sendable {
         let bootstrap = ClientBootstrap(group: group)
             .channelOption(ChannelOptions.connectTimeout, value: .seconds(Self.connectionTimeoutSeconds))
             .channelInitializer { channel in
-                let clientConfig = SSHClientConfiguration(userAuthDelegate: authDelegate,
-                                                          serverAuthDelegate: serverDelegate)
-                let sshHandler = NIOSSHHandler(
-                    role: .client(clientConfig),
-                    allocator: channel.allocator,
-                    inboundChildChannelInitializer: nil
-                )
-                guard let sessionReadyPromise = self.sessionReadyPromise else {
-                    return channel.eventLoop.makeFailedFuture(SSHTunnelError.internalError("Missing sessionReadyPromise"))
-                }
-                let sessionReadyHandler = SSHSessionReadyHandler(sessionReadyPromise: sessionReadyPromise)
-                
-                return channel.pipeline.addHandler(sshHandler).flatMap {
-                    return channel.pipeline.addHandler(sessionReadyHandler)
+                // The initializer runs on the channel's event loop, so add the
+                // handlers synchronously. This keeps the (non-Sendable) NIO
+                // handlers out of an escaping @Sendable closure, which the
+                // previous `addHandler(...).flatMap { addHandler(...) }` chain
+                // required under Swift 6.
+                channel.eventLoop.makeCompletedFuture {
+                    let clientConfig = SSHClientConfiguration(userAuthDelegate: authDelegate,
+                                                              serverAuthDelegate: serverDelegate)
+                    let sshHandler = NIOSSHHandler(
+                        role: .client(clientConfig),
+                        allocator: channel.allocator,
+                        inboundChildChannelInitializer: nil
+                    )
+                    guard let sessionReadyPromise = self.sessionReadyPromise else {
+                        throw SSHTunnelError.internalError("Missing sessionReadyPromise")
+                    }
+                    let sessionReadyHandler = SSHSessionReadyHandler(sessionReadyPromise: sessionReadyPromise)
+                    try channel.pipeline.syncOperations.addHandlers([sshHandler, sessionReadyHandler])
                 }
             }
 
@@ -752,7 +766,7 @@ final class SSHManager: @unchecked Sendable {
     
     // New helper method extracted from the inner closure in startLocalListener()
     private func configureSSHChildPipeline(_ sshChildChannel: Channel, inbound: Channel, strongSelf: SSHManager) -> EventLoopFuture<Void> {
-        let received: (Int) -> Void = { [weak strongSelf] n in
+        let received: @Sendable (Int) -> Void = { [weak strongSelf] n in
             guard let manager = strongSelf else { return }
             Task { @MainActor in manager.handleBytesReceived(n) }
         }
@@ -764,7 +778,7 @@ final class SSHManager: @unchecked Sendable {
     }
 
     private func configureInboundTCPPipeline(_ inbound: Channel, sshChildChannel: Channel, strongSelf: SSHManager) -> EventLoopFuture<Void> {
-        let sent: (Int) -> Void = { [weak strongSelf] n in
+        let sent: @Sendable (Int) -> Void = { [weak strongSelf] n in
             guard let manager = strongSelf else { return }
             Task { @MainActor in manager.handleBytesSent(n) }
         }

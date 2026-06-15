@@ -207,8 +207,22 @@ strict concurrency surfaced almost nothing):**
 - `SSHManager.swift` — added `import NIOFoundationCompat`; member-import-visibility
   now requires the explicit import for `ByteBuffer(data:)`.
 
-Both targets build clean (regular + build-for-testing), zero warnings. The test
-suite was not re-run — still blocked by the Swift Testing runner crash below.
+**NIO handler concurrency warnings (10, all in `SSHManager`):** the language-mode
+bump surfaced strict-concurrency *warnings* (not errors) in the relay/handler code.
+Fixed so the app target is warning-free:
+- `GenericRelayHandler` — marked `@unchecked Sendable` (event-loop-confined,
+  immutable stored state), constrained `OutboundType: Sendable`, and the
+  `eventLoop.execute { }` closures now capture `peer`/`outboundData` instead of
+  `self`. `onBytes`/`transform` (and the `received`/`sent` call sites) are now
+  `@Sendable`.
+- `channelInitializer` — replaced the `addHandler(...).flatMap { addHandler(...) }`
+  chain (which captured non-`Sendable` handlers in an escaping `@Sendable` closure)
+  with `eventLoop.makeCompletedFuture { try pipeline.syncOperations.addHandlers([...]) }`.
+
+Both targets build clean (regular + build-for-testing) with **zero warnings**
+(verified via per-file diagnostics). The test suite was not re-run — still blocked
+by the Swift Testing runner crash below, so the SSH data-path changes are
+compile-validated but not behaviourally tested on this toolchain.
 
 ---
 
