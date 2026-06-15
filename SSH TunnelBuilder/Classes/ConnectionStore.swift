@@ -104,12 +104,6 @@ class ConnectionStore: ObservableObject {
         }
     }
     
-    private enum CloudKitOperationError: Error {
-        case fetchFailed(String)
-        case saveFailed(String)
-        case deleteFailed(String)
-    }
-
     /// Produces a detailed, log-friendly description of a CloudKit error.
     /// Crucially this surfaces the underlying `CKError.Code` and any
     /// per-item partial errors, which `localizedDescription` alone hides.
@@ -275,33 +269,10 @@ class ConnectionStore: ObservableObject {
         let newZone = CKRecordZone(zoneName: customZoneName)
         
         do {
-            let savedZone = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CKRecordZone, Error>) in
-                let createZoneOperation = CKModifyRecordZonesOperation(recordZonesToSave: [newZone], recordZoneIDsToDelete: nil)
-                
-                var finalSavedZone: CKRecordZone?
-                
-                createZoneOperation.perRecordZoneSaveBlock = { (_, result) in
-                    if case .success(let zone) = result {
-                        finalSavedZone = zone
-                    }
-                }
-
-                createZoneOperation.modifyRecordZonesResultBlock = { result in
-                    switch result {
-                    case .success:
-                        if let zone = finalSavedZone {
-                            continuation.resume(returning: zone)
-                        } else {
-                            // This might happen if the operation succeeds but perRecordZoneSaveBlock wasn't hit, 
-                            // though unlikely for creation. Assume success based on operation result.
-                            continuation.resume(returning: newZone) 
-                        }
-                    case .failure(let error):
-                        continuation.resume(throwing: error)
-                    }
-                }
-                self.database.add(createZoneOperation)
-            }
+            let result = try await database.modifyRecordZones(saving: [newZone], deleting: [])
+            // If the server didn't report a per-zone result (unlikely for a
+            // successful save), fall back to the zone we asked it to create.
+            let savedZone = try result.saveResults[newZone.zoneID]?.get() ?? newZone
             self.customZone = savedZone
             Logger.error("[TEMP] custom zone ready: \(savedZone.zoneID.zoneName) owner=\(savedZone.zoneID.ownerName)", log: Logger.cloudKit)
         } catch {
@@ -318,19 +289,15 @@ class ConnectionStore: ObservableObject {
             return
         }
 
-        // Fetch via CKFetchRecordZoneChangesOperation rather than CKQuery: listing
-        // a custom zone this way needs NO queryable indexes (CKQuery requires a
-        // Queryable index on `recordName`, which is easy to forget when deploying
-        // to Production). We start from a nil change token to fetch every record
-        // and intentionally do NOT persist the token across launches — the app
-        // keeps no local record cache, so a persisted token would return only
+        // Fetch via recordZoneChanges(inZoneWith:since:) rather than a CKQuery:
+        // listing a custom zone this way needs NO queryable indexes (CKQuery
+        // requires a Queryable index on `recordName`, which is easy to forget when
+        // deploying to Production). We start from a nil change token to fetch every
+        // record and intentionally do NOT persist the token across launches — the
+        // app keeps no local record cache, so a persisted token would return only
         // deltas and the list would appear empty on relaunch. (Persisting the
         // token + caching records for incremental/offline sync is a future step.)
         // The token is still used within this call to page through `moreComing`.
-        //
-        // Operation callbacks fire on a private background queue, NOT the
-        // MainActor, so they only collect raw records/errors; all mapping and
-        // @Published mutation happens afterwards, back on the MainActor.
         var fetchedRecords: [CKRecord] = []
         var recordErrors: [(name: String, error: Error)] = []
         var deletedRecordNames: [String] = []
@@ -338,50 +305,24 @@ class ConnectionStore: ObservableObject {
         var token: CKServerChangeToken?
 
         pageLoop: while true {
-            let configuration = CKFetchRecordZoneChangesOperation.ZoneConfiguration(
-                previousServerChangeToken: token
-            )
-            let operation = CKFetchRecordZoneChangesOperation(
-                recordZoneIDs: [customZoneID],
-                configurationsByRecordZoneID: [customZoneID: configuration]
-            )
-            operation.qualityOfService = .userInitiated
-
-            operation.recordWasChangedBlock = { recordID, result in
-                switch result {
-                case .success(let record):
-                    fetchedRecords.append(record)
-                case .failure(let error):
-                    recordErrors.append((recordID.recordName, error))
-                }
-            }
-            operation.recordWithIDWasDeletedBlock = { recordID, _ in
-                deletedRecordNames.append(recordID.recordName)
-            }
-
-            var moreComing = false
-            let operationResult: Result<Void, Error> = await withCheckedContinuation { continuation in
-                operation.recordZoneFetchResultBlock = { _, zoneResult in
-                    switch zoneResult {
-                    case .success(let (serverChangeToken, _, more)):
-                        token = serverChangeToken
-                        moreComing = more
+            do {
+                let changes = try await database.recordZoneChanges(inZoneWith: customZoneID, since: token)
+                for (recordID, modificationResult) in changes.modificationResultsByID {
+                    switch modificationResult {
+                    case .success(let modification):
+                        fetchedRecords.append(modification.record)
                     case .failure(let error):
-                        fetchError = error
+                        recordErrors.append((recordID.recordName, error))
                     }
                 }
-                operation.fetchRecordZoneChangesResultBlock = { result in
-                    continuation.resume(returning: result)
+                for deletion in changes.deletions {
+                    deletedRecordNames.append(deletion.recordID.recordName)
                 }
-                database.add(operation)
-            }
-
-            switch operationResult {
-            case .failure(let error):
+                token = changes.changeToken
+                if !changes.moreComing { break pageLoop }
+            } catch {
                 fetchError = error
                 break pageLoop
-            case .success:
-                if !moreComing { break pageLoop }
             }
         }
 
@@ -449,51 +390,6 @@ class ConnectionStore: ObservableObject {
         }
     }
     
-    // Helper to wrap CKDatabase.fetch(withRecordID:completionHandler:)
-    private func fetchRecord(with recordID: CKRecord.ID) async throws -> CKRecord {
-        return try await withCheckedThrowingContinuation { continuation in
-            database.fetch(withRecordID: recordID) { record, error in
-                if let record = record {
-                    continuation.resume(returning: record)
-                } else if let error = error {
-                    continuation.resume(throwing: error)
-                } else {
-                    continuation.resume(throwing: CloudKitOperationError.fetchFailed("Unknown error"))
-                }
-            }
-        }
-    }
-
-    // Helper to wrap CKDatabase.save(_:completionHandler:)
-    private func saveRecord(_ record: CKRecord) async throws -> CKRecord {
-        return try await withCheckedThrowingContinuation { continuation in
-            database.save(record) { savedRecord, error in
-                if let savedRecord = savedRecord {
-                    continuation.resume(returning: savedRecord)
-                } else if let error = error {
-                    continuation.resume(throwing: error)
-                } else {
-                    continuation.resume(throwing: CloudKitOperationError.saveFailed("Unknown error"))
-                }
-            }
-        }
-    }
-
-    // Helper to wrap CKDatabase.delete(withRecordID:completionHandler:)
-    private func deleteRecord(with recordID: CKRecord.ID) async throws -> CKRecord.ID {
-        return try await withCheckedThrowingContinuation { continuation in
-            database.delete(withRecordID: recordID) { deletedRecordID, error in
-                if let deletedRecordID = deletedRecordID {
-                    continuation.resume(returning: deletedRecordID)
-                } else if let error = error {
-                    continuation.resume(throwing: error)
-                } else {
-                    continuation.resume(throwing: CloudKitOperationError.deleteFailed("Unknown error"))
-                }
-            }
-        }
-    }
-
     /// Inserts the connection, or replaces the existing entry with the same id.
     /// Keeps the in-memory list free of duplicates when re-fetching after a save.
     private func upsertConnection(_ connection: Connection) {
@@ -514,9 +410,9 @@ class ConnectionStore: ObservableObject {
         }
 
         do {
-            let fetchedRecord = try await fetchRecord(with: recordID)
+            let fetchedRecord = try await database.record(for: recordID)
             self.updateRecordFields(fetchedRecord, withConnection: connection)
-            let savedRecord = try await saveRecord(fetchedRecord)
+            let savedRecord = try await database.save(fetchedRecord)
 
             if let newConnect = self.recordToConnection(record: savedRecord) {
                 self.upsertConnection(newConnect)
@@ -541,7 +437,7 @@ class ConnectionStore: ObservableObject {
         record[CloudKitKeys.uuid] = connection.id.uuidString
 
         do {
-            let savedRecord = try await saveRecord(record)
+            let savedRecord = try await database.save(record)
             await self.fetchConnectionAsync(withId: savedRecord.recordID)
         } catch {
             Logger.error("Failed to save connection: \(self.cloudKitErrorDescription(error))", log: Logger.cloudKit)
@@ -551,7 +447,7 @@ class ConnectionStore: ObservableObject {
 
     private func fetchConnectionAsync(withId recordID: CKRecord.ID) async {
         do {
-            let fetchedRecord = try await fetchRecord(with: recordID)
+            let fetchedRecord = try await database.record(for: recordID)
             self.migrateSecretsIfNeeded(from: fetchedRecord)
             if let connection = self.recordToConnection(record: fetchedRecord) {
                 self.upsertConnection(connection)
@@ -618,7 +514,7 @@ class ConnectionStore: ObservableObject {
         
         Task {
             do {
-                let deletedRecordID = try await deleteRecord(with: recordID)
+                let deletedRecordID = try await database.deleteRecord(withID: recordID)
                 self.connections.removeAll { $0.recordID == deletedRecordID }
             } catch {
                 self.errorAlert = ErrorAlert(message: "Failed to delete connection from iCloud: \(error.localizedDescription)")
@@ -647,7 +543,7 @@ class ConnectionStore: ObservableObject {
         if passwordMigrated || keyMigrated {
             Task {
                 do {
-                    _ = try await saveRecord(record)
+                    _ = try await database.save(record)
                     if !self.hasShownMigrationNotice(for: uuid) {
                         self.migrationNotice = "Credentials for '\(friendlyName)' were moved to Keychain and removed from iCloud."
                         self.markMigrationNoticeShown(for: uuid)
