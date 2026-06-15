@@ -8,5 +8,10 @@ struct SSH_TunnelBuilderApp: App {
         WindowGroup {
             ContentView(connectionStore: connectionStore)
         }
+
+        Settings {
+            SettingsView()
+                .environment(connectionStore)
+        }
     }
 }

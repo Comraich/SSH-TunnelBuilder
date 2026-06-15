@@ -400,6 +400,10 @@ class ConnectionStore {
         } else {
             self.connections.append(connection)
         }
+        // Keep Spotlight in sync (no-op unless the user has opted in). This is the
+        // single choke point for additions/updates, so it covers create, edit,
+        // and each record restored during a fetch.
+        SpotlightIndexer.index(connection)
     }
 
     private func updateConnectionAsync(_ connection: Connection, connectionToUpdate: Connection) async {
@@ -507,6 +511,9 @@ class ConnectionStore {
         self.disconnect(connection)
         self.managers[connection.id] = nil
         credentialsStore.deleteCredentials(for: connection.id)
+        // Remove from Spotlight regardless of opt-in state, so a deleted
+        // connection never lingers in the system index.
+        SpotlightIndexer.deindex(id: connection.id)
         
         guard let recordID = connection.recordID else {
             // Connection exists only locally (no CloudKit record yet)
