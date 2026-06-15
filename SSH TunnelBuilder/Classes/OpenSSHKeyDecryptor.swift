@@ -105,9 +105,19 @@ enum OpenSSHKeyDecryptor {
         let iv = Array(keyiv[spec.keyLength..<(spec.keyLength + spec.ivLength)])
 
         switch spec.mode {
-        case .ctr: return try aesCTR(key: key, iv: iv, input: ciphertext)
-        case .cbc: return try aesCBCNoPadding(key: key, iv: iv, input: ciphertext)
-        case .gcm: return try aesGCM(key: key, iv: iv, ciphertext: ciphertext, tag: authTag)
+        case .ctr:
+            // CTR is symmetric: decrypt == encrypt over the keystream.
+            return try aesStreamDecrypt(mode: CCMode(kCCModeCTR),
+                                        modeOptions: CCModeOptions(kCCModeOptionCTR_BE),
+                                        operation: CCOperation(kCCEncrypt),
+                                        key: key, iv: iv, input: ciphertext)
+        case .cbc:
+            return try aesStreamDecrypt(mode: CCMode(kCCModeCBC),
+                                        modeOptions: 0,
+                                        operation: CCOperation(kCCDecrypt),
+                                        key: key, iv: iv, input: ciphertext)
+        case .gcm:
+            return try aesGCM(key: key, iv: iv, ciphertext: ciphertext, tag: authTag)
         }
     }
 
@@ -132,21 +142,34 @@ enum OpenSSHKeyDecryptor {
 
     // MARK: - AES
 
-    /// AES-CTR. Counter mode is symmetric, so a decrypt is an encrypt over the
-    /// keystream; CommonCrypto exposes CTR only through the streaming API.
-    private static func aesCTR(key: [UInt8], iv: [UInt8], input: [UInt8]) throws -> [UInt8] {
+    /// Decrypts block-aligned input with an unpadded AES streaming cipher
+    /// (CTR or CBC) via CommonCrypto. Splitting key/IV setup from the data pass
+    /// keeps each closure nesting shallow.
+    ///
+    /// CBC offers no built-in integrity, but that is inherent to the OpenSSH key
+    /// format for this cipher: the passphrase is verified afterwards via the
+    /// `check1 == check2` words, and the cipher is dictated by the *user-supplied*
+    /// key file, not chosen by this app. (Static analysers flag CBC generically.)
+    private static func aesStreamDecrypt(
+        mode: CCMode,
+        modeOptions: CCModeOptions,
+        operation: CCOperation,
+        key: [UInt8],
+        iv: [UInt8],
+        input: [UInt8]
+    ) throws -> [UInt8] {
         var cryptorRef: CCCryptorRef?
         let createStatus = key.withUnsafeBytes { keyPtr in
             iv.withUnsafeBytes { ivPtr in
                 CCCryptorCreateWithMode(
-                    CCOperation(kCCEncrypt),
-                    CCMode(kCCModeCTR),
+                    operation,
+                    mode,
                     CCAlgorithm(kCCAlgorithmAES),
                     CCPadding(ccNoPadding),
                     ivPtr.baseAddress,
                     keyPtr.baseAddress, key.count,
                     nil, 0, 0,
-                    CCModeOptions(kCCModeOptionCTR_BE),
+                    modeOptions,
                     &cryptorRef
                 )
             }
@@ -167,39 +190,6 @@ enum OpenSSHKeyDecryptor {
         guard updateStatus == kCCSuccess, moved == input.count else {
             throw OpenSSHCipherError.cipherFailure
         }
-        return output
-    }
-
-    /// AES-CBC with no padding — the OpenSSH private section is block-aligned by
-    /// construction (it is padded with `1,2,3,…` before encryption).
-    ///
-    /// CBC offers no built-in integrity, but that is inherent to the OpenSSH key
-    /// format for this cipher: the passphrase is verified afterwards via the
-    /// `check1 == check2` words, and the cipher is dictated by the *user-supplied*
-    /// key file, not chosen by this app. (Static analysers flag CBC generically.)
-    private static func aesCBCNoPadding(key: [UInt8], iv: [UInt8], input: [UInt8]) throws -> [UInt8] {
-        var output = [UInt8](repeating: 0, count: input.count + kCCBlockSizeAES128)
-        var moved = 0
-        let status = key.withUnsafeBytes { keyPtr in
-            iv.withUnsafeBytes { ivPtr in
-                input.withUnsafeBytes { inPtr in
-                    output.withUnsafeMutableBytes { outPtr in
-                        CCCrypt(
-                            CCOperation(kCCDecrypt),
-                            CCAlgorithm(kCCAlgorithmAES),
-                            CCOptions(0), // no padding
-                            keyPtr.baseAddress, key.count,
-                            ivPtr.baseAddress,
-                            inPtr.baseAddress, input.count,
-                            outPtr.baseAddress, outPtr.count,
-                            &moved
-                        )
-                    }
-                }
-            }
-        }
-        guard status == kCCSuccess else { throw OpenSSHCipherError.cipherFailure }
-        output.removeSubrange(moved..<output.count)
         return output
     }
 
