@@ -508,7 +508,9 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
             throw SSHTunnelError.missingCredentials
         }
 
-        let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
+        // Use NIO's process-wide singleton event loop group. It is shared across
+        // all connections and must never be shut down (see shutdown()).
+        let group = MultiThreadedEventLoopGroup.singleton
         lock.withLock { self.eventLoopGroup = group }
 
         // 2. Offload auth delegate creation (heavy crypto) to detached task
@@ -801,14 +803,10 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
             self.internalBytesReceived = 0
         }
 
-        if let group = lock.withLock({ self.eventLoopGroup }) {
-            do {
-                try await group.shutdownGracefully()
-            } catch {
-                Logger.error("EventLoopGroup shutdown error: \(error)", log: Logger.ssh)
-            }
-            lock.withLock { self.eventLoopGroup = nil }
-        }
+        // The event loop group is NIO's process-wide singleton, which is perpetual
+        // and must not be shut down. Just drop our reference to it; the channels
+        // were already closed above.
+        lock.withLock { self.eventLoopGroup = nil }
 
         await MainActor.run {
             // Only transition to idle if we're disconnecting normally
