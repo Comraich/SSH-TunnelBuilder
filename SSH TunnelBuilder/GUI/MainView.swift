@@ -1001,13 +1001,6 @@ struct ConnectButtonView: View {
     }
 }
 
-struct ConnectionEnvironmentKey: EnvironmentKey {
-    static var defaultValue: Connection?
-}
-
 extension EnvironmentValues {
-    var connection: Connection? {
-        get { self[ConnectionEnvironmentKey.self] }
-        set { self[ConnectionEnvironmentKey.self] = newValue }
-    }
+    @Entry var connection: Connection?
 }
