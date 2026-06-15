@@ -15,6 +15,7 @@ enum Logger {
     static let keychain = Category(logger: os.Logger(subsystem: subsystem, category: "Keychain"))
     static let cloudKit = Category(logger: os.Logger(subsystem: subsystem, category: "CloudKit"))
     static let crypto = Category(logger: os.Logger(subsystem: subsystem, category: "Crypto"))
+    static let spotlight = Category(logger: os.Logger(subsystem: subsystem, category: "Spotlight"))
 
     // MARK: - Convenience Methods
 

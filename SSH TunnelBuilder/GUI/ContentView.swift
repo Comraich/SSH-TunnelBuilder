@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreSpotlight
 
 struct ContentView: View {
     @State private var connectionStore: ConnectionStore
@@ -23,6 +24,16 @@ struct ContentView: View {
             MainView(selectedConnection: $selectedConnection)
                 .environment(connectionStore)
                 .accessibilityIdentifier("MainView")
+        }
+        .onContinueUserActivity(CSSearchableItemActionType) { activity in
+            // The user tapped one of our connections in Spotlight: select it.
+            guard
+                let identifier = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
+                let uuid = UUID(uuidString: identifier),
+                let match = connectionStore.connections.first(where: { $0.id == uuid })
+            else { return }
+            connectionStore.mode = .view
+            selectedConnection = match
         }
         .onChange(of: connectionStore.errorAlert) { _, newValue in
             if let error = newValue {
