@@ -1,13 +1,13 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject var connectionStore: ConnectionStore
+    @State private var connectionStore: ConnectionStore
     @State private var selectedConnection: Connection?
     @State private var showingErrorSheet = false
     @State private var errorMessage = ""
 
     init(connectionStore: ConnectionStore) {
-        _connectionStore = StateObject(wrappedValue: connectionStore)
+        _connectionStore = State(initialValue: connectionStore)
     }
 
     var body: some View {
@@ -17,11 +17,11 @@ struct ContentView: View {
                 selectedConnection: $selectedConnection,
                 mode: $connectionStore.mode
             )
-            .environmentObject(connectionStore)
+            .environment(connectionStore)
             .accessibilityIdentifier("NavigationList")
         } detail: {
             MainView(selectedConnection: $selectedConnection)
-                .environmentObject(connectionStore)
+                .environment(connectionStore)
                 .accessibilityIdentifier("MainView")
         }
         .onChange(of: connectionStore.errorAlert) { _, newValue in

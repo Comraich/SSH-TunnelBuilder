@@ -2,7 +2,6 @@ import Foundation
 import NIO
 @preconcurrency import NIOSSH
 import CryptoKit
-import Combine
 
 // NOTE: PEMKeyKind, detectPEMKeyKind, isPEMEncrypted are assumed to be defined in MainView.swift or another file.
 // If they are not visible here, move them to a shared utility file.
@@ -450,7 +449,7 @@ private extension FlexibleAuthDelegate {
 
 // MARK: - SSHManager
 
-final class SSHManager: ObservableObject, @unchecked Sendable {
+final class SSHManager: @unchecked Sendable {
     /// Connection timeout in seconds. Increase for high-latency networks.
     static var connectionTimeoutSeconds: Int64 = 10
 
@@ -466,7 +465,7 @@ final class SSHManager: ObservableObject, @unchecked Sendable {
     private var sessionReadyPromise: EventLoopPromise<Void>?
     private var sessionReadyCompleted = false
 
-    @Published var lastErrorMessage: String? = nil
+    var lastErrorMessage: String? = nil
     
     private var internalBytesSent: Int64 = 0
     private var internalBytesReceived: Int64 = 0

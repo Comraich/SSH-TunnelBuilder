@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct NavigationList: View {
-    @ObservedObject var connectionStore: ConnectionStore
+    var connectionStore: ConnectionStore
     @Binding var selectedConnection: Connection?
     @Binding var mode: ConnectionStore.Mode
     

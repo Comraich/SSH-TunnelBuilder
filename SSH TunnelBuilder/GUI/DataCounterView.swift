@@ -9,7 +9,7 @@ import Foundation
 import SwiftUI
 
 struct DataCounterView: View {
-    @ObservedObject var connection: Connection
+    var connection: Connection
 
     var body: some View {
         VStack {
