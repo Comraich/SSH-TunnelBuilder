@@ -255,8 +255,14 @@ private extension FlexibleAuthDelegate {
             throw PEMDecryptorError.invalidPEM
         }
         
-        let parsedKey = try PEMDecryptor.parsePKCS8PrivateKey(derData)
-        
+        // A `.ec` kind here is a top-level SEC1 `EC PRIVATE KEY` (unencrypted);
+        // its DER is a bare SEC1 ECPrivateKey, not a PKCS#8 PrivateKeyInfo, so
+        // it needs the SEC1 parser. Everything else (`BEGIN PRIVATE KEY` and any
+        // decrypted PKCS#8 blob) is PKCS#8.
+        let parsedKey = (kind == .ec)
+            ? try PEMDecryptor.parseSEC1ECPrivateKey(derData)
+            : try PEMDecryptor.parsePKCS8PrivateKey(derData)
+
         switch parsedKey {
         case .ec(_, let privateScalar):
             switch privateScalar.count {
