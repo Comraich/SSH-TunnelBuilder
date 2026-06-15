@@ -1,5 +1,6 @@
 import Foundation
 import NIO
+import NIOFoundationCompat
 @preconcurrency import NIOSSH
 import CryptoKit
 
@@ -451,7 +452,9 @@ private extension FlexibleAuthDelegate {
 
 final class SSHManager: @unchecked Sendable {
     /// Connection timeout in seconds. Increase for high-latency networks.
-    static var connectionTimeoutSeconds: Int64 = 10
+    /// `nonisolated(unsafe)` because this is a simple configuration knob set
+    /// at most once before connecting; it is not mutated concurrently.
+    nonisolated(unsafe) static var connectionTimeoutSeconds: Int64 = 10
 
     let connection: Connection
     private var eventLoopGroup: MultiThreadedEventLoopGroup?

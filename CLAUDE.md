@@ -186,6 +186,32 @@ All eight tasks are merged into `Development`:
 
 ---
 
+## Swift 6 Language Mode Migration (2026-06-15)
+
+Branch `refactor/swift6-language-mode`. The app target was still on the Swift 5
+language mode while the test target had already moved to Swift 6; this brings the
+app target to full Swift 6 compliance and aligns the two targets' concurrency
+settings.
+
+**Build settings (app target, Debug + Release):**
+- `SWIFT_VERSION` `5.0` → `6.0`
+- `SWIFT_APPROACHABLE_CONCURRENCY` → `YES`
+- `SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY` → `YES`
+
+**Source fixes (only three — the prior `@Observable`/`@MainActor` work meant
+strict concurrency surfaced almost nothing):**
+- `SSHManager.swift` — `connectionTimeoutSeconds` marked `nonisolated(unsafe) static var`
+  (config knob set at most once, never mutated concurrently).
+- `KeychainService.swift` — added `Sendable` conformance (only immutable `let`
+  state; Keychain APIs are thread-safe), fixing the `static let shared` error.
+- `SSHManager.swift` — added `import NIOFoundationCompat`; member-import-visibility
+  now requires the explicit import for `ByteBuffer(data:)`.
+
+Both targets build clean (regular + build-for-testing), zero warnings. The test
+suite was not re-run — still blocked by the Swift Testing runner crash below.
+
+---
+
 ## Known Issues
 
 ### Test suite cannot run reliably on the macOS 26/27 beta toolchain (2026-06-15)

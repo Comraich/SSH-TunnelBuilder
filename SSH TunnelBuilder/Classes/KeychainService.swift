@@ -13,7 +13,7 @@ protocol CredentialsStore {
 
 // MARK: - Keychain Implementation
 
-final class KeychainService: CredentialsStore {
+final class KeychainService: CredentialsStore, Sendable {
     static let shared = KeychainService()
     private init() {}
 
