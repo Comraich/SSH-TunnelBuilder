@@ -15,14 +15,19 @@ Deployment target is **macOS 15.6**, so all modern APIs below are available.
 
 | # | Task | Branch | Impact | Status |
 |---|------|--------|--------|--------|
-| 1 | Adopt Observation framework (`@Observable`) | `refactor/observable-macro` | High | Not started |
-| 2 | Native async CloudKit APIs | `refactor/cloudkit-async-apis` | High | Not started |
+| 1 | Adopt Observation framework (`@Observable`) | `refactor/observable-macro` | High | Merged (PR #43) |
+| 2 | Native async CloudKit APIs | `refactor/cloudkit-async-apis` | High | Merged (PR #42) |
 | 3 | `Task.sleep(for:)` with `Duration` | `refactor/task-sleep-duration` | Medium | Merged (PR #35) |
-| 4 | `@Entry` macro for environment key | `refactor/entry-macro-environment` | Medium | In review (PR #36) |
-| 5 | `ByteCountFormatStyle` (`.formatted`) | `refactor/bytecount-format-style` | Medium | Not started |
-| 6 | Replace `DispatchQueue.main.asyncAfter` | `refactor/async-error-clear` | Low | Not started |
-| 7 | NIO singleton event-loop group | `refactor/nio-singleton-eventloop` | Low | Not started |
-| 8 | Remove dead `connection` environment value | `refactor/remove-dead-connection-env` | Low | Not started |
+| 4 | `@Entry` macro for environment key | `refactor/entry-macro-environment` | Medium | Merged (PR #36) |
+| 5 | `ByteCountFormatStyle` (`.formatted`) | `refactor/bytecount-format-style` | Medium | Merged (PR #38) |
+| 6 | Replace `DispatchQueue.main.asyncAfter` | `refactor/async-error-clear` | Low | Merged (PR #39) |
+| 7 | NIO singleton event-loop group | `refactor/nio-singleton-eventloop` | Low | Merged (PR #41) |
+| 8 | Remove dead `connection` environment value | `refactor/remove-dead-connection-env` | Low | Merged (PR #40) |
+
+> **All tasks complete.** Note: task #2 was implemented with the async
+> `recordZoneChanges(inZoneWith:since:)` rather than `records(matching:)` — the
+> fetch path uses CloudKit zone changes specifically to avoid the queryable-index
+> requirement, so `records(matching:)` would have reintroduced that bug.
 
 ---
 
