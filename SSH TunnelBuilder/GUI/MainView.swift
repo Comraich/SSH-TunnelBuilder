@@ -822,7 +822,7 @@ struct ConnectButtonView: View {
 
                                 Text("Supported:")
                                     .font(.subheadline)
-                                Text("• Ed25519 (OpenSSH format)")
+                                Text("• Ed25519 (OpenSSH or PKCS#8 format)")
                                     .font(.footnote)
                                 Text("• ECDSA P-256/P-384/P-521 (OpenSSH, EC PRIVATE KEY, or PKCS#8)")
                                     .font(.footnote)

@@ -275,6 +275,9 @@ private extension FlexibleAuthDelegate {
             default:
                 throw SSHTunnelError.unsupportedCurveLength
             }
+        case .ed25519(let seed):
+            let key = try Curve25519.Signing.PrivateKey(rawRepresentation: seed)
+            return NIOSSHPrivateKey(ed25519Key: key)
         case .rsa:
             throw SSHTunnelError.rsaNotSupported
         }

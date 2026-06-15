@@ -35,12 +35,12 @@ Supported private-key formats (all for Ed25519 / ECDSA only):
 | Format | Plain | Encrypted |
 |---|---|---|
 | OpenSSH (`openssh-key-v1`) | ✅ | ✅ bcrypt + aes128/192/256-ctr |
-| PKCS#8 (`BEGIN PRIVATE KEY`) | ✅ (EC only) | ✅ EC only, PBES2/PBKDF2-SHA256/AES-256-CBC |
+| PKCS#8 (`BEGIN PRIVATE KEY`) | ✅ (EC + Ed25519) | ✅ EC + Ed25519, PBES2/PBKDF2-SHA256/AES-256-CBC |
 | SEC1 (`BEGIN EC PRIVATE KEY`) | ✅ | — |
 
-Known gaps (not yet implemented): Ed25519 in PKCS#8 (OID 1.3.101.112); encrypted
-OpenSSH AES-CBC and AEAD ciphers (chacha20-poly1305, aes-gcm) — only AES-CTR is
-handled; broader PKCS#8 ciphers/KDFs.
+Known gaps (not yet implemented): encrypted OpenSSH AES-CBC and AEAD ciphers
+(chacha20-poly1305, aes-gcm) — only AES-CTR is handled; broader PKCS#8
+ciphers/KDFs.
 
 ---
 

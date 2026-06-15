@@ -335,6 +335,51 @@ struct AuthDelegateTests {
         #expect(delegate.privateKey != nil)
     }
 
+    /// Ed25519 in unencrypted PKCS#8 (`openssl genpkey -algorithm ed25519`).
+    let ed25519PKCS8 = """
+    -----BEGIN PRIVATE KEY-----
+    MC4CAQAwBQYDK2VwBCIEIDmuqa3zNPAT5I/FSnGkNz1s/wt3l9o4S9TBBhOu8i8+
+    -----END PRIVATE KEY-----
+    """
+
+    /// The same Ed25519 key in encrypted PKCS#8 (AES-256-CBC + PBKDF2-SHA256). Passphrase: "hunter2".
+    let ed25519PKCS8Encrypted = """
+    -----BEGIN ENCRYPTED PRIVATE KEY-----
+    MIGjMF8GCSqGSIb3DQEFDTBSMDEGCSqGSIb3DQEFDDAkBBD9rdog5l0MTvoeuws0
+    PF9oAgIIADAMBggqhkiG9w0CCQUAMB0GCWCGSAFlAwQBKgQQIlViEFefceB0/UR7
+    P60BqARAV81TF7jGD3f2x0B6uxoyX0/PmZdSEEV02RbOjrOgKW+J8imN5qycvcks
+    pZ4oKLZTaxou5tErgSM6rJcxO2H15Q==
+    -----END ENCRYPTED PRIVATE KEY-----
+    """
+
+    @Test("Delegate initializes with an unencrypted Ed25519 PKCS#8 key")
+    func testEd25519PKCS8Initialization() {
+        let delegate = FlexibleAuthDelegate(username: "test", password: nil,
+                                            privateKeyString: ed25519PKCS8,
+                                            privateKeyPassphrase: nil)
+        #expect(delegate.privateKey != nil)
+    }
+
+    @Test("Delegate decrypts an encrypted Ed25519 PKCS#8 key")
+    func testEd25519PKCS8EncryptedInitialization() {
+        let delegate = FlexibleAuthDelegate(username: "test", password: nil,
+                                            privateKeyString: ed25519PKCS8Encrypted,
+                                            privateKeyPassphrase: fixtureUnlock)
+        #expect(delegate.privateKey != nil)
+    }
+
+    @Test("Encrypted Ed25519 PKCS#8 decrypts to the exact original key")
+    func testEd25519PKCS8RecoversOriginalKey() throws {
+        let knownPub = Data(base64Encoded: "5TeA8DPnYQ97FJWdT+sUK+gnoTIJpocwlAUJzks7/Yc=")!
+        let der = try PEMDecryptor.decryptEncryptedPKCS8PEM(ed25519PKCS8Encrypted, passphrase: fixtureUnlock)
+        guard case .ed25519(let seed) = try PEMDecryptor.parsePKCS8PrivateKey(der) else {
+            Issue.record("Expected an Ed25519 key")
+            return
+        }
+        let pub = try Curve25519.Signing.PrivateKey(rawRepresentation: seed).publicKey.rawRepresentation
+        #expect(Data(pub) == knownPub)
+    }
+
     @Test("Delegate rejects an RSA key and records an initialization error")
     func testRSAKeyRejected() {
         let rsaKey = """
