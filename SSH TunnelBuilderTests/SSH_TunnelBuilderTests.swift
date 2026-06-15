@@ -289,10 +289,47 @@ struct AuthDelegateTests {
     -----END EC PRIVATE KEY-----
     """
 
-    @Test("Delegate initializes with a valid unencrypted ECDSA P-256 key")
+    /// SEC1 `EC PRIVATE KEY` (RFC 5915) for the P-384 curve.
+    let p384TestKey = """
+    -----BEGIN EC PRIVATE KEY-----
+    MIGkAgEBBDDgU65GwW8KYZzGCFK0/QlqCskB8AXooHh/aSy9WfxKVkfXh3Tx/S+K
+    1S4mexrXOMqgBwYFK4EEACKhZANiAATml2B9CXVZ1cd9qBqVoNDXTuQ9+CzXnhZF
+    SkpLY034jzg2u7wKq5kAcHg0sxo3AWdpf9qjHaGsihqB7KLxpHhiKhdIR3o0eW/b
+    PsePEY/O7/KpGBRLC69Msyl/eTfTIDg=
+    -----END EC PRIVATE KEY-----
+    """
+
+    /// SEC1 `EC PRIVATE KEY` (RFC 5915) for the P-521 curve.
+    let p521TestKey = """
+    -----BEGIN EC PRIVATE KEY-----
+    MIHcAgEBBEIAkvmBqlPwmCaehCIZrBRmpHa8PDBH/q2hRi3e8l80H8RU3jRHJQk5
+    m5wczKcnwNUAHObbqzJyLZ7oBgw12iWKPiSgBwYFK4EEACOhgYkDgYYABADDq70e
+    k/nw6fP36G/ONCk/KKyG3W2ie674awBwDANSocngQbpa5uuAt6CzNJ64zrRHVqsO
+    8UHJa1ZhZAfuQdbZ3wEudsiLfOcogcONYsKOs2gi+L4BTPnExN2TUlrbomDXizUT
+    vyGPHesrZpoxhNoSMFqFlt9NnfIDblMNEU7JkRC63A==
+    -----END EC PRIVATE KEY-----
+    """
+
+    @Test("Delegate initializes with a valid unencrypted ECDSA P-256 SEC1 key")
     func testValidUnencryptedECKeyInitialization() {
         let delegate = FlexibleAuthDelegate(username: "test", password: nil,
                                             privateKeyString: p256TestKey,
+                                            privateKeyPassphrase: nil)
+        #expect(delegate.privateKey != nil)
+    }
+
+    @Test("Delegate initializes with a valid unencrypted ECDSA P-384 SEC1 key")
+    func testValidUnencryptedP384KeyInitialization() {
+        let delegate = FlexibleAuthDelegate(username: "test", password: nil,
+                                            privateKeyString: p384TestKey,
+                                            privateKeyPassphrase: nil)
+        #expect(delegate.privateKey != nil)
+    }
+
+    @Test("Delegate initializes with a valid unencrypted ECDSA P-521 SEC1 key")
+    func testValidUnencryptedP521KeyInitialization() {
+        let delegate = FlexibleAuthDelegate(username: "test", password: nil,
+                                            privateKeyString: p521TestKey,
                                             privateKeyPassphrase: nil)
         #expect(delegate.privateKey != nil)
     }

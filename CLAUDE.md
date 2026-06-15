@@ -247,13 +247,17 @@ target configuration:
 **Attempted workarounds (not adopted):** Serializing every suite (`.serialized`
 roots) plus disabling `SWIFT_APPROACHABLE_CONCURRENCY` on the test target raised
 the pass count from 0 to ~20–28/30, but runs still aborted non-deterministically
-partway through. We chose **not** to ship a flaky partial workaround. A couple of
-P256 EC-key-parsing `AuthDelegate` tests also appear to crash in isolation —
-possibly a genuine parser bug, but it's entangled with the runtime instability
-and can't be cleanly isolated while the runner itself is unstable.
+partway through. We chose **not** to ship a flaky partial workaround.
 
 **Action:** Revisit when the Xcode/macOS toolchain updates (re-run the full
-suite; if it's green by default, this entry can be removed). If the EC-parsing
-tests still crash once the runner is stable, investigate
-`FlexibleAuthDelegate.parsePrivateKey` / `PEMDecryptor` for the `EC PRIVATE KEY`
-(SEC1) path as a separate bug.
+suite; if it's green by default, this entry can be removed).
+
+> **EC-key-parsing crash — root-caused and fixed (2026-06-15).** The `AuthDelegate`
+> EC crashes were a genuine parser bug, *not* the runner instability:
+> `ASN1Parser` indexed `data[offset]` from 0, but every sub-parser was built from
+> a Foundation `Data` **slice**, which keeps its parent's indices — so the first
+> read on any sub-parser indexed below `startIndex` and trapped. Fixed by rebasing
+> the input to a zero-based copy in `ASN1Parser.init` (`Data(data)`). The same fix
+> enabled top-level SEC1 `EC PRIVATE KEY` parsing (see `parseSEC1ECPrivateKey`).
+> Verified via `RunCodeSnippet`: OpenSSH Ed25519/ECDSA, PKCS#8 EC (plain +
+> encrypted), and SEC1 P-256/384/521 all parse.

@@ -98,15 +98,6 @@ struct PEMDecryptor {
         _ = try seq.readInteger() // version
         var alg = try seq.readSequence()
         let algOID = try alg.readOID()
-        var curveOID: String? = nil
-        if !alg.isAtEnd {
-            // parameters could be NULL, OID (for EC), or a sequence
-            if let tag = try alg.peekTag(), tag == 0x06 {
-                curveOID = try alg.readOID()
-            } else {
-                _ = try? alg.readAny()
-            }
-        }
         let pkOctets = try seq.readOctetString()
         if !seq.isAtEnd { _ = try? seq.readAny() }
 
@@ -115,16 +106,28 @@ struct PEMDecryptor {
             // is never used, so we don't parse the RSAPrivateKey contents.
             return .rsa
         } else if algOID == "1.2.840.10045.2.1" { // id-ecPublicKey
-            // ECPrivateKey inside the OCTET STRING: SEQUENCE { version, privateKey OCTET STRING, [0] params OPTIONAL, [1] publicKey OPTIONAL }
-            var inner = try ASN1Parser(data: pkOctets)
-            var ecseq = try inner.readSequence()
-            _ = try ecseq.readInteger() // version
-            let priv = try ecseq.readOctetString()
-            // params may be present as [0] EXPLICIT OID, but we already captured curveOID from AlgorithmIdentifier
-            return .ec(curveOID: curveOID ?? "", privateScalar: priv)
+            // The privateKey OCTET STRING wraps a SEC1 ECPrivateKey structure.
+            return try parseSEC1ECPrivateKey(pkOctets)
         } else {
             throw PEMDecryptorError.unsupportedFormat
         }
+    }
+
+    /// Parses a SEC1 `ECPrivateKey` (RFC 5915) and returns its private scalar.
+    /// Used both for top-level `EC PRIVATE KEY` PEMs and for the inner key blob
+    /// of a PKCS#8 EC `PrivateKeyInfo` (which is itself a SEC1 ECPrivateKey).
+    ///
+    /// ECPrivateKey ::= SEQUENCE { version INTEGER, privateKey OCTET STRING,
+    ///                             [0] parameters OPTIONAL, [1] publicKey OPTIONAL }
+    ///
+    /// The curve is identified by the caller from the scalar length, so the
+    /// optional namedCurve parameters are not read here.
+    static func parseSEC1ECPrivateKey(_ der: Data) throws -> PEMKey {
+        var asn1 = try ASN1Parser(data: der)
+        var seq = try asn1.readSequence()
+        _ = try seq.readInteger() // version (1)
+        let scalar = try seq.readOctetString()
+        return .ec(curveOID: "", privateScalar: scalar)
     }
     
     private static func extractEncryptedPrivateKeyBase64(from pem: String) throws -> String {
@@ -249,7 +252,12 @@ private struct ASN1Parser {
     private var offset: Int = 0
 
     init(data: Data) throws {
-        self.data = data
+        // Foundation `Data` slices keep their parent's indices, but this parser
+        // indexes from 0 (e.g. `data[offset]`). Sub-parsers are always built
+        // from slices (`data[offset..<…]`), so rebase to a zero-based copy —
+        // otherwise the first read on a sub-parser indexes below `startIndex`
+        // and traps. This was the root cause of the EC-key parsing crashes.
+        self.data = Data(data)
     }
     
     var isAtEnd: Bool {
