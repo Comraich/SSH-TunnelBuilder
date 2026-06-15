@@ -1,5 +1,6 @@
 import Foundation
 import CommonCrypto
+import CryptoKit
 
 /// Errors raised while decrypting a passphrase-protected OpenSSH private key.
 enum OpenSSHCipherError: LocalizedError, Equatable {
@@ -30,36 +31,48 @@ enum OpenSSHCipherError: LocalizedError, Equatable {
 
 /// Decrypts the encrypted private section of an OpenSSH (`openssh-key-v1`)
 /// private key. OpenSSH derives the cipher key + IV from the passphrase with
-/// `bcrypt_pbkdf` (see ``BcryptPBKDF``) and encrypts with an AES-CTR cipher.
+/// `bcrypt_pbkdf` (see ``BcryptPBKDF``) and encrypts with one of the AES-CTR,
+/// AES-CBC, or AES-GCM ciphers.
 ///
-/// Only the AES-CTR ciphers are handled — those are what modern `ssh-keygen`
-/// produces. The legacy AES-CBC ciphers and the AEAD ciphers
-/// (chacha20-poly1305, aes-gcm) are reported as unsupported; convert such keys
-/// with `ssh-keygen -p -Z aes256-ctr` or to PKCS#8.
+/// The `chacha20-poly1305@openssh.com` AEAD (a non-standard ChaCha20/Poly1305
+/// construction) and the legacy `3des-cbc` cipher are reported as unsupported;
+/// convert such keys with `ssh-keygen -p -Z aes256-ctr` or to PKCS#8.
 enum OpenSSHKeyDecryptor {
     private struct CipherSpec {
+        enum Mode { case ctr, cbc, gcm }
         let keyLength: Int
         let ivLength: Int
         let blockSize: Int
+        let mode: Mode
+
+        /// Length of the trailing authentication tag (AEAD ciphers only).
+        var authLength: Int { mode == .gcm ? 16 : 0 }
     }
 
     private static func spec(for cipherName: String) -> CipherSpec? {
         switch cipherName {
-        case "aes256-ctr": return CipherSpec(keyLength: 32, ivLength: 16, blockSize: 16)
-        case "aes192-ctr": return CipherSpec(keyLength: 24, ivLength: 16, blockSize: 16)
-        case "aes128-ctr": return CipherSpec(keyLength: 16, ivLength: 16, blockSize: 16)
+        case "aes256-ctr": return CipherSpec(keyLength: 32, ivLength: 16, blockSize: 16, mode: .ctr)
+        case "aes192-ctr": return CipherSpec(keyLength: 24, ivLength: 16, blockSize: 16, mode: .ctr)
+        case "aes128-ctr": return CipherSpec(keyLength: 16, ivLength: 16, blockSize: 16, mode: .ctr)
+        case "aes256-cbc": return CipherSpec(keyLength: 32, ivLength: 16, blockSize: 16, mode: .cbc)
+        case "aes192-cbc": return CipherSpec(keyLength: 24, ivLength: 16, blockSize: 16, mode: .cbc)
+        case "aes128-cbc": return CipherSpec(keyLength: 16, ivLength: 16, blockSize: 16, mode: .cbc)
+        case "aes256-gcm@openssh.com": return CipherSpec(keyLength: 32, ivLength: 12, blockSize: 16, mode: .gcm)
+        case "aes128-gcm@openssh.com": return CipherSpec(keyLength: 16, ivLength: 12, blockSize: 16, mode: .gcm)
         default: return nil
         }
     }
 
     /// Decrypts `ciphertext` (the OpenSSH private section) into plaintext bytes.
-    /// The caller is responsible for the subsequent `check1 == check2` integrity
-    /// check, which is what actually proves the passphrase was correct.
+    /// `authTag` is the trailing authentication tag for AEAD ciphers and is empty
+    /// otherwise. For CTR/CBC the caller still verifies `check1 == check2`, which
+    /// is what proves the passphrase was correct; AEAD ciphers fail here directly.
     static func decryptPrivateSection(
         cipherName: String,
         kdfName: String,
         kdfOptions: [UInt8],
         ciphertext: [UInt8],
+        authTag: [UInt8] = [],
         passphrase: String?
     ) throws -> [UInt8] {
         guard let passphrase, !passphrase.isEmpty else {
@@ -72,6 +85,9 @@ enum OpenSSHKeyDecryptor {
             throw OpenSSHCipherError.unsupportedCipher(cipherName)
         }
         guard !ciphertext.isEmpty, ciphertext.count % spec.blockSize == 0 else {
+            throw OpenSSHCipherError.cipherFailure
+        }
+        guard authTag.count == spec.authLength else {
             throw OpenSSHCipherError.cipherFailure
         }
 
@@ -88,7 +104,11 @@ enum OpenSSHKeyDecryptor {
         let key = Array(keyiv[0..<spec.keyLength])
         let iv = Array(keyiv[spec.keyLength..<(spec.keyLength + spec.ivLength)])
 
-        return try aesCTR(key: key, iv: iv, input: ciphertext)
+        switch spec.mode {
+        case .ctr: return try aesCTR(key: key, iv: iv, input: ciphertext)
+        case .cbc: return try aesCBCNoPadding(key: key, iv: iv, input: ciphertext)
+        case .gcm: return try aesGCM(key: key, iv: iv, ciphertext: ciphertext, tag: authTag)
+        }
     }
 
     /// `bcrypt` kdfoptions are `string salt || uint32 rounds`.
@@ -110,7 +130,7 @@ enum OpenSSHKeyDecryptor {
             | (Int(bytes[offset + 2]) << 8) | Int(bytes[offset + 3])
     }
 
-    // MARK: - AES via CommonCrypto
+    // MARK: - AES
 
     /// AES-CTR. Counter mode is symmetric, so a decrypt is an encrypt over the
     /// keystream; CommonCrypto exposes CTR only through the streaming API.
@@ -148,5 +168,55 @@ enum OpenSSHKeyDecryptor {
             throw OpenSSHCipherError.cipherFailure
         }
         return output
+    }
+
+    /// AES-CBC with no padding — the OpenSSH private section is block-aligned by
+    /// construction (it is padded with `1,2,3,…` before encryption).
+    ///
+    /// CBC offers no built-in integrity, but that is inherent to the OpenSSH key
+    /// format for this cipher: the passphrase is verified afterwards via the
+    /// `check1 == check2` words, and the cipher is dictated by the *user-supplied*
+    /// key file, not chosen by this app. (Static analysers flag CBC generically.)
+    private static func aesCBCNoPadding(key: [UInt8], iv: [UInt8], input: [UInt8]) throws -> [UInt8] {
+        var output = [UInt8](repeating: 0, count: input.count + kCCBlockSizeAES128)
+        var moved = 0
+        let status = key.withUnsafeBytes { keyPtr in
+            iv.withUnsafeBytes { ivPtr in
+                input.withUnsafeBytes { inPtr in
+                    output.withUnsafeMutableBytes { outPtr in
+                        CCCrypt(
+                            CCOperation(kCCDecrypt),
+                            CCAlgorithm(kCCAlgorithmAES),
+                            CCOptions(0), // no padding
+                            keyPtr.baseAddress, key.count,
+                            ivPtr.baseAddress,
+                            inPtr.baseAddress, input.count,
+                            outPtr.baseAddress, outPtr.count,
+                            &moved
+                        )
+                    }
+                }
+            }
+        }
+        guard status == kCCSuccess else { throw OpenSSHCipherError.cipherFailure }
+        output.removeSubrange(moved..<output.count)
+        return output
+    }
+
+    /// AES-GCM (`aes{128,256}-gcm@openssh.com`). Standard GCM with a 12-byte IV
+    /// and a trailing 16-byte tag, decrypted via CryptoKit. A failed tag check is
+    /// reported as an incorrect passphrase (the most likely cause).
+    private static func aesGCM(key: [UInt8], iv: [UInt8], ciphertext: [UInt8], tag: [UInt8]) throws -> [UInt8] {
+        do {
+            let box = try AES.GCM.SealedBox(
+                nonce: try AES.GCM.Nonce(data: iv),
+                ciphertext: ciphertext,
+                tag: tag
+            )
+            let plaintext = try AES.GCM.open(box, using: SymmetricKey(data: key))
+            return [UInt8](plaintext)
+        } catch {
+            throw OpenSSHCipherError.incorrectPassphrase
+        }
     }
 }

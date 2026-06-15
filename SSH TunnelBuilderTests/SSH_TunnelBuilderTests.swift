@@ -405,6 +405,54 @@ struct AuthDelegateTests {
         #expect(delegate.privateKey != nil)
     }
 
+    /// OpenSSH Ed25519 key encrypted with aes256-cbc + bcrypt. Passphrase: "hunter2".
+    let encryptedOpenSSHCBC = """
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jYmMAAAAGYmNyeXB0AAAAGAAAABDYprhaRz
+    IUIy4lZFqyL0H8AAAAGAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAAILw1mdtY17H1qvw2
+    MDKFA70NvUh2tMbl4IRpLzwh1mLXAAAAkO1Q6S00/c0yu0P1g3aZNrm1qLFmHVIW4vh5m1
+    aDb71Y0j+S2PdrVKabieZoZSVeZqGWyAwJ46Iy5pP51sbsjKKQtsN1IoB9GZnavc7ed6d4
+    Y5CMGXs7hibFnvhpiemY1UwbmcFj5uhvXS4AZ6F4Xw2veP24YRHrm/N+WNSWI9wnJL8YLI
+    GHzjHfzf2neIQTow==
+    -----END OPENSSH PRIVATE KEY-----
+    """
+
+    /// OpenSSH Ed25519 key encrypted with aes256-gcm@openssh.com + bcrypt. Passphrase: "hunter2".
+    let encryptedOpenSSHGCM = """
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    b3BlbnNzaC1rZXktdjEAAAAAFmFlczI1Ni1nY21Ab3BlbnNzaC5jb20AAAAGYmNyeXB0AA
+    AAGAAAABBtBskpQbYNMTs4RE6OtQofAAAAGAAAAAEAAAAzAAAAC3NzaC1lZDI1NTE5AAAA
+    IAp5grddD/y/Vb7mPoMnUbBeEeeB4nW2HiiXyPpo7kMKAAAAkKtLfIdCZ6UWtoeGK2sRhV
+    fmITWdJcjWT8vhQKxLEaswgJzGrW8bMegy812X4B8tKT//F7gRO1O0imXERRFs8ZG+Da31
+    j5bG90puCvrY/8coCpmG/elnlH4JorH87leFRii5Gqdn0kVtfHcgNmQ1NfgEfwWRdmyqG9
+    5kI5TerXDOEi3UxOSQY9QGNHjZpDr8xIonRFzlHgaVkUl+JQCGkcI=
+    -----END OPENSSH PRIVATE KEY-----
+    """
+
+    @Test("Delegate decrypts an aes256-cbc encrypted OpenSSH key")
+    func testEncryptedOpenSSHCBC() {
+        let delegate = FlexibleAuthDelegate(username: "test", password: nil,
+                                            privateKeyString: encryptedOpenSSHCBC,
+                                            privateKeyPassphrase: fixtureUnlock)
+        #expect(delegate.privateKey != nil)
+    }
+
+    @Test("Delegate decrypts an aes256-gcm encrypted OpenSSH key")
+    func testEncryptedOpenSSHGCM() {
+        let delegate = FlexibleAuthDelegate(username: "test", password: nil,
+                                            privateKeyString: encryptedOpenSSHGCM,
+                                            privateKeyPassphrase: fixtureUnlock)
+        #expect(delegate.privateKey != nil)
+    }
+
+    @Test("A wrong passphrase fails the GCM tag check")
+    func testEncryptedOpenSSHGCMWrongPassphrase() {
+        let delegate = FlexibleAuthDelegate(username: "test", password: nil,
+                                            privateKeyString: encryptedOpenSSHGCM,
+                                            privateKeyPassphrase: fixtureUnlock + "-wrong")
+        #expect(delegate.privateKey == nil)
+    }
+
     @Test("A wrong passphrase is rejected for an encrypted OpenSSH key")
     func testEncryptedOpenSSHWrongPassphrase() {
         let delegate = FlexibleAuthDelegate(username: "test", password: nil,

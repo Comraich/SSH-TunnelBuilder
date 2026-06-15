@@ -336,8 +336,13 @@ private extension FlexibleAuthDelegate {
 
         // 7. Private Key section — encrypted unless cipher/KDF are both "none".
         // When encrypted, OpenSSH derives the cipher key+IV from the passphrase
-        // with bcrypt_pbkdf; decrypt back to the same plaintext layout.
+        // with bcrypt_pbkdf; decrypt back to the same plaintext layout. For AEAD
+        // ciphers the 16-byte authentication tag follows the encrypted section
+        // as trailing bytes, so capture whatever remains in the buffer.
         let privateSection = try readSSHBytes(from: &buffer)
+        let authTag = buffer.readableBytes > 0
+            ? (buffer.readBytes(length: buffer.readableBytes) ?? [])
+            : []
         let privateBlobBytes: [UInt8]
         if isEncrypted {
             privateBlobBytes = try OpenSSHKeyDecryptor.decryptPrivateSection(
@@ -345,6 +350,7 @@ private extension FlexibleAuthDelegate {
                 kdfName: kdfName,
                 kdfOptions: kdfOptions,
                 ciphertext: privateSection,
+                authTag: authTag,
                 passphrase: passphrase
             )
         } else {
