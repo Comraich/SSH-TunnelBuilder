@@ -5,6 +5,7 @@ import CommonCrypto
 enum PEMKey {
     case rsa
     case ec(curveOID: String, privateScalar: Data)
+    case ed25519(seed: Data)
 }
 
 enum PEMDecryptorError: Error {
@@ -108,6 +109,15 @@ struct PEMDecryptor {
         } else if algOID == "1.2.840.10045.2.1" { // id-ecPublicKey
             // The privateKey OCTET STRING wraps a SEC1 ECPrivateKey structure.
             return try parseSEC1ECPrivateKey(pkOctets)
+        } else if algOID == "1.3.101.112" { // id-Ed25519 (RFC 8410)
+            // The privateKey OCTET STRING wraps a CurvePrivateKey, which is
+            // itself an OCTET STRING holding the 32-byte seed (04 20 || seed).
+            var inner = try ASN1Parser(data: pkOctets)
+            let seed = try inner.readOctetString()
+            guard seed.count == 32 else {
+                throw PEMDecryptorError.asn1ParseError("Ed25519 seed must be 32 bytes, got \(seed.count)")
+            }
+            return .ed25519(seed: Data(seed))
         } else {
             throw PEMDecryptorError.unsupportedFormat
         }
