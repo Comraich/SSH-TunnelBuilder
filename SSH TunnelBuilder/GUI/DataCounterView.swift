@@ -15,8 +15,8 @@ struct DataCounterView: View {
         VStack {
             HStack {
                 VStack(alignment: .leading) {
-                    Text("Data Sent: \(byteCountFormatter.string(fromByteCount: connection.bytesSent))")
-                    Text("Data Received: \(byteCountFormatter.string(fromByteCount: connection.bytesReceived))")
+                    Text("Data Sent: \(connection.bytesSent.formatted(.byteCount(style: .file)))")
+                    Text("Data Received: \(connection.bytesReceived.formatted(.byteCount(style: .file)))")
                 }
                 Spacer()
                 VStack {
@@ -26,12 +26,6 @@ struct DataCounterView: View {
                 }
             }
         }
-    }
-
-    private var byteCountFormatter: ByteCountFormatter {
-        let formatter = ByteCountFormatter()
-        formatter.countStyle = .file
-        return formatter
     }
 }
 
