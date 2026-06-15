@@ -17,11 +17,12 @@ Deployment target is **macOS 15.6**, so all modern APIs below are available.
 |---|------|--------|--------|--------|
 | 1 | Adopt Observation framework (`@Observable`) | `refactor/observable-macro` | High | Not started |
 | 2 | Native async CloudKit APIs | `refactor/cloudkit-async-apis` | High | Not started |
-| 3 | `Task.sleep(for:)` with `Duration` | `refactor/task-sleep-duration` | Medium | Not started |
-| 4 | `@Entry` macro for environment key | `refactor/entry-macro-environment` | Medium | Not started |
+| 3 | `Task.sleep(for:)` with `Duration` | `refactor/task-sleep-duration` | Medium | Merged (PR #35) |
+| 4 | `@Entry` macro for environment key | `refactor/entry-macro-environment` | Medium | In review (PR #36) |
 | 5 | `ByteCountFormatStyle` (`.formatted`) | `refactor/bytecount-format-style` | Medium | Not started |
 | 6 | Replace `DispatchQueue.main.asyncAfter` | `refactor/async-error-clear` | Low | Not started |
 | 7 | NIO singleton event-loop group | `refactor/nio-singleton-eventloop` | Low | Not started |
+| 8 | Remove dead `connection` environment value | `refactor/remove-dead-connection-env` | Low | Not started |
 
 ---
 
@@ -128,3 +129,23 @@ list. Test against the real CloudKit container.
 
 **Risk:** Behavioral change — the shared singleton must **not** be shut down in
 `shutdown()` (`SSHManager.swift:804-811`). Review lifecycle carefully before adopting.
+
+---
+
+## 8. Remove dead `connection` environment value
+**Branch:** `refactor/remove-dead-connection-env` · **Impact:** Low (cleanup)
+
+The custom `connection` environment value in `MainView.swift` (the
+`EnvironmentValues.connection` declaration, now expressed via `@Entry` after #4)
+is never read or written anywhere in the app — it is dead API. Delete the
+`extension EnvironmentValues { @Entry var connection: Connection? }` entirely.
+
+While here, consider a quick sweep for other unused symbols (e.g.
+`isOpenSSHKeyEncrypted(_:)` in `MainView.swift`, the deprecated `errorAlert(_:)`
+`View` extension in `ContentView.swift`) and remove anything confirmed dead.
+
+> Discovered during #4 — the `@Entry` modernization only restyled code that has
+> no callers. Best done **after** #4 merges so the deletion is a clean, separate diff.
+
+**Risk:** Trivial. Confirm zero references before deleting (`XcodeGrep`/`Grep`),
+then build to verify.

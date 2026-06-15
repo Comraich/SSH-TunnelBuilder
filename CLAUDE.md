@@ -177,9 +177,9 @@ priority order (impact, high → low):
   - `Connection` + `ConnectionStore` → `@Observable`; drop `@Published`/Combine; migrate view property wrappers
 - [ ] **2. Native async CloudKit APIs** — `refactor/cloudkit-async-apis` — *High*
   - Replace `withCheckedContinuation` bridging with `record(for:)`, `save(_:)`, `deleteRecord(for:)`, `modifyRecordZones`, `records(matching:)`
-- [ ] **3. `Task.sleep(for:)` with `Duration`** — `refactor/task-sleep-duration` — *Medium*
+- [x] **3. `Task.sleep(for:)` with `Duration`** — `refactor/task-sleep-duration` — *Medium* — merged (PR #35)
   - `ConnectionStore.swift:154`
-- [ ] **4. `@Entry` macro for environment key** — `refactor/entry-macro-environment` — *Medium*
+- [x] **4. `@Entry` macro for environment key** — `refactor/entry-macro-environment` — *Medium* — in review (PR #36)
   - `MainView.swift:1004-1013`
 - [ ] **5. `ByteCountFormatStyle` (`.formatted`)** — `refactor/bytecount-format-style` — *Medium*
   - `DataCounterView.swift`
@@ -187,3 +187,5 @@ priority order (impact, high → low):
   - `ContentView.swift:46`
 - [ ] **7. NIO singleton event-loop group** — `refactor/nio-singleton-eventloop` — *Low (optional)*
   - `SSHManager.swift:511` (review lifecycle before adopting)
+- [ ] **8. Remove dead `connection` environment value** — `refactor/remove-dead-connection-env` — *Low (cleanup)*
+  - `MainView.swift` — `EnvironmentValues.connection` is never read/written; delete it (discovered during #4)
