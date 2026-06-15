@@ -3,7 +3,7 @@ import CryptoKit
 import CommonCrypto
 
 enum PEMKey {
-    case rsa(n: Data, e: Data, d: Data, p: Data, q: Data, dP: Data, dQ: Data, qInv: Data)
+    case rsa
     case ec(curveOID: String, privateScalar: Data)
 }
 
@@ -81,8 +81,7 @@ struct PEMDecryptor {
         let key = try pbkdf2(password: Data(passphrase.utf8),
                              salt: salt,
                              iterations: iterationCount,
-                             keyLength: keyLen,
-                             variant: .sha256)
+                             keyLength: keyLen)
         
         guard key.count == 32 else { throw PEMDecryptorError.decryptionFailed }
         guard iv.count == 16 else { throw PEMDecryptorError.decryptionFailed }
@@ -112,19 +111,9 @@ struct PEMDecryptor {
         if !seq.isAtEnd { _ = try? seq.readAny() }
 
         if algOID == "1.2.840.113549.1.1.1" { // rsaEncryption
-            // RSAPrivateKey (PKCS#1) inside the OCTET STRING
-            var inner = try ASN1Parser(data: pkOctets)
-            var rsaseq = try inner.readSequence()
-            _ = try rsaseq.readInteger() // version
-            let n = try rsaseq.readIntegerBytes()
-            let e = try rsaseq.readIntegerBytes()
-            let d = try rsaseq.readIntegerBytes()
-            let p = try rsaseq.readIntegerBytes()
-            let q = try rsaseq.readIntegerBytes()
-            let dP = try rsaseq.readIntegerBytes()
-            let dQ = try rsaseq.readIntegerBytes()
-            let qInv = try rsaseq.readIntegerBytes()
-            return .rsa(n: n, e: e, d: d, p: p, q: q, dP: dP, dQ: dQ, qInv: qInv)
+            // RSA is detected only so callers can reject it; the key material
+            // is never used, so we don't parse the RSAPrivateKey contents.
+            return .rsa
         } else if algOID == "1.2.840.10045.2.1" { // id-ecPublicKey
             // ECPrivateKey inside the OCTET STRING: SEQUENCE { version, privateKey OCTET STRING, [0] params OPTIONAL, [1] publicKey OPTIONAL }
             var inner = try ASN1Parser(data: pkOctets)
@@ -156,31 +145,18 @@ struct PEMDecryptor {
         return base64Content
     }
     
-    private enum HashVariant {
-        case sha1, sha256
-    }
-    
-    private static func pbkdf2(password: Data, salt: Data, iterations: Int, keyLength: Int, variant: HashVariant) throws -> Data {
+    /// PBKDF2-HMAC-SHA256. The encrypted-PKCS#8 path rejects any other PRF, so
+    /// only SHA-256 is supported here.
+    private static func pbkdf2(password: Data, salt: Data, iterations: Int, keyLength: Int) throws -> Data {
         guard iterations > 0 && keyLength > 0 else { throw PEMDecryptorError.kdfError }
-        
-        let hLen: Int
-        switch variant {
-        case .sha1: hLen = 20
-        case .sha256: hLen = 32
-        }
-        
+
+        let hLen = 32 // HMAC-SHA256 output size
+
         func hmac(_ key: Data, _ data: Data) -> Data {
-            let keySym = SymmetricKey(data: key)
-            switch variant {
-            case .sha1:
-                let mac = HMAC<Insecure.SHA1>.authenticationCode(for: data, using: keySym)
-                return Data(mac)
-            case .sha256:
-                let mac = HMAC<SHA256>.authenticationCode(for: data, using: keySym)
-                return Data(mac)
-            }
+            let mac = HMAC<SHA256>.authenticationCode(for: data, using: SymmetricKey(data: key))
+            return Data(mac)
         }
-        
+
         var derivedKey = Data()
         let blockCount = UInt32((keyLength + hLen - 1) / hLen)
         for i in 1...blockCount {
@@ -203,20 +179,6 @@ struct PEMDecryptor {
         return res
     }
     
-    private static func aes256cbcDecrypt(ciphertext: Data, key: Data, iv: Data) throws -> Data {
-        return try AESCBC.decrypt(ciphertext: ciphertext, key: key, iv: iv)
-    }
-    
-    private static func pkcs7Unpad(_ data: Data) throws -> Data {
-        guard let last = data.last else { throw PEMDecryptorError.decryptionFailed }
-        let paddingLen = Int(last)
-        guard paddingLen > 0 && paddingLen <= 16 else { throw PEMDecryptorError.decryptionFailed }
-        let paddingStart = data.count - paddingLen
-        guard paddingStart >= 0 else { throw PEMDecryptorError.decryptionFailed }
-        let padding = data[paddingStart..<data.count]
-        guard padding.allSatisfy({ $0 == last }) else { throw PEMDecryptorError.decryptionFailed }
-        return data.prefix(paddingStart)
-    }
 }
 
 // AES-256-CBC with PKCS#7 padding (no ECB, no raw/NoPadding).
@@ -301,13 +263,6 @@ private struct ASN1Parser {
         let b = data[offset]
         offset += 1
         return b
-    }
-    
-    mutating func peekByte() throws -> UInt8 {
-        guard offset < data.count else {
-            throw PEMDecryptorError.asn1ParseError("Unexpected end of data")
-        }
-        return data[offset]
     }
     
     mutating func peekTag() throws -> UInt8? {
@@ -397,20 +352,6 @@ private struct ASN1Parser {
         let anyData = data[(offset-2-length)..<(offset+length)]
         offset += length
         return try ASN1Parser(data: anyData)
-    }
-    
-    mutating func readIntegerBytes() throws -> Data {
-        let tag = try readByte()
-        guard tag == 0x02 else {
-            throw PEMDecryptorError.asn1ParseError("Expected INTEGER (tag 0x02), got \(String(format:"0x%02X",tag))")
-        }
-        let length = try readLength()
-        guard offset + length <= data.count else {
-            throw PEMDecryptorError.asn1ParseError("INTEGER length exceeds data")
-        }
-        let intData = data[offset..<offset+length]
-        offset += length
-        return intData
     }
     
     private func parseInteger(_ data: Data) throws -> Int {

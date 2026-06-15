@@ -45,18 +45,6 @@ enum ConnectionState: Equatable {
         if case .disconnecting = self { return true }
         return false
     }
-
-    /// Whether the connection is in a failed state
-    var isFailed: Bool {
-        if case .failed = self { return true }
-        return false
-    }
-
-    /// Error message if in failed state, nil otherwise
-    var errorMessage: String? {
-        if case .failed(let message) = self { return message }
-        return nil
-    }
 }
 
 @MainActor

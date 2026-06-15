@@ -132,7 +132,6 @@ struct CommandHelpRow: View {
 }
 
 // MARK: - Editable Field View
-// MARK: - Editable Field View
 
 struct EditableFieldView: View {
     let value: Binding<String>
@@ -652,10 +651,6 @@ struct MainView: View {
         }
     }
 
-    func changeMode(to newMode: ConnectionStore.Mode) {
-        connectionStore.mode = newMode
-    }
-    
     // MARK: - Helper Views
     
     private var loadingView: some View {
