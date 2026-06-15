@@ -43,7 +43,8 @@ struct ContentView: View {
                 errorMessage = error.message
                 showingErrorSheet = true
                 // Clear the error after capturing it
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(100))
                     connectionStore.errorAlert = nil
                 }
             }
