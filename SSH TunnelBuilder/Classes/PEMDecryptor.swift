@@ -203,20 +203,6 @@ struct PEMDecryptor {
         return res
     }
     
-    private static func aes256cbcDecrypt(ciphertext: Data, key: Data, iv: Data) throws -> Data {
-        return try AESCBC.decrypt(ciphertext: ciphertext, key: key, iv: iv)
-    }
-    
-    private static func pkcs7Unpad(_ data: Data) throws -> Data {
-        guard let last = data.last else { throw PEMDecryptorError.decryptionFailed }
-        let paddingLen = Int(last)
-        guard paddingLen > 0 && paddingLen <= 16 else { throw PEMDecryptorError.decryptionFailed }
-        let paddingStart = data.count - paddingLen
-        guard paddingStart >= 0 else { throw PEMDecryptorError.decryptionFailed }
-        let padding = data[paddingStart..<data.count]
-        guard padding.allSatisfy({ $0 == last }) else { throw PEMDecryptorError.decryptionFailed }
-        return data.prefix(paddingStart)
-    }
 }
 
 // AES-256-CBC with PKCS#7 padding (no ECB, no raw/NoPadding).
@@ -301,13 +287,6 @@ private struct ASN1Parser {
         let b = data[offset]
         offset += 1
         return b
-    }
-    
-    mutating func peekByte() throws -> UInt8 {
-        guard offset < data.count else {
-            throw PEMDecryptorError.asn1ParseError("Unexpected end of data")
-        }
-        return data[offset]
     }
     
     mutating func peekTag() throws -> UInt8? {

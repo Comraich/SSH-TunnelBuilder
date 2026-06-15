@@ -58,8 +58,4 @@ struct NavigationList: View {
             }
         }
     }
-    
-    func deleteConnection(_ connection: Connection) {
-        connectionStore.deleteConnection(connection)
-    }
 }

@@ -652,10 +652,6 @@ struct MainView: View {
         }
     }
 
-    func changeMode(to newMode: ConnectionStore.Mode) {
-        connectionStore.mode = newMode
-    }
-    
     // MARK: - Helper Views
     
     private var loadingView: some View {

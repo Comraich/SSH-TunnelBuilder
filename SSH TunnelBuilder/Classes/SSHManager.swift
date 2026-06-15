@@ -163,8 +163,6 @@ internal enum OpenSSHKeyParser {
 
     static func extractOpenSSHData(from pem: String) throws -> Data { return try FlexibleAuthDelegate.extractOpenSSHData(from: pem) }
     static func parseOpenSSHPrivateKey(_ data: Data) throws -> NIOSSHPrivateKey { return try FlexibleAuthDelegate.parseOpenSSHPrivateKey(data) }
-    static func normalizeScalar(_ bytes: [UInt8], targetSize: Int) throws -> Data { return try FlexibleAuthDelegate.normalizeScalar(bytes, targetSize: targetSize) }
-    static func readSSHString(from buffer: inout ByteBuffer) throws -> String { return try FlexibleAuthDelegate.readSSHString(from: &buffer) }
     static func readSSHBytes(from buffer: inout ByteBuffer) throws -> [UInt8] { return try FlexibleAuthDelegate.readSSHBytes(from: &buffer) }
 }
 
@@ -478,11 +476,6 @@ final class SSHManager: @unchecked Sendable {
     private var sessionReadyPromise: EventLoopPromise<Void>?
     private var sessionReadyCompleted = false
 
-    var lastErrorMessage: String? = nil
-    
-    private var internalBytesSent: Int64 = 0
-    private var internalBytesReceived: Int64 = 0
-    
     // Callback: (hostname, fingerprint, keyType, keyData, completion)
     var hostKeyValidationCallback: (@Sendable (String, String, String, Data, @escaping @Sendable (Bool) -> Void) -> Void)?
 
@@ -546,7 +539,6 @@ final class SSHManager: @unchecked Sendable {
         if let initError = authDelegate.initializationError {
             let errorMsg = "Failed to parse private key: \(initError)"
             await MainActor.run {
-                self.lastErrorMessage = errorMsg
                 connection.state = .failed(errorMsg)
                 self.errorCallback?(errorMsg)
             }
@@ -559,7 +551,6 @@ final class SSHManager: @unchecked Sendable {
             let errorMsg = "Failed to initialize key: \(detail). If this is an OpenSSH encrypted key, remove the passphrase or convert to PKCS#8/Ed25519/ECDSA."
 
             await MainActor.run {
-                self.lastErrorMessage = errorMsg
                 connection.state = .failed(errorMsg)
                 self.errorCallback?(errorMsg)
             }
@@ -613,7 +604,6 @@ final class SSHManager: @unchecked Sendable {
             lock.withLock { self.sshClientChannel = channel }
             await MainActor.run {
                 self.connection.state = .connected
-                self.lastErrorMessage = nil
             }
 
             try await startLocalListener()
@@ -815,8 +805,6 @@ final class SSHManager: @unchecked Sendable {
             }
             self.sessionReadyPromise = nil
             self.sessionReadyCompleted = false
-            self.internalBytesSent = 0
-            self.internalBytesReceived = 0
         }
 
         // The event loop group is NIO's process-wide singleton, which is perpetual
@@ -836,7 +824,6 @@ final class SSHManager: @unchecked Sendable {
             // If state is .failed, preserve it for UI display
             self.connection.bytesSent = 0
             self.connection.bytesReceived = 0
-            self.lastErrorMessage = nil
         }
     }
     
@@ -844,15 +831,13 @@ final class SSHManager: @unchecked Sendable {
     
     private func handleBytesSent(_ count: Int) {
         let n = Int64(count)
-        self.internalBytesSent += n
         Task { @MainActor in
             self.connection.bytesSent += n
         }
     }
-    
+
     private func handleBytesReceived(_ count: Int) {
         let n = Int64(count)
-        self.internalBytesReceived += n
         Task { @MainActor in
             self.connection.bytesReceived += n
         }
