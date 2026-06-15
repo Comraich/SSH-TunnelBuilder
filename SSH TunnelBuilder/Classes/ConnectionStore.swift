@@ -137,7 +137,7 @@ class ConnectionStore: ObservableObject {
     
     /// If CloudKit setup hasn't resolved within this window, fall back to local
     /// create mode so the UI never gets stuck on the loading screen.
-    private static let loadingFallbackSeconds: UInt64 = 8
+    private static let loadingFallbackSeconds = 8
 
     init(credentialsStore: CredentialsStore = KeychainService.shared) {
         self.credentialsStore = credentialsStore
@@ -151,7 +151,7 @@ class ConnectionStore: ObservableObject {
             // below cancels this watchdog as soon as setup finishes, so it never
             // outlives the work it is guarding.
             let watchdog = Task {
-                try? await Task.sleep(nanoseconds: ConnectionStore.loadingFallbackSeconds * 1_000_000_000)
+                try? await Task.sleep(for: .seconds(ConnectionStore.loadingFallbackSeconds))
                 guard !Task.isCancelled else { return }
                 if self.mode == .loading {
                     self.mode = .create
