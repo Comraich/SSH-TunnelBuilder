@@ -39,22 +39,6 @@ func detectPEMKeyKind(_ text: String) -> PEMKeyKind {
     return .unknown
 }
 
-/// Checks if an OpenSSH key is encrypted (has cipher/kdf specified)
-/// OpenSSH keys store encryption info in the binary blob, but we can check for common patterns
-func isOpenSSHKeyEncrypted(_ text: String) -> Bool {
-    // OpenSSH encrypted keys have cipher info in the base64 blob
-    // A simple heuristic: unencrypted keys are shorter and have "none" as cipher
-    // For accurate detection, we'd need to parse the binary format
-    // This is a conservative check - if in doubt, assume it might be encrypted
-    let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard t.contains("-----BEGIN OPENSSH PRIVATE KEY-----") else { return false }
-
-    // Extract base64 content and decode to check cipher field
-    // For now, we'll rely on the actual parsing to detect this
-    // and just return false here (the parser will throw if encrypted)
-    return false
-}
-
 /// Determines whether a PEM private key is encrypted
 func isPEMEncrypted(_ text: String) -> Bool {
     let t = text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
@@ -999,8 +983,4 @@ struct ConnectButtonView: View {
         tempPassphrase = ""
         saveCredentials = false
     }
-}
-
-extension EnvironmentValues {
-    @Entry var connection: Connection?
 }
