@@ -1,19 +1,5 @@
 import SwiftUI
 
-// MARK: - Reusable Error Alert Modifier (deprecated - using sheet instead)
-
-extension View {
-    func errorAlert(_ errorAlert: Binding<ErrorAlert?>) -> some View {
-        self.alert(item: errorAlert) { error in
-            Alert(
-                title: Text("Error"),
-                message: Text(error.message),
-                dismissButton: .default(Text("OK"))
-            )
-        }
-    }
-}
-
 struct ContentView: View {
     @StateObject var connectionStore: ConnectionStore
     @State private var selectedConnection: Connection?
