@@ -254,6 +254,29 @@ compile-validated but not behaviourally tested on this toolchain.
 
 ### Open bugs (to fix)
 
+- [ ] **Host-key trust-on-first-use does not actually pin — re-prompts every connect (2026-06-16)**
+  - **Symptom:** Connecting to a host shows the "Unknown Host" prompt (good), but
+    after trusting it, **every subsequent connect re-prompts** — the trusted key is
+    never remembered. Verified live against `127.0.0.1:22`: trusted, disconnected,
+    reconnected → prompted again. The prompt's fingerprint always reads
+    `SHA256:UNAVAILABLE`.
+  - **Root cause:** `SSHManager.serialize(key:)` returns `nil` (NIOSSH exposes no
+    public host-key serialization API — `SSHManager.swift:224`). So in
+    `handleHostKeyValidation` the key bytes are empty: the fingerprint falls back to
+    the **constant** `"SHA256:UNAVAILABLE"` (not host-specific), and on trust the
+    stored value is `base64(Data())` = `""`. On reconnect `knownHostKey.isEmpty` is
+    true (`SSHManager.swift:191`), so the match block is skipped and the handler is
+    invoked again. Confirmed the CloudKit `knownHostKey` field stays empty.
+  - **Security impact:** because nothing is ever pinned, the host-key **mismatch /
+    MITM-detection** path (`SSHManager.swift:202`) can never trigger. The feature
+    currently delivers a confirmation prompt but **not** real pinning.
+  - **Fix direction:** needs real host-key bytes. Investigate a NIOSSH API to obtain
+    the public-key wire bytes (or upstream contribution); failing that, the prompt
+    should at least store *something* stable+unique per host so re-prompts stop —
+    but a constant placeholder can't provide the security guarantee. Note the doc
+    elsewhere already calls the serialization a known stub; this entry records the
+    user-facing functional gap.
+
 - [x] **New/edited connection name not shown in the sidebar until app restart (2026-06-16) — FIXED**
   - **Symptom:** After creating or renaming a connection, the sidebar row's
     **name didn't update** (showed blank/stale) until the app was relaunched and
