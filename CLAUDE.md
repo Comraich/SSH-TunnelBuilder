@@ -252,6 +252,39 @@ compile-validated but not behaviourally tested on this toolchain.
 
 ## Known Issues
 
+### Open bugs (to fix)
+
+- [x] **New/edited connection name not shown in the sidebar until app restart (2026-06-16) — FIXED**
+  - **Symptom:** After creating or renaming a connection, the sidebar row's
+    **name didn't update** (showed blank/stale) until the app was relaunched and
+    re-fetched from CloudKit. Not data loss — the record always persisted.
+  - **Root cause:** `Connection` is `@Observable` but `Equatable`/`Hashable` by
+    `id` only (`Connection.swift:88-95`). `upsertConnection` did
+    `connections[index] = newInstance` — a *different* object with the same `id`
+    — so SwiftUI's `List`/`ForEach` treated it as unchanged and never swapped the
+    instance into `ConnectionRow` (or `selectedConnection`).
+  - **Fix (`ConnectionStore.swift`):** `upsertConnection` now **mutates the
+    existing instance in place** (`existing.connectionInfo = …`/`tunnelInfo = …`)
+    so the change is observed; this also preserves live `state`/byte counters that
+    a replacement would have reset. Additionally `createConnectionAsync` now
+    upserts straight from the `save()` echo record instead of issuing a second
+    `record(for:)` fetch (removes a round-trip and a read-back race that could
+    surface a blank name on create). Verified live: rename updated the sidebar
+    immediately, no relaunch.
+
+- [ ] **Detail pane (view mode) renders blank for a connection that has data (2026-06-16)**
+  - **Symptom:** Selecting a connection sometimes shows the `MainView` detail with
+    a blank name/status and empty fields, even though the data exists (the **Edit**
+    form for the same connection shows the real values, and the sidebar shows the
+    name). Resolves on reselect/relaunch in some cases.
+  - **Pre-existing / separate** from the sidebar fix above — reproduced on a clean
+    checkout with the fix stashed. **Not data loss.**
+  - **Likely area:** `MainView`'s view-mode bindings read
+    `selectedConnection?.connectionInfo[keyPath:]` via `.constant(...)`
+    (`MainView.swift:214-224`); investigate whether `body` re-evaluates / re-reads
+    the selected `@Observable` instance's `connectionInfo` when selection changes
+    (especially right after an edit, where `selectedConnection = tempConnection`).
+
 ### Test suite cannot run reliably on the macOS 26/27 beta toolchain (2026-06-15)
 
 **Symptom:** Running the test bundle crashes the test host in Swift Testing's

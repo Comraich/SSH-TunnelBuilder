@@ -485,8 +485,17 @@ class ConnectionStore {
     /// Inserts the connection, or replaces the existing entry with the same id.
     /// Keeps the in-memory list free of duplicates when re-fetching after a save.
     private func upsertConnection(_ connection: Connection) {
-        if let index = self.connections.firstIndex(where: { $0.id == connection.id }) {
-            self.connections[index] = connection
+        if let existing = self.connections.first(where: { $0.id == connection.id }) {
+            // Mutate the existing @Observable instance in place rather than
+            // swapping in a new one. `Connection` is Equatable/Hashable by `id`
+            // only, so SwiftUI's List/ForEach treats a replacement instance as
+            // unchanged and never refreshes the row or `selectedConnection` — the
+            // edited name wouldn't appear until a relaunch rebuilt the list.
+            // Updating the observed properties of the same instance propagates to
+            // the UI immediately, and preserves live runtime state (connection
+            // state / byte counters) that a fetched record would otherwise reset.
+            existing.connectionInfo = connection.connectionInfo
+            existing.tunnelInfo = connection.tunnelInfo
         } else {
             self.connections.append(connection)
         }
@@ -533,8 +542,15 @@ class ConnectionStore {
         record[CloudKitKeys.uuid] = connection.id.uuidString
 
         do {
+            // Upsert straight from the record CloudKit echoes back from save(),
+            // rather than issuing a second record(for:) fetch. The extra fetch
+            // adds a round-trip and can race — the just-saved record sometimes
+            // reads back before all fields propagate, which surfaced as a new
+            // connection appearing in the sidebar with a blank name until relaunch.
             let savedRecord = try await database.save(record)
-            await self.fetchConnectionAsync(withId: savedRecord.recordID)
+            if let saved = self.recordToConnection(record: savedRecord) {
+                self.upsertConnection(saved)
+            }
         } catch {
             Logger.error("Failed to save connection: \(self.cloudKitErrorDescription(error))", log: Logger.cloudKit)
             self.errorAlert = ErrorAlert(message: "Failed to save connection: \(error.localizedDescription)")
