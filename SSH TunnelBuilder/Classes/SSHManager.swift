@@ -181,8 +181,11 @@ final class SSHManager: @unchecked Sendable {
         let keyData = serialize(key: key)
         let fingerprint: String
         if let keyData = keyData {
+            // OpenSSH-style fingerprint: SHA256 of the wire-format key blob,
+            // base64 without padding (matches `ssh-keygen -l` output).
             let digest = SHA256.hash(data: keyData)
-            fingerprint = "SHA256:" + Data(digest).base64EncodedString()
+            let base64 = Data(digest).base64EncodedString().replacingOccurrences(of: "=", with: "")
+            fingerprint = "SHA256:" + base64
         } else {
             // Fallback: we cannot serialize the key with this NIOSSH version; present a legacy marker.
             fingerprint = "SHA256:UNAVAILABLE"
@@ -221,12 +224,18 @@ final class SSHManager: @unchecked Sendable {
         }
     }
 
-    private func serialize(key _: NIOSSHPublicKey) -> Data? {
-        // NIOSSH does not currently expose a public API to serialize host keys to raw bytes.
-        // Returning nil causes handleHostKeyValidation to use fingerprint-based verification,
-        // which compares the SHA256 fingerprint string stored in knownHostKey.
-        // If NIOSSH adds serialization support in the future, implement it here for raw key matching.
-        return nil
+    private func serialize(key: NIOSSHPublicKey) -> Data? {
+        // NIOSSH exposes the canonical OpenSSH public-key string
+        // ("<algorithm-id> <base64-wire-bytes>") via `String(openSSHPublicKey:)`.
+        // The base64 component decodes to the SSH wire-format key blob — the same
+        // bytes OpenSSH hashes for its SHA256 fingerprint, and a stable, host-unique
+        // value we can pin for trust-on-first-use and compare on later connections.
+        let openSSHString = String(openSSHPublicKey: key)
+        let components = openSSHString.split(separator: " ", maxSplits: 2, omittingEmptySubsequences: true)
+        guard components.count >= 2, let blob = Data(base64Encoded: String(components[1])) else {
+            return nil
+        }
+        return blob
     }
 
     // MARK: - Local Listener / Forwarding
