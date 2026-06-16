@@ -33,7 +33,6 @@ struct NavigationList: View {
                 if selectedConnection != nil {
                     Button(action: {
                         mode = .edit
-                        // selectedConnection = selectedConnection
                         if let connection = selectedConnection {
                             connectionStore.updateTempConnection(with: connection)
                         }
@@ -45,11 +44,10 @@ struct NavigationList: View {
             }
             
             ToolbarItem(placement: .automatic) {
-                if selectedConnection != nil {
+                if let connection = selectedConnection {
                     Button(action: {
-                        // Delete action
-                        connectionStore.deleteConnection(selectedConnection!)
-                        self.selectedConnection = nil
+                        connectionStore.deleteConnection(connection)
+                        selectedConnection = nil
                     }) {
                         Image(systemName: "trash")
                     }

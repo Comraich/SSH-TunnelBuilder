@@ -90,7 +90,7 @@ class ConnectionStore {
     static let containerIdentifier = "iCloud.no.comraich.sshTunnelBuilder"
 
     private let container = CKContainer(identifier: ConnectionStore.containerIdentifier)
-    private let database = CKContainer(identifier: ConnectionStore.containerIdentifier).privateCloudDatabase
+    private var database: CKDatabase { container.privateCloudDatabase }
     @ObservationIgnored private var customZone: CKRecordZone?
     private let customZoneName = "ConnectionZone"
 
@@ -305,9 +305,8 @@ class ConnectionStore {
             // successful save), fall back to the zone we asked it to create.
             let savedZone = try result.saveResults[newZone.zoneID]?.get() ?? newZone
             self.customZone = savedZone
-            Logger.error("[TEMP] custom zone ready: \(savedZone.zoneID.zoneName) owner=\(savedZone.zoneID.ownerName)", log: Logger.cloudKit)
+            Logger.info("Custom zone ready: \(savedZone.zoneID.zoneName) owner=\(savedZone.zoneID.ownerName)", log: Logger.cloudKit)
         } catch {
-            Logger.error("[TEMP] custom zone creation FAILED: \(self.cloudKitErrorDescription(error))", log: Logger.cloudKit)
             Logger.error("Failed to create custom zone: \(self.cloudKitErrorDescription(error))", log: Logger.cloudKit)
             self.errorAlert = ErrorAlert(message: "Failed to create iCloud zone: \(error.localizedDescription)")
         }
@@ -357,7 +356,7 @@ class ConnectionStore {
             }
         }
 
-        Logger.error("[TEMP] fetch done: records=\(fetchedRecords.count) recordErrors=\(recordErrors.count) deleted=\(deletedRecordNames.count) fetchError=\(fetchError.map { self.cloudKitErrorDescription($0) } ?? "none")", log: Logger.cloudKit)
+        Logger.info("Fetch done: records=\(fetchedRecords.count) recordErrors=\(recordErrors.count) deleted=\(deletedRecordNames.count) fetchError=\(fetchError.map { self.cloudKitErrorDescription($0) } ?? "none")", log: Logger.cloudKit)
 
         // Back on the MainActor: report per-record failures, then map the records.
         for failure in recordErrors {

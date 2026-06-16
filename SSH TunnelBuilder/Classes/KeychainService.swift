@@ -11,6 +11,15 @@ protocol CredentialsStore {
     func deleteCredentials(for id: UUID)
 }
 
+// MARK: - Account Keys
+
+/// Single source of truth for the account strings under which credentials are
+/// stored. Shared by the real and mock stores so their key formats can't drift.
+enum CredentialAccount {
+    static func password(for id: UUID) -> String { "password:\(id.uuidString)" }
+    static func privateKey(for id: UUID) -> String { "privateKey:\(id.uuidString)" }
+}
+
 // MARK: - Keychain Implementation
 
 final class KeychainService: CredentialsStore, Sendable {
@@ -22,24 +31,24 @@ final class KeychainService: CredentialsStore, Sendable {
     // MARK: - Public API
 
     func savePassword(_ password: String, for id: UUID) {
-        saveString(password, account: "password:\(id.uuidString)")
+        saveString(password, account: CredentialAccount.password(for: id))
     }
 
     func savePrivateKey(_ key: String, for id: UUID) {
-        saveString(key, account: "privateKey:\(id.uuidString)")
+        saveString(key, account: CredentialAccount.privateKey(for: id))
     }
 
     func loadPassword(for id: UUID) -> String? {
-        loadString(account: "password:\(id.uuidString)")
+        loadString(account: CredentialAccount.password(for: id))
     }
 
     func loadPrivateKey(for id: UUID) -> String? {
-        loadString(account: "privateKey:\(id.uuidString)")
+        loadString(account: CredentialAccount.privateKey(for: id))
     }
 
     func deleteCredentials(for id: UUID) {
-        deleteItem(account: "password:\(id.uuidString)")
-        deleteItem(account: "privateKey:\(id.uuidString)")
+        deleteItem(account: CredentialAccount.password(for: id))
+        deleteItem(account: CredentialAccount.privateKey(for: id))
     }
 
     // MARK: - Low-level helpers
@@ -91,24 +100,24 @@ final class MockCredentialsStore: CredentialsStore {
     private var storage: [String: String] = [:]
     
     func savePassword(_ password: String, for id: UUID) {
-        storage["password:\(id.uuidString)"] = password
+        storage[CredentialAccount.password(for: id)] = password
     }
-    
+
     func savePrivateKey(_ key: String, for id: UUID) {
-        storage["privateKey:\(id.uuidString)"] = key
+        storage[CredentialAccount.privateKey(for: id)] = key
     }
-    
+
     func loadPassword(for id: UUID) -> String? {
-        storage["password:\(id.uuidString)"]
+        storage[CredentialAccount.password(for: id)]
     }
-    
+
     func loadPrivateKey(for id: UUID) -> String? {
-        storage["privateKey:\(id.uuidString)"]
+        storage[CredentialAccount.privateKey(for: id)]
     }
-    
+
     func deleteCredentials(for id: UUID) {
-        storage.removeValue(forKey: "password:\(id.uuidString)")
-        storage.removeValue(forKey: "privateKey:\(id.uuidString)")
+        storage.removeValue(forKey: CredentialAccount.password(for: id))
+        storage.removeValue(forKey: CredentialAccount.privateKey(for: id))
     }
 }
 
