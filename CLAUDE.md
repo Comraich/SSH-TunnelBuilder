@@ -254,28 +254,29 @@ compile-validated but not behaviourally tested on this toolchain.
 
 ### Open bugs (to fix)
 
-- [ ] **Host-key trust-on-first-use does not actually pin — re-prompts every connect (2026-06-16)**
-  - **Symptom:** Connecting to a host shows the "Unknown Host" prompt (good), but
-    after trusting it, **every subsequent connect re-prompts** — the trusted key is
-    never remembered. Verified live against `127.0.0.1:22`: trusted, disconnected,
-    reconnected → prompted again. The prompt's fingerprint always reads
+- [x] **Host-key trust-on-first-use does not actually pin — re-prompts every connect (2026-06-16) — FIXED**
+  - **Symptom:** Connecting to a host showed the "Unknown Host" prompt (good), but
+    after trusting it, **every subsequent connect re-prompted** — the trusted key
+    was never remembered. Verified live against `127.0.0.1:22`: trusted, disconnected,
+    reconnected → prompted again. The prompt's fingerprint always read
     `SHA256:UNAVAILABLE`.
-  - **Root cause:** `SSHManager.serialize(key:)` returns `nil` (NIOSSH exposes no
-    public host-key serialization API — `SSHManager.swift:224`). So in
-    `handleHostKeyValidation` the key bytes are empty: the fingerprint falls back to
-    the **constant** `"SHA256:UNAVAILABLE"` (not host-specific), and on trust the
-    stored value is `base64(Data())` = `""`. On reconnect `knownHostKey.isEmpty` is
-    true (`SSHManager.swift:191`), so the match block is skipped and the handler is
-    invoked again. Confirmed the CloudKit `knownHostKey` field stays empty.
-  - **Security impact:** because nothing is ever pinned, the host-key **mismatch /
-    MITM-detection** path (`SSHManager.swift:202`) can never trigger. The feature
-    currently delivers a confirmation prompt but **not** real pinning.
-  - **Fix direction:** needs real host-key bytes. Investigate a NIOSSH API to obtain
-    the public-key wire bytes (or upstream contribution); failing that, the prompt
-    should at least store *something* stable+unique per host so re-prompts stop —
-    but a constant placeholder can't provide the security guarantee. Note the doc
-    elsewhere already calls the serialization a known stub; this entry records the
-    user-facing functional gap.
+  - **Root cause:** `SSHManager.serialize(key:)` returned `nil` (believed NIOSSH
+    exposed no public host-key serialization API). So in `handleHostKeyValidation`
+    the key bytes were empty: the fingerprint fell back to the **constant**
+    `"SHA256:UNAVAILABLE"` (not host-specific), and on trust the stored value was
+    `base64(Data())` = `""`. On reconnect `knownHostKey.isEmpty` was true, the match
+    block was skipped, and the handler was invoked again.
+  - **Fix (`SSHManager.swift`):** NIOSSH *does* expose the canonical OpenSSH
+    public-key string via `String(openSSHPublicKey:)`. `serialize(key:)` now parses
+    its `"<algorithm-id> <base64-wire-bytes>"` form and returns the decoded wire-format
+    blob — the same bytes OpenSSH hashes for its fingerprint, stable and host-unique.
+    The fingerprint is now OpenSSH-style (SHA256, base64 **without** padding) so it
+    matches `ssh-keygen -l` / `ssh-keyscan`.
+  - **Verified live:** prompt now shows a real fingerprint
+    (`SHA256:wZGdCznz9+/IDVQD+QDJmYrtlOvs+qL8Mt8KX/rbVXs`) matching `ssh-keyscan`
+    exactly; trusting pins a real 68-char key blob to CloudKit; reconnect no longer
+    prompts. The **mismatch / MITM-detection** path now has a real pinned value to
+    compare against.
 
 - [x] **New/edited connection name not shown in the sidebar until app restart (2026-06-16) — FIXED**
   - **Symptom:** After creating or renaming a connection, the sidebar row's
