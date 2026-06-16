@@ -501,8 +501,8 @@ final class SSHManager: @unchecked Sendable {
     private var sessionReadyPromise: EventLoopPromise<Void>?
     private var sessionReadyCompleted = false
 
-    // Callback: (hostname, fingerprint, keyType, keyData, completion)
-    var hostKeyValidationCallback: (@Sendable (String, String, String, Data, @escaping @Sendable (Bool) -> Void) -> Void)?
+    // Async handler: (hostname, fingerprint, keyType, keyData) -> user's trust decision
+    var hostKeyValidationHandler: (@Sendable (String, String, String, Data) async -> Bool)?
 
     /// Callback invoked when an error occurs that should be shown to the user
     var errorCallback: (@Sendable (String) -> Void)?
@@ -675,18 +675,21 @@ final class SSHManager: @unchecked Sendable {
             return
         }
 
-        guard let callback = self.hostKeyValidationCallback else {
+        guard let handler = self.hostKeyValidationHandler else {
             promise.fail(SSHTunnelError.hostKeyValidationMissing)
             return
         }
 
         let keyType = keyData == nil ? "Unknown (Legacy Lib)" : "Unknown"
-        callback(host, fingerprint, keyType, keyData ?? Data()) { allowed in
-            if allowed {
-                promise.succeed(())
-            } else {
-                promise.fail(SSHTunnelError.hostKeyRejected)
-            }
+        let resolvedKeyData = keyData ?? Data()
+
+        // Bridge the async UI decision back onto the NIO promise. NIOSSH's
+        // validateHostKey is not async, so we keep its promise and fulfil it from
+        // the awaited result. EventLoopPromise is Sendable and hops to its own
+        // event loop when completed, so resolving it from this Task is safe.
+        Task {
+            let allowed = await handler(host, fingerprint, keyType, resolvedKeyData)
+            allowed ? promise.succeed(()) : promise.fail(SSHTunnelError.hostKeyRejected)
         }
     }
     
