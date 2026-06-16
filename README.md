@@ -14,6 +14,7 @@ A SwiftUI app for creating, viewing, editing, and persisting SSH connection prof
 - Local port forwarding (DirectTCPIP) to a remote host:port
 - A connection state machine (`idle` → `connecting` → `connected` → `disconnecting`, plus `failed`) driving consistent status UI
 - Live byte counters (sent/received) per connection
+- A menu bar traffic indicator ("SSH" above two dots — green TX blinks on data sent, red RX blinks on data received) that appears only while a tunnel is connected
 - Optional, opt-in Spotlight indexing of connection **names** (off by default; never indexes hosts, usernames, ports, or credentials)
 - SwiftUI `NavigationSplitView` interface with a navigation sidebar
 - Clear error reporting via a modal error sheet
@@ -41,7 +42,7 @@ Passphrases are requested when needed and are **never persisted** — they must 
   - `OpenSSHKeyDecryptor` — decrypts encrypted `openssh-key-v1` private sections (AES-CTR/CBC/GCM)
   - `BcryptPBKDF` — Blowfish + `bcrypt_pbkdf` implemented from scratch (neither is in CryptoKit), used to key OpenSSH decryption
 - Cross-cutting: `SSHTunnelError` (unified error type), `Logger` (`os.Logger` categories), `SpotlightIndexer` (opt-in)
-- UI: `ContentView`, `NavigationList`, `MainView`, `DataCounterView`, `ConnectionRow`, `SettingsView`
+- UI: `ContentView`, `NavigationList`, `MainView`, `DataCounterView`, `ConnectionRow`, `SettingsView`, `MenuBarTrafficView` (menu bar indicator)
 - Testing: Unit tests built with the Swift Testing framework.
 
 ## Requirements
@@ -106,6 +107,7 @@ See NOTICE.txt for attributions and licensing details.
 - **`CredentialsStore` protocol** with a Keychain implementation and an in-memory mock for tests; deleting a connection now also clears its Keychain secrets.
 - **Unified error handling** (`SSHTunnelError`) surfaced through a modal error sheet; `os.Logger` categories replaced `print`.
 - **Opt-in Spotlight indexing** of connection names.
+- **Menu bar traffic indicator** (`MenuBarExtra`): an "SSH" label above a green TX / red RX dot that blink as data flows, shown only while a tunnel is connected.
 
 ## Roadmap
 
