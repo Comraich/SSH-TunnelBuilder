@@ -31,18 +31,16 @@ struct ContentView: View {
     }
 
     var body: some View {
-        @Bindable var store = connectionStore
-
         NavigationSplitView {
             NavigationList(
                 connectionStore: connectionStore,
-                selectedConnection: $store.selectedConnection,
-                mode: $store.mode
+                selectedConnection: $connectionStore.selectedConnection,
+                mode: $connectionStore.mode
             )
             .environment(connectionStore)
             .accessibilityIdentifier("NavigationList")
         } detail: {
-            MainView(selectedConnection: $store.selectedConnection)
+            MainView(selectedConnection: $connectionStore.selectedConnection)
                 .environment(connectionStore)
                 .accessibilityIdentifier("MainView")
         }
@@ -75,7 +73,7 @@ struct ContentView: View {
         .sheet(isPresented: $showingErrorSheet) {
             ErrorSheetView(message: errorMessage, isPresented: $showingErrorSheet)
         }
-        .alert(item: $store.hostKeyRequest) { request in
+        .alert(item: $connectionStore.hostKeyRequest) { request in
             Alert(
                 title: Text("Unknown Host"),
                 message: Text("The host '\(request.hostname)' is unknown.\n\nFingerprint:\n\(request.fingerprint)\n\nDo you want to trust this host?"),

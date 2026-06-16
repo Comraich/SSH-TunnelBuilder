@@ -179,24 +179,26 @@ enum ConnectionTransfer {
 
     /// Derives a 256-bit key from `passphrase` + `salt` via PBKDF2-HMAC-SHA256.
     private static func deriveKey(passphrase: String, salt: Data, iterations: Int) throws -> SymmetricKey {
-        let passwordBytes = Array(passphrase.utf8) // guaranteed non-empty by callers
+        // `utf8CString` is already `[CChar]` (null-terminated), so we can hand its
+        // pointer straight to PBKDF2 without a `withMemoryRebound` layer — keeping
+        // the nesting to two closures. The length excludes the trailing NUL.
+        let passwordChars = Array(passphrase.utf8CString) // guaranteed non-empty by callers
+        let saltBytes = Array(salt)
         var derived = [UInt8](repeating: 0, count: keyByteCount)
 
-        let status: Int32 = passwordBytes.withUnsafeBufferPointer { pw in
-            pw.baseAddress!.withMemoryRebound(to: CChar.self, capacity: pw.count) { passwordPtr in
-                salt.withUnsafeBytes { saltBuffer in
-                    CCKeyDerivationPBKDF(
-                        CCPBKDFAlgorithm(kCCPBKDF2),
-                        passwordPtr,
-                        pw.count,
-                        saltBuffer.bindMemory(to: UInt8.self).baseAddress!,
-                        salt.count,
-                        CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256),
-                        UInt32(iterations),
-                        &derived,
-                        derived.count
-                    )
-                }
+        let status: Int32 = passwordChars.withUnsafeBufferPointer { pw in
+            saltBytes.withUnsafeBufferPointer { saltPtr in
+                CCKeyDerivationPBKDF(
+                    CCPBKDFAlgorithm(kCCPBKDF2),
+                    pw.baseAddress,
+                    pw.count - 1,
+                    saltPtr.baseAddress,
+                    saltBytes.count,
+                    CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256),
+                    UInt32(iterations),
+                    &derived,
+                    derived.count
+                )
             }
         }
         guard status == kCCSuccess else { throw ConnectionTransferError.keyDerivationFailed }
