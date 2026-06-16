@@ -19,11 +19,8 @@ struct DataCounterView: View {
                     Text("Data Received: \(connection.bytesReceived.formatted(.byteCount(style: .file)))")
                 }
                 Spacer()
-                VStack {
-                    if connection.isConnecting {
-                        ProgressView()
-                    }
-                }
+                // The connecting spinner lives in ConnectionIndicatorView (the
+                // status row), so it is intentionally not duplicated here.
             }
         }
     }
