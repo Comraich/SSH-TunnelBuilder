@@ -84,9 +84,15 @@ struct ConnectionStateTests {
 
     @Test("States with equal associated values compare equal")
     func equalityWithAssociatedValues() {
-        #expect(ConnectionState.failed("a") == ConnectionState.failed("a"))
+        // Compare independently-constructed instances so the assertions prove
+        // value equality (rather than being `x == x` identical-operand checks).
+        let failed = ConnectionState.failed("a")
+        let failedSameMessage = ConnectionState.failed("a")
+        let idle = ConnectionState.idle
+        let idleAgain = ConnectionState.idle
+        #expect(failed == failedSameMessage)
         #expect(ConnectionState.failed("a") != ConnectionState.failed("b"))
-        #expect(ConnectionState.idle == ConnectionState.idle)
+        #expect(idle == idleAgain)
         #expect(ConnectionState.idle != ConnectionState.connected)
     }
 }
