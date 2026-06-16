@@ -259,20 +259,29 @@ struct MainView: View {
         )
     }
 
+    // Secrets aren't loaded into the model at rest, so in `.view` mode these
+    // bindings reflect Keychain *existence* (so the "<obfuscated>" indicator
+    // still appears) rather than the model's empty value. Create/edit modes
+    // use the real value as before (edit hydrates its temp copy).
     private var passwordBinding: Binding<String> {
-        formBinding(
-            createKeyPath: \.password,
-            editConnectionInfoKeyPath: \.password,
-            viewConnectionInfoKeyPath: \.password
-        )
+        if connectionStore.mode == .view {
+            return secretViewBinding(exists: selectedConnection.map { connectionStore.hasStoredPassword($0) } ?? false)
+        }
+        return formBinding(createKeyPath: \.password, editConnectionInfoKeyPath: \.password)
     }
 
     private var privateKeyBinding: Binding<String> {
-        formBinding(
-            createKeyPath: \.privateKey,
-            editConnectionInfoKeyPath: \.privateKey,
-            viewConnectionInfoKeyPath: \.privateKey
-        )
+        if connectionStore.mode == .view {
+            return secretViewBinding(exists: selectedConnection.map { connectionStore.hasStoredPrivateKey($0) } ?? false)
+        }
+        return formBinding(createKeyPath: \.privateKey, editConnectionInfoKeyPath: \.privateKey)
+    }
+
+    /// A read-only binding whose value is a non-empty sentinel when a secret
+    /// exists. `EditableFieldView` shows "<obfuscated>" for any non-empty secure
+    /// value, so this drives the indicator without loading the secret itself.
+    private func secretViewBinding(exists: Bool) -> Binding<String> {
+        .constant(exists ? "********" : "")
     }
 
     private var localPortBinding: Binding<String> {

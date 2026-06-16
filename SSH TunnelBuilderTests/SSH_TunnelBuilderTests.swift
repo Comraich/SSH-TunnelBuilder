@@ -228,7 +228,7 @@ struct ConnectionStoreLocalTests {
         return Connection(id: id, connectionInfo: info, tunnelInfo: tunnel)
     }
 
-    @Test("Secrets are saved to Keychain and retrieved correctly via recordToConnection")
+    @Test("Secrets are saved to Keychain and exposed via existence, not eagerly loaded")
     @MainActor func testSecretHandlingInRecordMapping() throws {
         let store = ConnectionStore(mode: .view, connections: [])
         let id = UUID()
@@ -245,10 +245,13 @@ struct ConnectionStoreLocalTests {
         #expect((record["password"] as? String ?? "") == "")
         #expect((record["privateKey"] as? String ?? "") == "")
 
-        // Secrets must be recoverable via the store's credentials layer
+        // Secrets are loaded lazily, so the mapped model carries empty fields...
         let retrieved = try #require(store.recordToConnection(record: record))
-        #expect(retrieved.connectionInfo.password == "test_password")
-        #expect(retrieved.connectionInfo.privateKey == "test_key_pem")
+        #expect(retrieved.connectionInfo.password == "")
+        #expect(retrieved.connectionInfo.privateKey == "")
+        // ...but their presence is still detectable without reading the values.
+        #expect(store.hasStoredPassword(retrieved))
+        #expect(store.hasStoredPrivateKey(retrieved))
     }
 
     @Test("Updating temporary connection uses a deep copy")
@@ -675,9 +678,11 @@ struct ConnectionStoreMappingTests {
         #expect(result.connectionInfo.name == "Test Server")
         #expect(result.connectionInfo.serverAddress == "server.example.com")
         #expect(result.connectionInfo.username == "testuser")
-        // Secrets recovered from the mock credentials store
-        #expect(result.connectionInfo.password == "testpassword")
-        #expect(result.connectionInfo.privateKey == "testkey")
+        // Secrets are loaded lazily: not in the mapped model, but detectable.
+        #expect(result.connectionInfo.password == "")
+        #expect(result.connectionInfo.privateKey == "")
+        #expect(store.hasStoredPassword(result))
+        #expect(store.hasStoredPrivateKey(result))
         // Port fields survive the String -> Int64 -> String round-trip
         #expect(result.connectionInfo.portNumber == "2222")
         #expect(result.tunnelInfo.localPort == "9000")
