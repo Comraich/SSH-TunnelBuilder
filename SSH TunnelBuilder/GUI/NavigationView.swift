@@ -8,14 +8,16 @@ struct NavigationList: View {
     var body: some View {
         List(selection: $selectedConnection) {
             ForEach(connectionStore.connections) { connection in
-                ConnectionRow(connection: connection, isSelected: selectedConnection == connection)
-                    .tag(connection)
-                    .onTapGesture {
-                        selectedConnection = connection
-                    }
+                // The List drives selection via its `selection:` binding and the
+                // row `.tag`, so no extra tap gesture is needed.
+                ConnectionRow(
+                    name: connection.connectionInfo.name,
+                    isSelected: selectedConnection == connection
+                )
+                .tag(connection)
             }
         }
-        .listStyle(SidebarListStyle())
+        .listStyle(.sidebar)
         .frame(minWidth: 230)
         .navigationTitle("Navigation")
         .toolbar {
@@ -24,7 +26,7 @@ struct NavigationList: View {
                     connectionStore.mode = .create
                     selectedConnection = nil
                 }) {
-                    Image(systemName: "plus")
+                    Label("Create new connection", systemImage: "plus")
                 }
                 .help("Create new connection")
             }
@@ -37,7 +39,7 @@ struct NavigationList: View {
                             connectionStore.updateTempConnection(with: connection)
                         }
                     }) {
-                        Image(systemName: "pencil")
+                        Label("Edit selected connection", systemImage: "pencil")
                     }
                     .help("Edit selected connection")
                 }
@@ -49,7 +51,7 @@ struct NavigationList: View {
                         connectionStore.deleteConnection(connection)
                         selectedConnection = nil
                     }) {
-                        Image(systemName: "trash")
+                        Label("Delete selected connection", systemImage: "trash")
                     }
                     .help("Delete selected connection")
                 }

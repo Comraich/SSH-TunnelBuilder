@@ -58,16 +58,16 @@ struct ConnectButtonView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Password")
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                     SecureField("Enter password", text: $tempPassword)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .textFieldStyle(.roundedBorder)
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 6) {
                         Text("Private Key (PEM)")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         Button(action: { if !keyInfoPopoverDismissed { showKeyInfo.toggle() } }) {
                             Image(systemName: "info.circle")
                         }
@@ -93,20 +93,20 @@ struct ConnectButtonView: View {
                     HStack(spacing: 6) {
                         Text("Passphrase (optional)")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                         if isPEMEncrypted(tempPrivateKey) {
                             Image(systemName: "lock")
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                                 .help("This key appears to be encrypted; enter the passphrase.")
                         }
                     }
                     SecureField("Enter passphrase", text: $tempPassphrase)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .textFieldStyle(.roundedBorder)
                 }
 
                 if let pemError = pemError {
                     Text(pemError)
-                        .foregroundColor(.red)
+                        .foregroundStyle(.red)
                         .font(.footnote)
                 }
 
@@ -114,7 +114,7 @@ struct ConnectButtonView: View {
 
                 Text("Provide either a password or a private key (PEM). If you choose not to save, the credentials will be used for this session only. Note: Passphrases are never saved and must be re-entered each time.")
                     .font(.footnote)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
 
                 HStack {
                     Spacer()

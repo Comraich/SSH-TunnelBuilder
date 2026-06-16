@@ -28,6 +28,9 @@ struct EditableFieldView: View {
                 Text(value.wrappedValue)
             }
         } else {
+            // Group wraps an if/else (`_ConditionalContent`), so the shared
+            // text-field style applies to both branches — not the single-child
+            // Group anti-pattern.
             Group {
                 if isSecure {
                     SecureField(placeholder, text: value)
@@ -35,13 +38,16 @@ struct EditableFieldView: View {
                     TextField(placeholder, text: value)
                 }
             }
-            .textFieldStyle(RoundedBorderTextFieldStyle())
+            .textFieldStyle(.roundedBorder)
         }
     }
 }
 
 // MARK: - Main View
 
+/// Thin dispatcher: picks the section view for the current mode/selection.
+/// Each section is its own `View` type so it forms its own invalidation
+/// boundary rather than sharing one large body.
 struct MainView: View {
     @Environment(ConnectionStore.self) var connectionStore
 
@@ -49,62 +55,155 @@ struct MainView: View {
 
     var body: some View {
         if connectionStore.mode == .loading {
-            loadingView
+            LoadingView()
         } else if connectionStore.mode == .view && selectedConnection == nil {
-            emptySelectionView
+            EmptySelectionView()
         } else {
-            VStack {
-                connectionNameRow(label: "Connection Name:", value: connectionNameBinding)
-                    .padding()
+            ConnectionDetailView(selectedConnection: $selectedConnection)
+        }
+    }
+}
 
-                if let notice = connectionStore.migrationNotice {
-                    noticeBanner(notice) { connectionStore.migrationNotice = nil }
+// MARK: - Loading View
+
+struct LoadingView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .scaleEffect(1.5)
+            Text("Loading connections...")
+                .font(.title2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Empty Selection View
+
+struct EmptySelectionView: View {
+    @Environment(ConnectionStore.self) private var connectionStore
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "network")
+                .font(.system(size: 60))
+                .foregroundStyle(.secondary)
+
+            Text("No Connection Selected")
+                .font(.title)
+                .fontWeight(.semibold)
+
+            Text("Select a connection from the sidebar or create a new one")
+                .font(.body)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            if connectionStore.connections.isEmpty {
+                Button {
+                    connectionStore.mode = .create
+                } label: {
+                    Label("Create Connection", systemImage: "plus.circle.fill")
                 }
-
-                if let cloud = connectionStore.cloudNotice {
-                    noticeBanner(cloud) { connectionStore.cloudNotice = nil }
-                }
-
-                HStack(alignment: .firstTextBaseline) {
-                    if connectionStore.mode == .view, let connection = selectedConnection {
-                        Text("Connection Status:")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        ConnectionIndicatorView(connection: connection)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                            .padding(.trailing)
-                    } else {
-                        // Maintain spacing when no connection is selected
-                        Color.clear.frame(maxWidth: .infinity)
-                        Color.clear.frame(maxWidth: .infinity)
-                    }
-                }
-                .padding(.horizontal)
-
-                if connectionStore.mode == .view {
-                    if let connection = selectedConnection {
-                        DataCounterView(connection: connection)
-                            .padding()
-                    } else {
-                        Text("")
-                    }
-                    Spacer()
-                }
-
-                connectionForm
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .padding(.top, 8)
             }
-            .toolbar {
-                ToolbarItemGroup {
-                    if connectionStore.mode == .create || connectionStore.mode == .edit {
-                        Button("Cancel") {
-                            // Clear the create form before leaving create mode —
-                            // checking after setting `.view` would always be false.
-                            if connectionStore.mode == .create {
-                                connectionStore.clearCreateForm()
-                            }
-                            connectionStore.mode = .view
-                            if selectedConnection == nil {
-                                selectedConnection = connectionStore.connections.first
-                            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding()
+    }
+}
+
+// MARK: - Notice Banner
+
+/// A dismissable blue information banner (migration / CloudKit notices).
+struct NoticeBanner: View {
+    let message: String
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "info.circle")
+                .foregroundStyle(.blue)
+            Text(message)
+                .foregroundStyle(.primary)
+            Spacer()
+            Button(action: onDismiss) {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Dismiss notice")
+        }
+        .padding(8)
+        .background(Color.blue.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding([.horizontal, .top])
+    }
+}
+
+// MARK: - Connection Detail View
+
+/// The detail pane for the create / edit / view modes: the name header, any
+/// notices, the live status + data counters (view mode), and the field form.
+struct ConnectionDetailView: View {
+    @Environment(ConnectionStore.self) private var connectionStore
+
+    @Binding var selectedConnection: Connection?
+
+    var body: some View {
+        VStack {
+            connectionNameRow(label: "Connection Name:", value: connectionNameBinding)
+                .padding()
+
+            if let notice = connectionStore.migrationNotice {
+                NoticeBanner(message: notice) { connectionStore.migrationNotice = nil }
+            }
+
+            if let cloud = connectionStore.cloudNotice {
+                NoticeBanner(message: cloud) { connectionStore.cloudNotice = nil }
+            }
+
+            HStack(alignment: .firstTextBaseline) {
+                if connectionStore.mode == .view, let connection = selectedConnection {
+                    Text("Connection Status:")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    ConnectionIndicatorView(connection: connection)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .padding(.trailing)
+                } else {
+                    // Maintain spacing when no connection is selected
+                    Color.clear.frame(maxWidth: .infinity)
+                    Color.clear.frame(maxWidth: .infinity)
+                }
+            }
+            .padding(.horizontal)
+
+            if connectionStore.mode == .view {
+                if let connection = selectedConnection {
+                    DataCounterView(connection: connection)
+                        .padding()
+                } else {
+                    Text("")
+                }
+                Spacer()
+            }
+
+            connectionForm
+        }
+        .toolbar {
+            ToolbarItemGroup {
+                if connectionStore.mode == .create || connectionStore.mode == .edit {
+                    Button("Cancel") {
+                        // Clear the create form before leaving create mode —
+                        // checking after setting `.view` would always be false.
+                        if connectionStore.mode == .create {
+                            connectionStore.clearCreateForm()
+                        }
+                        connectionStore.mode = .view
+                        if selectedConnection == nil {
+                            selectedConnection = connectionStore.connections.first
                         }
                     }
                 }
@@ -310,6 +409,8 @@ struct MainView: View {
 
     // MARK: - Row Views
 
+    /// Small repeated fragment within this view's body — a `@ViewBuilder`
+    /// helper is appropriate here (not a factored-out section).
     @ViewBuilder
     private func infoRow(label: String, value: Binding<String>, isSecure: Bool = false) -> some View {
         HStack {
@@ -328,73 +429,5 @@ struct MainView: View {
             EditableFieldView(value: value, placeholder: "Enter connection name")
                 .font(.largeTitle)
         }
-    }
-
-    /// A dismissable blue information banner (migration / CloudKit notices).
-    private func noticeBanner(_ message: String, onDismiss: @escaping () -> Void) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "info.circle")
-                .foregroundColor(.blue)
-            Text(message)
-                .foregroundColor(.primary)
-            Spacer()
-            Button(action: onDismiss) {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundColor(.secondary)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(8)
-        .background(Color.blue.opacity(0.1))
-        .cornerRadius(8)
-        .padding([.horizontal, .top])
-    }
-
-    // MARK: - Helper Views
-
-    private var loadingView: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-                .scaleEffect(1.5)
-            Text("Loading connections...")
-                .font(.title2)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var emptySelectionView: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "network")
-                .font(.system(size: 60))
-                .foregroundColor(.secondary)
-
-            Text("No Connection Selected")
-                .font(.title)
-                .fontWeight(.semibold)
-
-            Text("Select a connection from the sidebar or create a new one")
-                .font(.body)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-
-            if connectionStore.connections.isEmpty {
-                Button(action: {
-                    connectionStore.mode = .create
-                }) {
-                    Label("Create Connection", systemImage: "plus.circle.fill")
-                        .font(.headline)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 10)
-                        .background(Color.accentColor)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
-                }
-                .buttonStyle(.plain)
-                .padding(.top, 8)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
     }
 }
