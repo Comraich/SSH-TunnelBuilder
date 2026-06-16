@@ -124,9 +124,9 @@ struct PEMKeyInfoView: View {
     private var keyStatusView: some View {
         HStack(spacing: 6) {
             Image(systemName: isSupported ? "checkmark.circle" : "exclamationmark.triangle")
-                .foregroundColor(isSupported ? .green : .orange)
+                .foregroundStyle(isSupported ? .green : .orange)
             Text("Detected key: \(keyKindDescription(kind))")
-                .foregroundColor(isSupported ? .green : .orange)
+                .foregroundStyle(isSupported ? .green : .orange)
                 .font(.footnote)
         }
     }
@@ -135,9 +135,9 @@ struct PEMKeyInfoView: View {
     private var opensshKeyNote: some View {
         HStack(spacing: 6) {
             Image(systemName: "info.circle")
-                .foregroundColor(.blue)
+                .foregroundStyle(.blue)
             Text("OpenSSH Ed25519/ECDSA keys are supported, including passphrase-protected keys (aes-ctr, aes-cbc, aes-gcm). Enter the passphrase below if the key is encrypted.")
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .font(.footnote)
         }
     }
@@ -146,9 +146,9 @@ struct PEMKeyInfoView: View {
     private var unencryptedKeyWarning: some View {
         HStack(spacing: 6) {
             Image(systemName: "lock.open")
-                .foregroundColor(.orange)
+                .foregroundStyle(.orange)
             Text("Warning: Key appears unencrypted. Prefer an encrypted PEM (PKCS#8) with a passphrase.")
-                .foregroundColor(.orange)
+                .foregroundStyle(.orange)
                 .font(.footnote)
         }
     }
@@ -158,7 +158,7 @@ struct PEMKeyInfoView: View {
         VStack(alignment: .leading) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Image(systemName: "exclamationmark.triangle")
-                    .foregroundColor(.orange)
+                    .foregroundStyle(.orange)
                 Text("\(keyKindDescription(kind)) is not supported. Convert to ECDSA or Ed25519:")
                     .font(.footnote)
                 Spacer(minLength: 8)
@@ -210,11 +210,11 @@ struct KeyValidationAlertView: View {
         case .encryptedPKCS8ContainsRSA:
             Label("RSA Key Detected", systemImage: "shield.lefthalf.filled")
                 .font(.title2.bold())
-                .foregroundColor(.red)
+                .foregroundStyle(.red)
         case .encryptedOpenSSHKey:
             Label("Encrypted OpenSSH Key", systemImage: "lock.fill")
                 .font(.title2.bold())
-                .foregroundColor(.orange)
+                .foregroundStyle(.orange)
         default:
             EmptyView()
         }
