@@ -97,3 +97,11 @@ iOSInjectionProject/
 
 # VS Code settings file
 **/*.vscode/*
+
+# Track the workspace's resolved Swift package versions for reproducible builds
+# and so Dependabot scans the real dependency graph. Everything else under
+# xcshareddata/ (ignored on line 9) stays ignored.
+!SSH TunnelBuilder.xcworkspace/xcshareddata/
+SSH TunnelBuilder.xcworkspace/xcshareddata/*
+!SSH TunnelBuilder.xcworkspace/xcshareddata/swiftpm/
+!SSH TunnelBuilder.xcworkspace/xcshareddata/swiftpm/Package.resolved
