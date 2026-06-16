@@ -72,6 +72,11 @@ class ConnectionStore {
     var errorAlert: ErrorAlert? = nil
     var hostKeyRequest: HostKeyRequest? = nil
 
+    /// The resume handler for an in-flight host-key prompt, if any. Tracked so a
+    /// superseding prompt can deny the previous one instead of leaking its
+    /// awaiting Task.
+    @ObservationIgnored private var pendingHostKeyDecision: ((Bool) -> Void)?
+
     @ObservationIgnored private var managers: [UUID: SSHManager] = [:]
 
     /// Credentials storage (Keychain in production, mock for tests)
@@ -203,6 +208,38 @@ class ConnectionStore {
         errorAlert = ErrorAlert(message: message)
     }
 
+    /// Presents the unknown-host prompt and suspends until the user answers.
+    /// On trust, records the key on the connection and persists it.
+    /// - Returns: `true` if the user trusts the host, `false` otherwise.
+    private func confirmHostKeyTrust(host: String, fingerprint: String,
+                                     keyData: Data, connection: Connection) async -> Bool {
+        // If a prior prompt is still awaiting an answer, deny it before replacing
+        // it so its awaiting Task can't leak.
+        pendingHostKeyDecision?(false)
+
+        let trusted = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+            // Resume at most once, whether the answer arrives from the UI or from
+            // a superseding prompt clearing this one.
+            var hasResumed = false
+            let decide: (Bool) -> Void = { [weak self] decision in
+                guard !hasResumed else { return }
+                hasResumed = true
+                self?.pendingHostKeyDecision = nil
+                continuation.resume(returning: decision)
+            }
+            pendingHostKeyDecision = decide
+            hostKeyRequest = HostKeyRequest(hostname: host, fingerprint: fingerprint,
+                                            keyData: keyData, completion: decide)
+        }
+
+        if trusted {
+            // Record the now-trusted key on the connection and persist to CloudKit.
+            connection.connectionInfo.knownHostKey = keyData.base64EncodedString()
+            saveConnection(connection, connectionToUpdate: connection)
+        }
+        return trusted
+    }
+
     private func manager(for connection: Connection) -> SSHManager {
         if let existing = managers[connection.id] { return existing }
         // Ensure SSHManager initialization uses the correct, restored name
@@ -216,20 +253,12 @@ class ConnectionStore {
     func connect(_ connection: Connection) {
         let mgr = manager(for: connection)
 
-        // Configure the host key validation callback
-        mgr.hostKeyValidationCallback = { [weak self] host, fingerprint, _, keyData, completion in
-            Task { @MainActor in
-                // We wrap the original completion to handle saving the key if trusted
-                self?.hostKeyRequest = HostKeyRequest(hostname: host, fingerprint: fingerprint, keyData: keyData) { trusted in
-                    if trusted {
-                        // Update the connection object with the new trusted key
-                        connection.connectionInfo.knownHostKey = keyData.base64EncodedString()
-                        // Persist this change to CloudKit immediately
-                        self?.saveConnection(connection, connectionToUpdate: connection)
-                    }
-                    completion(trusted)
-                }
-            }
+        // Configure the host key validation handler. It suspends until the user
+        // answers the prompt, then returns their trust decision.
+        mgr.hostKeyValidationHandler = { [weak self] host, fingerprint, _, keyData in
+            guard let self else { return false }
+            return await self.confirmHostKeyTrust(host: host, fingerprint: fingerprint,
+                                                  keyData: keyData, connection: connection)
         }
 
         // Configure the error callback to show alerts
