@@ -264,10 +264,10 @@ class ConnectionStore {
     /// - Parameter connection: The connection to establish
     func connect(_ connection: Connection) {
         // Load stored secrets just before connecting. They're not kept in the
-        // in-memory model at rest, so this is the point where they're read back
-        // (and where a future "require authentication" prompt would appear).
-        // Values already present — e.g. just entered in the credentials sheet —
-        // are left untouched.
+        // in-memory model at rest, so this is the point where they're read back —
+        // and, when "require authentication" is on, where the OS prompts for
+        // Touch ID / password. Values already present (e.g. just entered in the
+        // credentials sheet) are left untouched.
         hydrateCredentials(for: connection)
 
         let mgr = manager(for: connection)
@@ -309,8 +309,29 @@ class ConnectionStore {
         if let mgr = managers[connection.id] {
             Task {
                 await mgr.disconnect()
+                // When credentials are protected, drop the hydrated secrets from
+                // memory after use so the next connect re-authenticates. (When
+                // protection is off we leave them, preserving the prior behaviour
+                // where session-entered credentials survive a reconnect.)
+                if self.isCredentialProtectionEnabled {
+                    connection.connectionInfo.password = ""
+                    connection.connectionInfo.privateKey = ""
+                }
             }
         }
+    }
+
+    /// Whether the user has opted in to requiring authentication to use saved
+    /// credentials. Mirrors the Settings toggle.
+    var isCredentialProtectionEnabled: Bool {
+        UserDefaults.standard.bool(forKey: KeychainService.protectionEnabledKey)
+    }
+
+    /// Re-keys all stored credentials to match the new protection preference.
+    /// The preference itself is written by the Settings toggle (`@AppStorage`)
+    /// before this runs; here we just bring existing Keychain items in line.
+    func reprotectStoredCredentials(enabled: Bool) {
+        credentialsStore.setCredentialProtection(enabled: enabled, for: connections.map(\.id))
     }
     
     // MARK: - CloudKit Helpers (Synchronized via Task/Async/Await)
