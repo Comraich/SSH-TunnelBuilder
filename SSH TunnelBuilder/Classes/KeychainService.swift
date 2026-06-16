@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import LocalAuthentication
 
 // MARK: - Protocol
 
@@ -16,6 +17,16 @@ protocol CredentialsStore {
     func hasPassword(for id: UUID) -> Bool
     /// Whether a private key is stored for `id`. See `hasPassword(for:)`.
     func hasPrivateKey(for id: UUID) -> Bool
+
+    /// Re-saves the stored credentials for the given connection ids so they
+    /// match the current protection preference (access-control on/off). Called
+    /// when the user toggles the "require authentication" setting. Stores that
+    /// don't support OS-level protection (e.g. the mock) can ignore this.
+    func setCredentialProtection(enabled: Bool, for ids: [UUID])
+}
+
+extension CredentialsStore {
+    func setCredentialProtection(enabled: Bool, for ids: [UUID]) {}
 }
 
 // MARK: - Account Keys
@@ -35,6 +46,21 @@ final class KeychainService: CredentialsStore, Sendable {
 
     private let service = "SSH Tunnel Manager"
 
+    /// `UserDefaults` key backing the "require Touch ID / password to use saved
+    /// credentials" setting. Shared with the `@AppStorage` binding in Settings.
+    static let protectionEnabledKey = "RequireAuthForStoredCredentials"
+
+    /// Whether stored credentials should be protected by user-presence
+    /// (Touch ID / password). Read fresh on each save so a toggle takes effect
+    /// immediately for subsequently re-keyed items.
+    private var isProtectionEnabled: Bool {
+        UserDefaults.standard.bool(forKey: Self.protectionEnabledKey)
+    }
+
+    /// Default prompt shown when the OS asks the user to authenticate before a
+    /// protected credential is read.
+    private static let useReason = "Authenticate to use your saved SSH credentials."
+
     // MARK: - Public API
 
     func savePassword(_ password: String, for id: UUID) {
@@ -46,11 +72,11 @@ final class KeychainService: CredentialsStore, Sendable {
     }
 
     func loadPassword(for id: UUID) -> String? {
-        loadString(account: CredentialAccount.password(for: id))
+        loadString(account: CredentialAccount.password(for: id), context: makeAuthContext(reason: Self.useReason))
     }
 
     func loadPrivateKey(for id: UUID) -> String? {
-        loadString(account: CredentialAccount.privateKey(for: id))
+        loadString(account: CredentialAccount.privateKey(for: id), context: makeAuthContext(reason: Self.useReason))
     }
 
     func deleteCredentials(for id: UUID) {
@@ -64,6 +90,29 @@ final class KeychainService: CredentialsStore, Sendable {
 
     func hasPrivateKey(for id: UUID) -> Bool {
         containsItem(account: CredentialAccount.privateKey(for: id))
+    }
+
+    /// Re-saves every stored secret so its Keychain protection matches the
+    /// current `isProtectionEnabled` preference. A single `LAContext` is reused
+    /// across the batch so disabling protection (which must *read* the currently
+    /// protected items) prompts the user only once.
+    func setCredentialProtection(enabled: Bool, for ids: [UUID]) {
+        let reason = enabled
+            ? "Authenticate to protect your saved SSH credentials with Touch ID or your password."
+            : "Authenticate to remove Touch ID / password protection from your saved SSH credentials."
+        // One reusable context so the whole re-key pass authenticates at most once.
+        let context = makeAuthContext(reason: reason, reuseDuration: 30)
+
+        for id in ids {
+            let pwAccount = CredentialAccount.password(for: id)
+            if let password = loadString(account: pwAccount, context: context) {
+                saveString(password, account: pwAccount)
+            }
+            let keyAccount = CredentialAccount.privateKey(for: id)
+            if let key = loadString(account: keyAccount, context: context) {
+                saveString(key, account: keyAccount)
+            }
+        }
     }
 
     // MARK: - Low-level helpers
@@ -87,27 +136,68 @@ final class KeychainService: CredentialsStore, Sendable {
         // Delete existing item first to avoid duplicates
         deleteItem(account: account)
 
-        let query: [String: Any] = [
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
+            kSecValueData as String: data
         ]
+        // When protection is enabled, gate reads behind user presence
+        // (Touch ID / password). `kSecAttrAccessControl` and `kSecAttrAccessible`
+        // are mutually exclusive, so set exactly one.
+        if isProtectionEnabled, let accessControl = makeUserPresenceAccessControl() {
+            query[kSecAttrAccessControl as String] = accessControl
+        } else {
+            query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        }
         let status = SecItemAdd(query as CFDictionary, nil)
         if status != errSecSuccess {
             Logger.error("Failed to save item for account '\(account)'. OSStatus: \(status)", log: Logger.keychain)
         }
     }
 
-    private func loadString(account: String) -> String? {
-        let query: [String: Any] = [
+    /// Builds a user-presence access-control object: the item can only be read
+    /// after the user authenticates with Touch ID or their login password
+    /// (`.userPresence`), and never leaves this device.
+    private func makeUserPresenceAccessControl() -> SecAccessControl? {
+        var error: Unmanaged<CFError>?
+        let accessControl = SecAccessControlCreateWithFlags(
+            nil,
+            kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+            .userPresence,
+            &error
+        )
+        if let error = error?.takeRetainedValue() {
+            Logger.error("Failed to create Keychain access control: \(error)", log: Logger.keychain)
+            return nil
+        }
+        return accessControl
+    }
+
+    /// Builds an `LAContext` carrying the prompt text shown when the OS asks the
+    /// user to authenticate. Passed to the Keychain via `kSecUseAuthenticationContext`
+    /// (the supported replacement for the deprecated `kSecUseOperationPrompt`).
+    /// A non-zero `reuseDuration` lets several reads share one authentication.
+    private func makeAuthContext(reason: String, reuseDuration: TimeInterval = 0) -> LAContext {
+        let context = LAContext()
+        context.localizedReason = reason
+        context.touchIDAuthenticationAllowableReuseDuration = reuseDuration
+        return context
+    }
+
+    /// Reads a stored string. For access-control-protected items the OS presents
+    /// an authentication prompt (using `context.localizedReason`); a shared
+    /// `context` lets a batch authenticate once. Unprotected items never prompt.
+    private func loadString(account: String, context: LAContext? = nil) -> String? {
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
+        if let context { query[kSecUseAuthenticationContext as String] = context }
+
         var item: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &item)
         guard status == errSecSuccess, let data = item as? Data else { return nil }
