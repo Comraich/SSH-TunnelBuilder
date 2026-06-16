@@ -240,6 +240,18 @@ class ConnectionStore {
         return trusted
     }
 
+    /// Populates `connection`'s secrets from the Keychain if they aren't already
+    /// set in memory. A no-op for fields that already carry a value (e.g. typed
+    /// into the credentials sheet for this session).
+    private func hydrateCredentials(for connection: Connection) {
+        if connection.connectionInfo.password.isEmpty {
+            connection.connectionInfo.password = credentialsStore.loadPassword(for: connection.id) ?? ""
+        }
+        if connection.connectionInfo.privateKey.isEmpty {
+            connection.connectionInfo.privateKey = credentialsStore.loadPrivateKey(for: connection.id) ?? ""
+        }
+    }
+
     private func manager(for connection: Connection) -> SSHManager {
         if let existing = managers[connection.id] { return existing }
         // Ensure SSHManager initialization uses the correct, restored name
@@ -251,6 +263,13 @@ class ConnectionStore {
     /// Initiates an SSH connection for the given connection object
     /// - Parameter connection: The connection to establish
     func connect(_ connection: Connection) {
+        // Load stored secrets just before connecting. They're not kept in the
+        // in-memory model at rest, so this is the point where they're read back
+        // (and where a future "require authentication" prompt would appear).
+        // Values already present — e.g. just entered in the credentials sheet —
+        // are left untouched.
+        hydrateCredentials(for: connection)
+
         let mgr = manager(for: connection)
 
         // Configure the host key validation handler. It suspends until the user
@@ -401,7 +420,29 @@ class ConnectionStore {
     }
     
     func updateTempConnection(with connection: Connection) {
-        self.tempConnection = connection.copy() // Use a copy for editing
+        let copy = connection.copy() // Use a copy for editing
+        // Secrets aren't held in the in-memory model at rest (lazy loading), so
+        // pull them into the editable copy now. Otherwise saving an edit (even
+        // an unrelated change like the name) would persist empty secrets over
+        // the stored ones. This is also where a future auth prompt for editing
+        // would surface.
+        if copy.connectionInfo.password.isEmpty {
+            copy.connectionInfo.password = credentialsStore.loadPassword(for: connection.id) ?? ""
+        }
+        if copy.connectionInfo.privateKey.isEmpty {
+            copy.connectionInfo.privateKey = credentialsStore.loadPrivateKey(for: connection.id) ?? ""
+        }
+        self.tempConnection = copy
+    }
+
+    /// Whether a password is stored for this connection, without reading it.
+    func hasStoredPassword(_ connection: Connection) -> Bool {
+        credentialsStore.hasPassword(for: connection.id)
+    }
+
+    /// Whether a private key is stored for this connection, without reading it.
+    func hasStoredPrivateKey(_ connection: Connection) -> Bool {
+        credentialsStore.hasPrivateKey(for: connection.id)
     }
     
     func clearTempConnection() {
@@ -618,13 +659,17 @@ class ConnectionStore {
         let remotePort = portString(record, CloudKitKeys.remotePort)
 
         let knownHostKey = (record[CloudKitKeys.knownHostKey] as? String) ?? ""
-        
-        // Keychain operations are synchronous
-        let password = credentialsStore.loadPassword(for: uuid) ?? ""
-        let privateKey = credentialsStore.loadPrivateKey(for: uuid) ?? ""
-        // Note: privateKeyPassphrase is not persisted long-term
 
-        let connectionInfo = ConnectionInfo(name: name, serverAddress: serverAddress, portNumber: portNumber, username: username, password: password, privateKey: privateKey, privateKeyPassphrase: "", knownHostKey: knownHostKey)
+        // Secrets are NOT loaded into the in-memory model here. They're read
+        // lazily from the Keychain at the moment they're needed — at connect
+        // time (`hydrateCredentials`) and when editing (`updateTempConnection`).
+        // This keeps the whole connection list from pulling every secret on
+        // launch, and is the single choke point a future "require auth to use
+        // credentials" prompt can hook into. Existence (for display and the
+        // connect gate) is checked via `hasStoredPassword`/`hasStoredPrivateKey`
+        // without reading the secret value.
+        // Note: privateKeyPassphrase is not persisted long-term.
+        let connectionInfo = ConnectionInfo(name: name, serverAddress: serverAddress, portNumber: portNumber, username: username, password: "", privateKey: "", privateKeyPassphrase: "", knownHostKey: knownHostKey)
         let tunnelInfo = TunnelInfo(localPort: localPort, remoteServer: remoteServer, remotePort: remotePort)
 
         return Connection(id: uuid, recordID: record.recordID, connectionInfo: connectionInfo, tunnelInfo: tunnelInfo)

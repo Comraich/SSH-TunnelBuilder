@@ -9,6 +9,13 @@ protocol CredentialsStore {
     func loadPassword(for id: UUID) -> String?
     func loadPrivateKey(for id: UUID) -> String?
     func deleteCredentials(for id: UUID)
+
+    /// Whether a password is stored for `id`, checked *without* reading the
+    /// secret value. Lets the UI know credentials exist without holding them in
+    /// memory (and, once items are access-control protected, without prompting).
+    func hasPassword(for id: UUID) -> Bool
+    /// Whether a private key is stored for `id`. See `hasPassword(for:)`.
+    func hasPrivateKey(for id: UUID) -> Bool
 }
 
 // MARK: - Account Keys
@@ -51,7 +58,29 @@ final class KeychainService: CredentialsStore, Sendable {
         deleteItem(account: CredentialAccount.privateKey(for: id))
     }
 
+    func hasPassword(for id: UUID) -> Bool {
+        containsItem(account: CredentialAccount.password(for: id))
+    }
+
+    func hasPrivateKey(for id: UUID) -> Bool {
+        containsItem(account: CredentialAccount.privateKey(for: id))
+    }
+
     // MARK: - Low-level helpers
+
+    /// Existence check that queries for a match without requesting the item's
+    /// data. Reading attributes (not `kSecValueData`) never triggers an
+    /// authentication prompt, even for access-control-protected items.
+    private func containsItem(account: String) -> Bool {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: false,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        return SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess
+    }
 
     private func saveString(_ string: String, account: String) {
         guard let data = string.data(using: .utf8) else { return }
@@ -118,6 +147,14 @@ final class MockCredentialsStore: CredentialsStore {
     func deleteCredentials(for id: UUID) {
         storage.removeValue(forKey: CredentialAccount.password(for: id))
         storage.removeValue(forKey: CredentialAccount.privateKey(for: id))
+    }
+
+    func hasPassword(for id: UUID) -> Bool {
+        storage[CredentialAccount.password(for: id)]?.isEmpty == false
+    }
+
+    func hasPrivateKey(for id: UUID) -> Bool {
+        storage[CredentialAccount.privateKey(for: id)]?.isEmpty == false
     }
 }
 

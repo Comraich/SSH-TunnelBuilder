@@ -21,8 +21,11 @@ struct ConnectButtonView: View {
             if connection.isActive {
                 connectionStore.disconnect(connection)
             } else {
-                let hasPassword = !connection.connectionInfo.password.isEmpty
-                let hasKey = !connection.connectionInfo.privateKey.isEmpty
+                // Secrets aren't held in memory at rest, so ask the store
+                // whether credentials exist (checked without reading them)
+                // rather than inspecting the model's (empty) fields.
+                let hasPassword = connectionStore.hasStoredPassword(connection)
+                let hasKey = connectionStore.hasStoredPrivateKey(connection)
                 if !(hasPassword || hasKey) {
                     showCredentialsSheet = true
                     return
