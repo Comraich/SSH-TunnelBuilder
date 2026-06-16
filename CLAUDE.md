@@ -254,6 +254,27 @@ compile-validated but not behaviourally tested on this toolchain.
 
 ### Open bugs (to fix)
 
+- [x] **Connection hangs forever in `.connecting` — two spinners never stop (2026-06-16) — FIXED**
+  - **Symptom:** A connection whose SSH handshake/auth never resolves (e.g. wrong
+    credentials that the server silently stalls on, or a host that accepts the TCP
+    socket but never speaks SSH) sat in `.connecting` indefinitely. The two
+    by-design `.connecting` spinners (`ConnectionIndicatorView` + `DataCounterView`)
+    spun forever with no error and no way out but Disconnect.
+  - **Root cause:** the only deadline was `ChannelOptions.connectTimeout`
+    (`connectionTimeoutSeconds`, `SSHManager.swift`), which bounds **only the TCP
+    connect**. The await on `sessionReadyPromise` — covering the SSH handshake and
+    authentication — had **no timeout**, so a non-resolving handshake never failed.
+  - **Fix (`SSHManager.swift`):** added `handshakeTimeoutSeconds` (default 15) and a
+    scheduled task that fails `sessionReadyPromise` with `.connectionTimeout` if the
+    handshake/auth phase overruns. Armed before connecting, cancelled on
+    success/failure/shutdown. Crucially it is **paused while the host-key (TOFU)
+    prompt is up** (cancel on prompt, re-arm on trust) so a deliberating user is
+    never timed out. Completing an already-resolved NIO promise is a no-op, so the
+    timeout races safely against a session that becomes ready first.
+  - **Verified:** against a silent TCP listener (handshake hangs), `connect()` threw
+    `.connectionTimeout` after exactly the configured deadline and the state went to
+    `.failed(...)` — leaving `.connecting`, so the spinners stop.
+
 - [x] **Host-key trust-on-first-use does not actually pin — re-prompts every connect (2026-06-16) — FIXED**
   - **Symptom:** Connecting to a host showed the "Unknown Host" prompt (good), but
     after trusting it, **every subsequent connect re-prompted** — the trusted key

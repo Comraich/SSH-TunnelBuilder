@@ -10,10 +10,19 @@ import CryptoKit
 // private-key parsing lives in `SSHKeyParsing.swift`.
 
 final class SSHManager: @unchecked Sendable {
-    /// Connection timeout in seconds. Increase for high-latency networks.
+    /// TCP connect timeout in seconds. Increase for high-latency networks.
     /// `nonisolated(unsafe)` because this is a simple configuration knob set
     /// at most once before connecting; it is not mutated concurrently.
     nonisolated(unsafe) static var connectionTimeoutSeconds: Int64 = 10
+
+    /// Deadline (seconds) for the SSH handshake + authentication phase, measured
+    /// from the start of the connection but *paused* while the user is deciding at
+    /// the host-key trust prompt. `connectionTimeoutSeconds` only bounds the TCP
+    /// connect; without this, a server that accepts the socket but never completes
+    /// auth (wrong credentials that hang, a stalled handshake) would leave the
+    /// connection stuck in `.connecting` forever.
+    /// `nonisolated(unsafe)` for the same reason as `connectionTimeoutSeconds`.
+    nonisolated(unsafe) static var handshakeTimeoutSeconds: Int64 = 15
 
     let connection: Connection
     private var eventLoopGroup: MultiThreadedEventLoopGroup?
@@ -26,6 +35,10 @@ final class SSHManager: @unchecked Sendable {
 
     private var sessionReadyPromise: EventLoopPromise<Void>?
     private var sessionReadyCompleted = false
+
+    /// Scheduled task that fails `sessionReadyPromise` if the handshake/auth phase
+    /// runs past `handshakeTimeoutSeconds`. Guarded by `lock`.
+    private var handshakeTimeoutTask: Scheduled<Void>?
 
     // Async handler: (hostname, fingerprint, keyType, keyData) -> user's trust decision
     var hostKeyValidationHandler: (@Sendable (String, String, String, Data) async -> Bool)?
@@ -120,6 +133,11 @@ final class SSHManager: @unchecked Sendable {
         self.sessionReadyPromise = group.next().makePromise(of: Void.self)
         self.sessionReadyCompleted = false
 
+        // Bound the handshake + auth phase (see handshakeTimeoutSeconds). Armed
+        // before connecting so it is always in place before NIOSSH starts the
+        // handshake; the host-key prompt pauses it (see handleHostKeyValidation).
+        armHandshakeTimeout()
+
         let bootstrap = ClientBootstrap(group: group)
             .channelOption(ChannelOptions.connectTimeout, value: .seconds(Self.connectionTimeoutSeconds))
             .channelInitializer { channel in
@@ -151,6 +169,7 @@ final class SSHManager: @unchecked Sendable {
                 try await sessionReadyPromise.futureResult.get()
                 self.sessionReadyCompleted = true
             }
+            cancelHandshakeTimeout()
 
             lock.withLock { self.sshClientChannel = channel }
             await MainActor.run {
@@ -160,6 +179,7 @@ final class SSHManager: @unchecked Sendable {
             try await startLocalListener()
         } catch {
             Logger.error("SSH connect failed: \(error)", log: Logger.ssh)
+            cancelHandshakeTimeout()
             if let p = self.sessionReadyPromise, self.sessionReadyCompleted == false {
                 self.sessionReadyCompleted = true
                 p.fail(error)
@@ -219,9 +239,46 @@ final class SSHManager: @unchecked Sendable {
         // the awaited result. EventLoopPromise is Sendable and hops to its own
         // event loop when completed, so resolving it from this Task is safe.
         Task {
+            // The user is deciding at the host-key prompt — don't count that
+            // against the handshake deadline. Re-arm once they trust so the
+            // remaining auth phase stays bounded.
+            self.cancelHandshakeTimeout()
             let allowed = await handler(host, fingerprint, keyType, resolvedKeyData)
-            allowed ? promise.succeed(()) : promise.fail(SSHTunnelError.hostKeyRejected)
+            if allowed {
+                self.armHandshakeTimeout()
+                promise.succeed(())
+            } else {
+                promise.fail(SSHTunnelError.hostKeyRejected)
+            }
         }
+    }
+
+    /// Schedules a task that fails `sessionReadyPromise` with `.connectionTimeout`
+    /// after `handshakeTimeoutSeconds`, so a stalled handshake/auth can't leave the
+    /// connection wedged in `.connecting`. Completing an already-resolved promise is
+    /// a no-op in NIO, so this is safe even if the session becomes ready first.
+    private func armHandshakeTimeout() {
+        guard let group = lock.withLock({ self.eventLoopGroup }) else { return }
+        let scheduled = group.next().scheduleTask(in: .seconds(Self.handshakeTimeoutSeconds)) { [weak self] in
+            guard let self else { return }
+            self.lock.withLock {
+                guard let promise = self.sessionReadyPromise, self.sessionReadyCompleted == false else { return }
+                self.sessionReadyCompleted = true
+                Logger.error("SSH handshake/auth timed out after \(Self.handshakeTimeoutSeconds)s", log: Logger.ssh)
+                promise.fail(SSHTunnelError.connectionTimeout)
+            }
+        }
+        lock.withLock { self.handshakeTimeoutTask = scheduled }
+    }
+
+    /// Cancels a pending handshake-timeout task, if any.
+    private func cancelHandshakeTimeout() {
+        let task = lock.withLock { () -> Scheduled<Void>? in
+            let existing = self.handshakeTimeoutTask
+            self.handshakeTimeoutTask = nil
+            return existing
+        }
+        task?.cancel()
     }
 
     private func serialize(key: NIOSSHPublicKey) -> Data? {
@@ -357,6 +414,7 @@ final class SSHManager: @unchecked Sendable {
     }
 
     private func shutdown() async {
+        cancelHandshakeTimeout()
         await withTaskGroup(of: Void.self) { group in
             var mutableGroup = group
             let (ssh, local) = lock.withLock { (self.sshClientChannel, self.localServerChannel) }
