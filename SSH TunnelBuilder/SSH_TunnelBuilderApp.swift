@@ -17,6 +17,9 @@ struct SSH_TunnelBuilderApp: App {
         WindowGroup {
             ContentView(connectionStore: connectionStore)
         }
+        .commands {
+            AppCommands(store: connectionStore)
+        }
 
         Settings {
             SettingsView()

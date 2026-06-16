@@ -19,6 +19,37 @@
 - **PEMDecryptor.swift**: PKCS#8 key decryption with PBKDF2
 - **BcryptPBKDF.swift**: Blowfish + `bcrypt_pbkdf` (from scratch; not in CryptoKit), used to key OpenSSH key decryption
 - **OpenSSHKeyDecryptor.swift**: decrypts encrypted `openssh-key-v1` private sections (AES-CTR/CBC/GCM)
+- **ConnectionTransfer.swift**: encrypted import/export codec (see below)
+- **ExportDocument.swift**: `.sshtunnels` `UTType` + `FileDocument` for the file dialogs
+- **PassphrasePromptView.swift**: reusable encrypt/decrypt passphrase sheet
+- **AppCommands.swift**: app menu bar commands (`Commands`) operating on the shared store
+
+## Import / Export
+
+Connections can be exported to and imported from an encrypted `.sshtunnels` file
+via the **File** menu (`File ▸ Export ▸ Export All… / Export Selected…`, and
+`File ▸ Import Connections…`).
+
+- **Format:** a plaintext JSON envelope (format/version + KDF params) wrapping a
+  base64 AES-256-GCM blob. No secret ever touches disk in cleartext — only the
+  ciphertext does. On-disk type is a branded `.sshtunnels` UTI conforming to
+  `public.json` (declared in `SSH-TunnelBuilder-Info.plist`).
+- **Crypto:** passphrase → PBKDF2-HMAC-SHA256 (600k iterations, 16-byte random
+  salt) → 256-bit key → `AES.GCM`. A wrong passphrase fails as a GCM tag
+  mismatch and surfaces a friendly error. All in `ConnectionTransfer` (pure,
+  `nonisolated`); the heavy KDF runs off the main actor.
+- **Secrets:** an export is a *full* backup. `ConnectionStore.makeExportPayload`
+  reads passwords / private keys from the Keychain (may prompt for Touch ID);
+  `importConnections` mints **fresh ids** (so imports never overwrite existing
+  CloudKit records) and writes secrets back through the normal save path.
+  `privateKeyPassphrase` is never persisted, so it always exports empty.
+- **UI plumbing:** menu commands set `ConnectionStore.transferRequest`;
+  `ContentView` observes it and runs the passphrase sheet + `fileExporter` /
+  `fileImporter`. Selection is hoisted into the store (`selectedConnection`) so
+  the commands can act on it. The file dialogs require the sandbox file-access
+  build settings (`ENABLE_APP_SANDBOX` + `ENABLE_USER_SELECTED_FILES = readwrite`).
+  Each presentation sits on its own `.background` host — macOS SwiftUI only drives
+  one presentation per view.
 
 ## Private key support
 

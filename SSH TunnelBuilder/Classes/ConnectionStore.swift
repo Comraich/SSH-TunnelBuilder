@@ -51,8 +51,25 @@ class ConnectionStore {
         case view
         case loading
     }
-    
+
+    /// A menu command's request to begin an import/export flow. `ContentView`
+    /// observes this, runs the passphrase prompt + file dialog, then clears it.
+    enum TransferRequest: Equatable {
+        case exportAll
+        case exportSelected
+        case importConnections
+    }
+
     var mode: Mode = .loading
+
+    /// The connection currently selected in the sidebar. Hoisted into the store
+    /// (rather than living as `ContentView` state) so the app's menu commands can
+    /// read and act on the selection — Connect/Disconnect/Edit/Delete/Export.
+    var selectedConnection: Connection?
+
+    /// Set by a menu command to ask `ContentView` to start a transfer flow.
+    var transferRequest: TransferRequest?
+
     private(set) var connections: [Connection] = []
     private(set) var tempConnection: Connection?
 
@@ -638,6 +655,59 @@ class ConnectionStore {
         }
     }
     
+    // MARK: - Import / Export
+
+    /// Builds an export payload for the given connections, reading their secrets
+    /// from the Keychain. Reading protected credentials may prompt for Touch ID /
+    /// password. `privateKeyPassphrase` is never persisted, so it exports empty.
+    func makeExportPayload(for connections: [Connection]) -> ExportPayload {
+        let exported = connections.map { connection -> ExportedConnection in
+            let info = connection.connectionInfo
+            let tunnel = connection.tunnelInfo
+            return ExportedConnection(
+                name: info.name,
+                serverAddress: info.serverAddress,
+                portNumber: info.portNumber,
+                username: info.username,
+                password: credentialsStore.loadPassword(for: connection.id) ?? "",
+                privateKey: credentialsStore.loadPrivateKey(for: connection.id) ?? "",
+                privateKeyPassphrase: "",
+                knownHostKey: info.knownHostKey,
+                localPort: tunnel.localPort,
+                remoteServer: tunnel.remoteServer,
+                remotePort: tunnel.remotePort
+            )
+        }
+        return ExportPayload(connections: exported)
+    }
+
+    /// Imports connections from a decrypted payload. Each becomes a brand-new
+    /// connection (fresh id / CloudKit record) saved through the normal path, so
+    /// secrets land in the Keychain and nothing overwrites an existing record.
+    /// Returns the number of connections queued for import.
+    @discardableResult
+    func importConnections(from payload: ExportPayload) -> Int {
+        for item in payload.connections {
+            let connectionInfo = ConnectionInfo(
+                name: item.name,
+                serverAddress: item.serverAddress,
+                portNumber: item.portNumber,
+                username: item.username,
+                password: item.password,
+                privateKey: item.privateKey,
+                privateKeyPassphrase: item.privateKeyPassphrase,
+                knownHostKey: item.knownHostKey
+            )
+            let tunnelInfo = TunnelInfo(
+                localPort: item.localPort,
+                remoteServer: item.remoteServer,
+                remotePort: item.remotePort
+            )
+            newConnection(connectionInfo: connectionInfo, tunnelInfo: tunnelInfo)
+        }
+        return payload.connections.count
+    }
+
     private func migrateSecret(from record: CKRecord, field: String, for uuid: UUID, saveAction: (String, UUID) -> Void) -> Bool {
         if let encodedValue = record[field] as? String, !encodedValue.isEmpty {
             saveAction(encodedValue, uuid)
