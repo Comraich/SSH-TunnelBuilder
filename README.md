@@ -10,7 +10,7 @@ A SwiftUI app for creating, viewing, editing, and persisting SSH connection prof
 - Securely store passwords and private keys in the Keychain
 - Automatic, one-time migration of secrets from CloudKit to Keychain for older records
 - Password or private-key authentication, including **encrypted (passphrase-protected) keys** — see [Private key authentication](#private-key-authentication)
-- Host-key verification with trust-on-first-use: unknown hosts prompt for confirmation, and the trusted key is pinned for later connections
+- Host-key verification with trust-on-first-use: unknown hosts prompt for confirmation, and the trusted key is pinned for later connections. If a pinned host's key later changes, a clearly-marked "Host Key Changed" prompt lets you re-trust the new key (e.g. after a legitimate server rekey) or cancel (possible MITM).
 - Local port forwarding (DirectTCPIP) to a remote host:port
 - A connection state machine (`idle` → `connecting` → `connected` → `disconnecting`, plus `failed`) driving consistent status UI
 - Live byte counters (sent/received) per connection
@@ -73,12 +73,12 @@ CloudKit Notes:
 - Create: Click the + button, fill in fields, and click "Create".
 - Edit: Select a connection, click the pencil icon, modify fields, and click "Save".
 - Delete: Select a connection and click the trash icon.
-- Connect: Select a connection and click the "Connect" button to establish a tunnel. If no credentials are saved, a sheet prompts for a password and/or private key (with a passphrase field for encrypted keys). The first time you connect to an unknown host, you're asked to confirm its key, which is then pinned for future connections.
+- Connect: Select a connection and click the "Connect" button to establish a tunnel. If no credentials are saved, a sheet prompts for a password and/or private key (with a passphrase field for encrypted keys). The first time you connect to an unknown host, you're asked to confirm its key, which is then pinned for future connections. If the server later presents a different key, a "Host Key Changed" warning surfaces the new fingerprint and lets you re-trust it (the action button is marked destructive) or cancel.
 
 ## Security
 - Passwords and private keys are securely stored in the system Keychain; only non-sensitive metadata is kept in CloudKit.
 - Private-key passphrases are never persisted — they're entered per session and used only in memory.
-- Host keys are verified: unknown hosts require explicit confirmation (trust-on-first-use), and a changed host key for a known host is rejected.
+- Host keys are verified: unknown hosts require explicit confirmation (trust-on-first-use). A changed host key for a known host blocks the connection and triggers a distinct "Host Key Changed" prompt — you must explicitly re-trust the new key (via a destructive-styled action) before the new fingerprint is pinned; cancelling leaves the original pinned key intact.
 - The app includes logic to migrate any credentials previously stored insecurely in CloudKit to the Keychain, after which they are removed from CloudKit.
 - Opt-in Spotlight indexing covers only connection names — never hosts, usernames, ports, or credentials.
 
