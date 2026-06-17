@@ -215,20 +215,25 @@ final class SSHManager: @unchecked Sendable {
 
         var isMismatch = false
         if !knownHostKey.isEmpty {
-            // Try raw key base64 match first (if we have raw key bytes)
-            if let keyData = keyData, let knownData = Data(base64Encoded: knownHostKey), knownData == keyData {
-                promise.succeed(())
-                return
-            }
-            // Then try fingerprint match (stored as the literal SHA256:... string)
-            if knownHostKey == fingerprint {
-                promise.succeed(())
-                return
+            // Only consider a stored pin authoritative when we actually have wire
+            // bytes for the presented key. If `serialize(key:)` returned nil, the
+            // fingerprint is the non-host-specific "SHA256:UNAVAILABLE" sentinel;
+            // matching against it would silently trust any host that triggers the
+            // nil-serialize path, so we force the user to re-confirm instead.
+            if let keyData = keyData {
+                if let knownData = Data(base64Encoded: knownHostKey), knownData == keyData {
+                    promise.succeed(())
+                    return
+                }
+                if knownHostKey == fingerprint {
+                    promise.succeed(())
+                    return
+                }
             }
             // A previously pinned key is on file but doesn't match what the server
-            // just presented. Don't auto-fail — surface the change to the user so
-            // they can re-trust the new key (e.g. after a legitimate server rekey)
-            // or reject it (possible MITM).
+            // just presented (or we can't verify it). Don't auto-fail — surface the
+            // change to the user so they can re-trust the new key (e.g. after a
+            // legitimate server rekey) or reject it (possible MITM).
             isMismatch = true
         }
 

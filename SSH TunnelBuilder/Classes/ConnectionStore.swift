@@ -853,6 +853,12 @@ class ConnectionStore {
     @discardableResult
     func importConnections(from payload: ExportPayload) -> Int {
         for item in payload.connections {
+            // Discard any host-key pin from the import. A pinned `knownHostKey`
+            // short-circuits the TOFU prompt on first connect, so honouring one
+            // from an untrusted bundle would let the bundle author silently
+            // pre-pin a key they control. Forcing it empty here makes the user
+            // see and confirm the real server fingerprint on first connect to
+            // each imported host.
             let connectionInfo = ConnectionInfo(
                 name: item.name,
                 serverAddress: item.serverAddress,
@@ -861,7 +867,7 @@ class ConnectionStore {
                 password: item.password,
                 privateKey: item.privateKey,
                 privateKeyPassphrase: item.privateKeyPassphrase,
-                knownHostKey: item.knownHostKey
+                knownHostKey: ""
             )
             let tunnelInfo = TunnelInfo(
                 localPort: item.localPort,

@@ -19,15 +19,23 @@ enum Logger {
 
     // MARK: - Convenience Methods
 
+    // The os.log default privacy level (`.private`) shows full values to a
+    // developer attached via Xcode but redacts them to `<private>` in archived
+    // logs (sysdiagnose, Console.app on another user account, support bundles).
+    // Most call sites interpolate hostnames, tunnel targets, or connection
+    // nicknames — operational metadata that shouldn't ship verbatim in
+    // diagnostics. Keep that default; let individual call sites opt into
+    // `privacy: .public` where they explicitly want a public correlator.
+
     static func debug(_ message: String, log: Category) {
-        log.logger.debug("\(message, privacy: .public)")
+        log.logger.debug("\(message)")
     }
 
     static func info(_ message: String, log: Category) {
-        log.logger.info("\(message, privacy: .public)")
+        log.logger.info("\(message)")
     }
 
     static func error(_ message: String, log: Category) {
-        log.logger.error("\(message, privacy: .public)")
+        log.logger.error("\(message)")
     }
 }
