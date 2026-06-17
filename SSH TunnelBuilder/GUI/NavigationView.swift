@@ -1,65 +1,83 @@
+// Copyright 2020-2026 Comraich ANS
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import SwiftUI
 
 struct NavigationList: View {
-    @ObservedObject var connectionStore: ConnectionStore
+    var connectionStore: ConnectionStore
     @Binding var selectedConnection: Connection?
-    @Binding var mode: MainViewMode
+    @Binding var mode: ConnectionStore.Mode
     
     var body: some View {
         List(selection: $selectedConnection) {
             ForEach(connectionStore.connections) { connection in
-                ConnectionRow(connection: connection, isSelected: selectedConnection == connection)
-                    .tag(connection)
-                    .onTapGesture {
-                        selectedConnection = connection
-                    }
+                // The List drives selection via its `selection:` binding and the
+                // row `.tag`, so no extra tap gesture is needed.
+                ConnectionRow(
+                    name: connection.connectionInfo.name,
+                    isSelected: selectedConnection == connection
+                )
+                .tag(connection)
             }
         }
-        .listStyle(SidebarListStyle())
-        .frame(minWidth: 230)
+        .listStyle(.sidebar)
+        // Default the sidebar to a width that comfortably fits the window
+        // controls plus all three primary toolbar buttons (Create / Edit /
+        // Delete). Without this, macOS pushes the trailing items — Delete
+        // first — into the "···" overflow menu at the default split width.
+        .navigationSplitViewColumnWidth(min: 230, ideal: 300, max: 500)
         .navigationTitle("Navigation")
+        // Use `.primaryAction` rather than `.automatic` so macOS keeps Create /
+        // Edit / Delete visible side-by-side instead of pushing the trailing
+        // items (Delete first) into the "···" overflow when the sidebar is
+        // narrow.
         .toolbar {
-            ToolbarItem(placement: .automatic) {
-                Button(action: {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
                     connectionStore.mode = .create
                     selectedConnection = nil
-                }) {
-                    Image(systemName: "plus")
+                } label: {
+                    Label("Create new connection", systemImage: "plus")
                 }
                 .help("Create new connection")
             }
-            
-            ToolbarItem(placement: .automatic) {
-                if selectedConnection != nil {
-                    Button(action: {
+
+            if selectedConnection != nil {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
                         mode = .edit
-                        // selectedConnection = selectedConnection
                         if let connection = selectedConnection {
                             connectionStore.updateTempConnection(with: connection)
                         }
-                    }) {
-                        Image(systemName: "pencil")
+                    } label: {
+                        Label("Edit selected connection", systemImage: "pencil")
                     }
                     .help("Edit selected connection")
                 }
             }
-            
-            ToolbarItem(placement: .automatic) {
-                if selectedConnection != nil {
-                    Button(action: {
-                        // Delete action
-                        connectionStore.deleteConnection(selectedConnection!)
-                        self.selectedConnection = nil
-                    }) {
-                        Image(systemName: "trash")
+
+            if let connection = selectedConnection {
+                ToolbarItem(placement: .primaryAction) {
+                    Button(role: .destructive) {
+                        connectionStore.deleteConnection(connection)
+                        selectedConnection = nil
+                    } label: {
+                        Label("Delete selected connection", systemImage: "trash")
                     }
                     .help("Delete selected connection")
                 }
             }
         }
-    }
-    
-    func deleteConnection(_ connection: Connection) {
-        connectionStore.deleteConnection(connection)
     }
 }

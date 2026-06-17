@@ -1,6 +1,9 @@
 [![CodeFactor](https://www.codefactor.io/repository/github/comraich/ssh-tunnelbuilder/badge)](https://www.codefactor.io/repository/github/comraich/ssh-tunnelbuilder)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
 # SSH Tunnel Manager
+
+Licensed under the Apache License, Version 2.0. See [LICENSE.TXT](LICENSE.TXT) for the full license text and [NOTICE.txt](NOTICE.txt) for attributions.
 
 A SwiftUI app for creating, viewing, editing, and persisting SSH connection profiles (including local port forwarding) and establishing tunnels using SwiftNIO + NIOSSH. Connection records are stored in your private iCloud database via CloudKit, with sensitive credentials secured in the Keychain.
 
@@ -9,21 +12,45 @@ A SwiftUI app for creating, viewing, editing, and persisting SSH connection prof
 - Store connection details in iCloud (Private Database, custom zone)
 - Securely store passwords and private keys in the Keychain
 - Automatic, one-time migration of secrets from CloudKit to Keychain for older records
-- Password or private key (PEM) authentication
+- Password or private-key authentication, including **encrypted (passphrase-protected) keys** — see [Private key authentication](#private-key-authentication)
+- Host-key verification with trust-on-first-use: unknown hosts prompt for confirmation, and the trusted key is pinned for later connections. If a pinned host's key later changes, a clearly-marked "Host Key Changed" prompt lets you re-trust the new key (e.g. after a legitimate server rekey) or cancel (possible MITM).
 - Local port forwarding (DirectTCPIP) to a remote host:port
+- A connection state machine (`idle` → `connecting` → `connected` → `disconnecting`, plus `failed`) driving consistent status UI
 - Live byte counters (sent/received) per connection
-- SwiftUI split-view interface with a navigation sidebar
+- A menu bar traffic indicator ("SSH" above two dots — green TX blinks on data sent, red RX blinks on data received) that appears only while a tunnel is connected
+- Optional, opt-in Spotlight indexing of connection **names** (off by default; never indexes hosts, usernames, ports, or credentials)
+- SwiftUI `NavigationSplitView` interface with a navigation sidebar
+- Clear error reporting via a modal error sheet
+
+## Private key authentication
+
+Keys are parsed in-app and handed to NIOSSH, which supports **Ed25519** and **ECDSA (P-256 / P-384 / P-521)**. RSA and DSA are **not** supported (NIOSSH has no RSA/DSA implementation; DSA is also obsolete). Unsupported keys are detected with clear guidance to convert them.
+
+Supported formats (Ed25519 / ECDSA):
+
+| Format | Unencrypted | Encrypted |
+|---|---|---|
+| OpenSSH (`BEGIN OPENSSH PRIVATE KEY`) | ✅ | ✅ `bcrypt` KDF + AES-128/192/256 in ctr/cbc/gcm |
+| PKCS#8 (`BEGIN PRIVATE KEY`) | ✅ EC + Ed25519 | ✅ EC + Ed25519 (PBES2 / PBKDF2-SHA256 / AES-256-CBC) |
+| SEC1 (`BEGIN EC PRIVATE KEY`) | ✅ ECDSA | — |
+
+Passphrases are requested when needed and are **never persisted** — they must be re-entered each session. Not yet supported: the `chacha20-poly1305@openssh.com` and `3des-cbc` OpenSSH ciphers, and broader PKCS#8 cipher/KDF combinations.
 
 ## Architecture
-- Model: `Connection`, `ConnectionInfo`, `TunnelInfo`
-- Persistence: `ConnectionStore` (CloudKit for metadata, Keychain for secrets)
-- Networking: `SSHManager` (SwiftNIO + NIOSSH, direct TCP/IP forwarding)
-- UI: `ContentView`, `NavigationList`, `MainView`, `DataCounterView`, `ConnectionRow`
+- Model: `Connection` (with a `ConnectionState` machine), `ConnectionInfo`, `TunnelInfo`
+- Persistence: `ConnectionStore` (CloudKit for metadata, Keychain for secrets) — credentials are accessed through a `CredentialsStore` protocol (`KeychainService`, with an in-memory mock for tests)
+- Networking: `SSHManager` (SwiftNIO + NIOSSH, direct TCP/IP forwarding, host-key verification)
+- Key parsing/decryption:
+  - `PEMDecryptor` — PKCS#8 (PBES2/PBKDF2) and SEC1 parsing, plus a minimal ASN.1 reader
+  - `OpenSSHKeyDecryptor` — decrypts encrypted `openssh-key-v1` private sections (AES-CTR/CBC/GCM)
+  - `BcryptPBKDF` — Blowfish + `bcrypt_pbkdf` implemented from scratch (neither is in CryptoKit), used to key OpenSSH decryption
+- Cross-cutting: `SSHTunnelError` (unified error type), `Logger` (`os.Logger` categories), `SpotlightIndexer` (opt-in)
+- UI: `ContentView`, `NavigationList`, `MainView`, `DataCounterView`, `ConnectionRow`, `SettingsView`, `MenuBarTrafficView` (menu bar indicator)
 - Testing: Unit tests built with the Swift Testing framework.
 
 ## Requirements
-- Xcode 15+ (or newer)
-- Swift 5.9+ (or newer)
+- macOS 14 (Sonoma) or newer
+- Xcode 16+ (Swift 6 language mode)
 - iCloud capability enabled (CloudKit, Private Database)
 - Internet access for SSH connections
 
@@ -49,11 +76,14 @@ CloudKit Notes:
 - Create: Click the + button, fill in fields, and click "Create".
 - Edit: Select a connection, click the pencil icon, modify fields, and click "Save".
 - Delete: Select a connection and click the trash icon.
-- Connect: Select a connection and click the "Connect" button to establish a tunnel.
+- Connect: Select a connection and click the "Connect" button to establish a tunnel. If no credentials are saved, a sheet prompts for a password and/or private key (with a passphrase field for encrypted keys). The first time you connect to an unknown host, you're asked to confirm its key, which is then pinned for future connections. If the server later presents a different key, a "Host Key Changed" warning surfaces the new fingerprint and lets you re-trust it (the action button is marked destructive) or cancel.
 
 ## Security
-- Passwords and private keys are securely stored in the system Keychain.
+- Passwords and private keys are securely stored in the system Keychain; only non-sensitive metadata is kept in CloudKit.
+- Private-key passphrases are never persisted — they're entered per session and used only in memory.
+- Host keys are verified: unknown hosts require explicit confirmation (trust-on-first-use). A changed host key for a known host blocks the connection and triggers a distinct "Host Key Changed" prompt — you must explicitly re-trust the new key (via a destructive-styled action) before the new fingerprint is pinned; cancelling leaves the original pinned key intact.
 - The app includes logic to migrate any credentials previously stored insecurely in CloudKit to the Keychain, after which they are removed from CloudKit.
+- Opt-in Spotlight indexing covers only connection names — never hosts, usernames, ports, or credentials.
 
 ## Third-Party Licenses
 This project uses third-party components:
@@ -73,62 +103,24 @@ See NOTICE.txt for attributions and licensing details.
   - Verify host, port, and credentials independently (e.g., using ssh in Terminal).
   - Check firewall/VPN settings that may block connections.
 
+## Recent improvements
+- **Encrypted private keys** end-to-end: OpenSSH (bcrypt + AES-CTR/CBC/GCM, with a from-scratch Blowfish/`bcrypt_pbkdf`), encrypted PKCS#8 (PBES2/PBKDF2), and a passphrase collection flow. Ed25519 and ECDSA across OpenSSH, PKCS#8, and SEC1 formats. Fixed a SEC1 parsing bug and a latent ASN.1 slice-indexing crash.
+- **Connection state machine** (`ConnectionState`) driving consistent status UI.
+- **Modernization to Swift 6** language mode, `@Observable`, native async CloudKit (`recordZoneChanges`), `@Entry`, `ByteCountFormatStyle`, and the NIO singleton event-loop group.
+- **`CredentialsStore` protocol** with a Keychain implementation and an in-memory mock for tests; deleting a connection now also clears its Keychain secrets.
+- **Unified error handling** (`SSHTunnelError`) surfaced through a modal error sheet; `os.Logger` categories replaced `print`.
+- **Opt-in Spotlight indexing** of connection names.
+- **Menu bar traffic indicator** (`MenuBarExtra`): an "SSH" label above a green TX / red RX dot that blink as data flows, shown only while a tunnel is connected.
+
 ## Roadmap
 
-The following items consolidate the current review feedback into actionable tasks. They are grouped by area to help with prioritization.
+Possible future work, roughly by area:
 
-### SwiftUI Architecture & UI
-- Migrate the split view from `NavigationView` to `NavigationSplitView` (iOS 17+/macOS 14+) for a more robust two-column layout and native selection handling.
-- Standardize on environment injection for `ConnectionStore` where appropriate; pass bindings explicitly for selected items. Avoid mixing direct parameters and `environmentObject` unless necessary.
-- Extract the error alert into a reusable view modifier (e.g., `.errorAlert(using:)`) to reduce duplication and keep `ContentView` focused.
-- Scope UI-only enums to their owners (e.g., `MainView.Mode`) and consider `CaseIterable`/`Codable` if useful.
-- Add richer SwiftUI previews using a mock store and sample data (`ConnectionStore.mockWithSampleData`).
-- Provide helpful empty states in detail when `selectedConnection == nil` or when in `loading` mode.
-
-### Testing
-- Abstract `KeychainService` behind a `CredentialsStore` protocol; add an in-memory mock and update unit tests to use it. Keep one integration test that exercises the real Keychain.
-- Add tests for edge cases in the authentication delegate:
-  - When available methods are empty or unsupported, ensure we fail gracefully.
-  - Verify ordering preference (public key first, then password) remains correct.
-- Expand CloudKit mapping tests to include failure paths:
-  - Missing required fields (e.g., `serverAddress`).
-  - Legacy records with embedded secrets: ensure migration removes secrets from the record and stores them in the Keychain.
-- Harden the `ByteCountFormatter` test to avoid locale fragility by setting a fixed locale or loosening exact string matches.
-
-### Persistence & Security
-- Ensure deleting a `Connection` also deletes credentials from the Keychain via `keychain.deleteCredentials(for:)` along the UI delete path.
-- Private key handling:
-  - If encrypted PEMs are not supported, detect and communicate this clearly in the UI.
-  - If we plan to support encrypted PEMs, design a passphrase collection flow and error messaging.
-
-### Networking & SSH
-- Move networking to Swift Concurrency (async/await) where feasible, or provide clear bridging from NIO event loops to async tasks for UI-friendly cancellation and error handling.
-- Introduce a small connection state machine:
-  - States: `idle`, `connecting`, `connected`, `failed(error)`, `disconnecting`.
-  - Events: `connect`, `disconnect`, `retry`, `error`.
-  - Use this to drive consistent UI and prevent stuck states.
-- Throttle live byte counter updates (e.g., ~100ms) and ensure UI updates occur on the main actor to reduce re-rendering overhead.
-
-### Package & Dependency Hygiene
-- Prefer SPM dependencies for `swift-collections` and `swift-system` rather than vendored manifests in the repo, unless we intentionally maintain forks.
-- Remove or isolate experimental/"9999" availability manifests from the main app workspace to avoid toolchain conflicts if they are not required.
-
-### UX & Error Handling
-- Differentiate error surfaces:
-  - CloudKit errors (account, network, permissions) with actionable suggestions.
-  - SSH errors (authentication failed, host unreachable) with guidance and optional "Details…".
-- Provide clear user messaging for unsupported key types or encrypted keys.
-
-### Code Hygiene & Modeling
-- Scope enums/helpers to logical owners to reduce global namespace pollution.
-- Use `private(set)` on observable properties in `ConnectionStore` to enforce mutation via methods and preserve invariants.
-- Evaluate whether `Connection` and nested types should be value types (`struct`) vs. reference types. If keeping classes, ensure `copy()` semantics are correct (already covered by tests).
-- Add a `SampleData.swift` with a couple of sample `Connection`s to power previews and documentation screenshots.
-
-### Nice-to-Haves
-- Add UI tests for basic flows (create, edit, delete, connect) where feasible.
-- Provide a troubleshooting guide section in the README with common CloudKit/SSH issues and resolutions.
-- Add screenshots under `docs/images/` and reference them in the README.
+- **Networking & UI:** throttle live byte-counter updates (~100ms); continue moving NIO event-loop bridging toward async/await for cleaner cancellation; richer error differentiation (CloudKit vs. SSH) with optional "Details…".
+- **Key support (optional polish):** the `chacha20-poly1305@openssh.com` and `3des-cbc` OpenSSH ciphers, and broader PKCS#8 cipher/KDF combinations.
+- **Testing:** `SSHManager` connect/disconnect flows; CloudKit failure paths (mock `CKDatabase`, missing required fields); UI tests for create/edit/delete/connect.
+- **Dependency hygiene:** prefer SPM resolution for `swift-collections` / `swift-system` over vendored manifests unless intentionally forked.
+- **Docs:** add screenshots under `docs/images/` and reference them here.
 
 ## Contributing
 Issues and pull requests are welcome. Please describe your changes and testing steps.

@@ -1,78 +1,32 @@
+// Copyright 2020-2026 Comraich ANS
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import SwiftUI
 #if os(macOS)
 import AppKit
 #endif
 
-// MARK: - PEM Key Helpers (File-private)
+// MARK: - Editable Field View
 
-enum PEMKeyKind { case pkcs8, ec, rsa, openssh, dsa, ed25519, unknown }
-
-func keyKindDescription(_ kind: PEMKeyKind) -> String {
-    switch kind {
-    case .pkcs8: return "PKCS#8 PRIVATE KEY"
-    case .ec: return "EC PRIVATE KEY (ECDSA)"
-    case .rsa: return "RSA PRIVATE KEY"
-    case .openssh: return "OPENSSH PRIVATE KEY"
-    case .dsa: return "DSA PRIVATE KEY"
-    case .ed25519: return "ED25519 PRIVATE KEY"
-    case .unknown: return "Unknown"
-    }
-}
-
-func detectPEMKeyKind(_ text: String) -> PEMKeyKind {
-    let t = text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-    if t.contains("-----BEGIN ENCRYPTED PRIVATE KEY-----") { return .pkcs8 }
-    if t.contains("-----BEGIN PRIVATE KEY-----") { return .pkcs8 }
-    if t.contains("-----BEGIN EC PRIVATE KEY-----") { return .ec }
-    if t.contains("-----BEGIN RSA PRIVATE KEY-----") { return .rsa }
-    if t.contains("-----BEGIN OPENSSH PRIVATE KEY-----") { return .openssh }
-    if t.contains("-----BEGIN DSA PRIVATE KEY-----") { return .dsa }
-    if t.contains("ED25519 PRIVATE KEY") { return .ed25519 }
-    return .unknown
-}
-
-func isPEMEncrypted(_ text: String) -> Bool {
-    let t = text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-    if t.contains("-----BEGIN ENCRYPTED PRIVATE KEY-----") { return true }
-    if t.contains("PROC-TYPE: 4,ENCRYPTED") { return true }
-    if t.contains("DEK-INFO:") { return true }
-    return false
-}
-
-// A reusable view for displaying a shell command with a copy button.
-struct CommandHelpRow: View {
-    let title: String
-    let command: String
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.subheadline)
-                Text(command)
-                    .font(.body.monospaced())
-            }
-            Spacer(minLength: 8)
-            Button("Copy") { copyToClipboard(command) }
-        }
-    }
-    
-    private func copyToClipboard(_ text: String) {
-        #if os(macOS)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
-        #endif
-    }
-}
-
-// A view that switches between a Text label and a TextField/SecureField
-// based on the current MainViewMode.
+/// A field that renders as plain text in `.view` mode and an editable
+/// `TextField`/`SecureField` otherwise.
 struct EditableFieldView: View {
     let value: Binding<String>
     let placeholder: String
     let isSecure: Bool
-    
-    @EnvironmentObject private var connectionStore: ConnectionStore
+
+    @Environment(ConnectionStore.self) private var connectionStore
 
     init(value: Binding<String>, placeholder: String, isSecure: Bool = false) {
         self.value = value
@@ -88,6 +42,9 @@ struct EditableFieldView: View {
                 Text(value.wrappedValue)
             }
         } else {
+            // Group wraps an if/else (`_ConditionalContent`), so the shared
+            // text-field style applies to both branches — not the single-child
+            // Group anti-pattern.
             Group {
                 if isSecure {
                     SecureField(placeholder, text: value)
@@ -95,225 +52,243 @@ struct EditableFieldView: View {
                     TextField(placeholder, text: value)
                 }
             }
-            .textFieldStyle(RoundedBorderTextFieldStyle())
+            .textFieldStyle(.roundedBorder)
         }
     }
 }
 
-// A self-contained view for showing PEM private key status and warnings.
-struct PEMKeyInfoView: View {
-    @Binding var keyText: String
-    
-    private var trimmedKey: String { keyText.trimmingCharacters(in: .whitespacesAndNewlines) }
-    private var kind: PEMKeyKind { detectPEMKeyKind(trimmedKey) }
-    private var isEncrypted: Bool { isPEMEncrypted(trimmedKey) }
-    private var isSupported: Bool { kind == .pkcs8 || kind == .ec }
-    
-    var body: some View {
-        if !trimmedKey.isEmpty {
-            keyStatusView
-            
-            if !isEncrypted {
-                unencryptedKeyWarning
-            }
-            
-            if kind == .openssh || kind == .ed25519 {
-                unsupportedKeyHelp
-            }
-        }
-    }
+// MARK: - Main View
 
-    @ViewBuilder
-    private var keyStatusView: some View {
-        HStack(spacing: 6) {
-            Image(systemName: isSupported ? "checkmark.circle" : "exclamationmark.triangle")
-                .foregroundColor(isSupported ? .green : .orange)
-            Text("Detected key: \(keyKindDescription(kind))")
-                .foregroundColor(isSupported ? .green : .orange)
-                .font(.footnote)
-        }
-    }
-    
-    @ViewBuilder
-    private var unencryptedKeyWarning: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "lock.open")
-                .foregroundColor(.orange)
-            Text("Warning: Key appears unencrypted. Prefer an encrypted PEM (PKCS#8) with a passphrase.")
-                .foregroundColor(.orange)
-                .font(.footnote)
-        }
-    }
-    
-    @ViewBuilder
-    private var unsupportedKeyHelp: some View {
-        VStack(alignment: .leading) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Image(systemName: "lightbulb")
-                    .foregroundColor(.yellow)
-                Text("Detected OpenSSH/Ed25519 key. For this release, generate an ECDSA key:")
-                    .font(.footnote)
-                Spacer(minLength: 8)
-            }
-            HStack(alignment: .firstTextBaseline) {
-                let genCmd = "ssh-keygen -t ecdsa -b 256 -m PEM -f ~/.ssh/id_ecdsa"
-                Text(genCmd)
-                    .font(.body.monospaced())
-                Spacer(minLength: 8)
-                Button("Copy") { copyToClipboard(genCmd) }
-            }
-        }
-    }
-    
-    private func copyToClipboard(_ text: String) {
-        #if os(macOS)
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.setString(text, forType: .string)
-        #endif
-    }
-}
-
+/// Thin dispatcher: picks the section view for the current mode/selection.
+/// Each section is its own `View` type so it forms its own invalidation
+/// boundary rather than sharing one large body.
 struct MainView: View {
-    @EnvironmentObject var connectionStore: ConnectionStore
-    
+    @Environment(ConnectionStore.self) var connectionStore
+
     @Binding var selectedConnection: Connection?
-        
+
     var body: some View {
         if connectionStore.mode == .loading {
-            Text("Loading connections...")
-                .font(.largeTitle)
-                .padding()
+            LoadingView()
+        } else if connectionStore.mode == .view && selectedConnection == nil {
+            EmptySelectionView()
         } else {
-            VStack {
-                connectionNameRow(label: "Connection Name:", value: connectionNameBinding)
-                    .padding()
-                
-                if let notice = connectionStore.migrationNotice {
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: "info.circle")
-                            .foregroundColor(.blue)
-                        Text(notice)
-                            .foregroundColor(.primary)
-                        Spacer()
-                        Button(action: { connectionStore.migrationNotice = nil }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(8)
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(8)
-                    .padding([.horizontal, .top])
+            ConnectionDetailView(selectedConnection: $selectedConnection)
+        }
+    }
+}
+
+// MARK: - Loading View
+
+struct LoadingView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .scaleEffect(1.5)
+            Text("Loading connections...")
+                .font(.title2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Empty Selection View
+
+struct EmptySelectionView: View {
+    @Environment(ConnectionStore.self) private var connectionStore
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "network")
+                .font(.system(size: 60))
+                .foregroundStyle(.secondary)
+
+            Text("No Connection Selected")
+                .font(.title)
+                .fontWeight(.semibold)
+
+            Text("Select a connection from the sidebar or create a new one")
+                .font(.body)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            if connectionStore.connections.isEmpty {
+                Button {
+                    connectionStore.mode = .create
+                } label: {
+                    Label("Create Connection", systemImage: "plus.circle.fill")
                 }
-                
-                if let cloud = connectionStore.cloudNotice {
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: "info.circle")
-                            .foregroundColor(.blue)
-                        Text(cloud)
-                            .foregroundColor(.primary)
-                        Spacer()
-                        Button(action: { connectionStore.cloudNotice = nil }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(8)
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(8)
-                    .padding([.horizontal, .top])
-                }
-                
-                HStack(alignment: .firstTextBaseline) {
-                    if connectionStore.mode == .view, let connection = selectedConnection {
-                        Text("Connection Status:")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        ConnectionIndicatorView(connection: connection)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                            .padding(.trailing)
-                    } else {
-                        // Maintain spacing when no connection is selected
-                        Color.clear.frame(maxWidth: .infinity)
-                        Color.clear.frame(maxWidth: .infinity)
-                    }
-                }
-                .padding(.horizontal)
-                
-                if connectionStore.mode == .view {
-                    if let connection = selectedConnection {
-                        DataCounterView(connection: connection)
-                            .padding()
-                    } else {
-                        Text("")
-                    }
-                    Spacer()
-                }
-                
-                VStack(alignment: .leading) {
-                    Group {
-                        infoRow(label: "Server Address:", value: serverAddressBinding)
-                        infoRow(label: "Port Number:", value: portNumberBinding)
-                        infoRow(label: "User Name:", value: usernameBinding)
-                        infoRow(label: "Password:", value: passwordBinding, isSecure: true)
-                        infoRow(label: "Private Key:", value: privateKeyBinding, isSecure: true)
-                        infoRow(label: "Local Port:", value: localPortBinding)
-                        infoRow(label: "Remote Server:", value: remoteServerBinding)
-                        infoRow(label: "Remote Port:", value: remotePortBinding)
-                    }
-                    
-                    HStack {
-                        if connectionStore.mode == .view, let connection = selectedConnection {
-                            ConnectButtonView(connection: connection)
-                                .environmentObject(connectionStore)
-                                .padding()
-                        } else {
-                            Button(action: {
-                                if connectionStore.mode == .create {
-                                    let connectionInfo = ConnectionInfo(name: connectionStore.connectionName, serverAddress: connectionStore.serverAddress, portNumber: connectionStore.portNumber, username: connectionStore.username, password: connectionStore.password, privateKey: connectionStore.privateKey, privateKeyPassphrase: "")
-                                    let tunnelInfo = TunnelInfo(localPort: connectionStore.localPort, remoteServer: connectionStore.remoteServer, remotePort: connectionStore.remotePort)
-                                    connectionStore.newConnection(connectionInfo: connectionInfo, tunnelInfo: tunnelInfo)
-                                    connectionStore.clearCreateForm()
-                                    connectionStore.mode = .view
-                                } else if connectionStore.mode == .edit {
-                                    if let tempConnection = connectionStore.tempConnection {
-                                        connectionStore.saveConnection(tempConnection, connectionToUpdate: selectedConnection)
-                                        selectedConnection = tempConnection
-                                        connectionStore.mode = .view
-                                    }
-                                }
-                            }) {
-                                Text(connectionStore.mode == .create ? "Create" : "Save")
-                            }
-                            .padding()
-                        }
-                    }
-                    .padding(.bottom)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .padding(.top, 8)
             }
-            .toolbar {
-                ToolbarItemGroup {
-                    if connectionStore.mode == .create || connectionStore.mode == .edit {
-                        Button(action: {
-                            connectionStore.mode = .view
-                            if connectionStore.mode == .create {
-                                connectionStore.clearCreateForm()
-                            }
-                            if selectedConnection == nil {
-                                selectedConnection = connectionStore.connections.first
-                            }
-                        }) {
-                            Text("Cancel")
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding()
+    }
+}
+
+// MARK: - Notice Banner
+
+/// A dismissable blue information banner (migration / CloudKit notices).
+struct NoticeBanner: View {
+    let message: String
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "info.circle")
+                .foregroundStyle(.blue)
+            Text(message)
+                .foregroundStyle(.primary)
+            Spacer()
+            Button(action: onDismiss) {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Dismiss notice")
+        }
+        .padding(8)
+        .background(Color.blue.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding([.horizontal, .top])
+    }
+}
+
+// MARK: - Connection Detail View
+
+/// The detail pane for the create / edit / view modes: the name header, any
+/// notices, the live status + data counters (view mode), and the field form.
+struct ConnectionDetailView: View {
+    @Environment(ConnectionStore.self) private var connectionStore
+
+    @Binding var selectedConnection: Connection?
+
+    var body: some View {
+        VStack {
+            connectionNameRow(label: "Connection Name:", value: connectionNameBinding)
+                .padding()
+
+            if let notice = connectionStore.migrationNotice {
+                NoticeBanner(message: notice) { connectionStore.migrationNotice = nil }
+            }
+
+            if let cloud = connectionStore.cloudNotice {
+                NoticeBanner(message: cloud) { connectionStore.cloudNotice = nil }
+            }
+
+            HStack(alignment: .firstTextBaseline) {
+                if connectionStore.mode == .view, let connection = selectedConnection {
+                    Text("Connection Status:")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    ConnectionIndicatorView(connection: connection)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .padding(.trailing)
+                } else {
+                    // Maintain spacing when no connection is selected
+                    Color.clear.frame(maxWidth: .infinity)
+                    Color.clear.frame(maxWidth: .infinity)
+                }
+            }
+            .padding(.horizontal)
+
+            if connectionStore.mode == .view {
+                if let connection = selectedConnection {
+                    DataCounterView(connection: connection)
+                        .padding()
+                } else {
+                    Text("")
+                }
+                Spacer()
+            }
+
+            connectionForm
+        }
+        .toolbar {
+            ToolbarItemGroup {
+                if connectionStore.mode == .create || connectionStore.mode == .edit {
+                    Button("Cancel") {
+                        // Clear the create form before leaving create mode —
+                        // checking after setting `.view` would always be false.
+                        if connectionStore.mode == .create {
+                            connectionStore.clearCreateForm()
+                        }
+                        connectionStore.mode = .view
+                        if selectedConnection == nil {
+                            selectedConnection = connectionStore.connections.first
                         }
                     }
                 }
             }
         }
     }
-    
+
+    // MARK: - Form
+
+    private var connectionForm: some View {
+        VStack(alignment: .leading) {
+            Group {
+                infoRow(label: "Server Address:", value: serverAddressBinding)
+                infoRow(label: "Port Number:", value: portNumberBinding)
+                infoRow(label: "User Name:", value: usernameBinding)
+                infoRow(label: "Password:", value: passwordBinding, isSecure: true)
+                infoRow(label: "Private Key:", value: privateKeyBinding, isSecure: true)
+                infoRow(label: "Local Port:", value: localPortBinding)
+                infoRow(label: "Remote Server:", value: remoteServerBinding)
+                infoRow(label: "Remote Port:", value: remotePortBinding)
+            }
+
+            HStack {
+                if connectionStore.mode == .view, let connection = selectedConnection {
+                    ConnectButtonView(connection: connection)
+                        .environment(connectionStore)
+                        .padding()
+                } else {
+                    Button(connectionStore.mode == .create ? "Create" : "Save") {
+                        saveForm()
+                    }
+                    .padding()
+                }
+            }
+            .padding(.bottom)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Commits the create/edit form back to the store.
+    private func saveForm() {
+        switch connectionStore.mode {
+        case .create:
+            let connectionInfo = ConnectionInfo(
+                name: connectionStore.connectionName,
+                serverAddress: connectionStore.serverAddress,
+                portNumber: connectionStore.portNumber,
+                username: connectionStore.username,
+                password: connectionStore.password,
+                privateKey: connectionStore.privateKey,
+                privateKeyPassphrase: ""
+            )
+            let tunnelInfo = TunnelInfo(
+                localPort: connectionStore.localPort,
+                remoteServer: connectionStore.remoteServer,
+                remotePort: connectionStore.remotePort
+            )
+            connectionStore.newConnection(connectionInfo: connectionInfo, tunnelInfo: tunnelInfo)
+            connectionStore.clearCreateForm()
+            connectionStore.mode = .view
+        case .edit:
+            if let tempConnection = connectionStore.tempConnection {
+                connectionStore.saveConnection(tempConnection, connectionToUpdate: selectedConnection)
+                selectedConnection = tempConnection
+                connectionStore.mode = .view
+            }
+        case .view, .loading:
+            break
+        }
+    }
+
     // MARK: - Binding Helper
 
     private func formBinding(
@@ -325,7 +300,10 @@ struct MainView: View {
     ) -> Binding<String> {
         switch connectionStore.mode {
         case .create:
-            return $connectionStore[dynamicMember: createKeyPath]
+            return Binding(
+                get: { connectionStore[keyPath: createKeyPath] },
+                set: { connectionStore[keyPath: createKeyPath] = $0 }
+            )
         case .edit:
             return Binding(
                 get: {
@@ -359,9 +337,9 @@ struct MainView: View {
             return .constant(value)
         }
     }
-    
+
     // MARK: - Bindings
-    
+
     private var connectionNameBinding: Binding<String> {
         formBinding(
             createKeyPath: \.connectionName,
@@ -369,7 +347,7 @@ struct MainView: View {
             viewConnectionInfoKeyPath: \.name
         )
     }
-    
+
     private var serverAddressBinding: Binding<String> {
         formBinding(
             createKeyPath: \.serverAddress,
@@ -377,7 +355,7 @@ struct MainView: View {
             viewConnectionInfoKeyPath: \.serverAddress
         )
     }
-    
+
     private var portNumberBinding: Binding<String> {
         formBinding(
             createKeyPath: \.portNumber,
@@ -385,7 +363,7 @@ struct MainView: View {
             viewConnectionInfoKeyPath: \.portNumber
         )
     }
-    
+
     private var usernameBinding: Binding<String> {
         formBinding(
             createKeyPath: \.username,
@@ -393,23 +371,32 @@ struct MainView: View {
             viewConnectionInfoKeyPath: \.username
         )
     }
-    
+
+    // Secrets aren't loaded into the model at rest, so in `.view` mode these
+    // bindings reflect Keychain *existence* (so the "<obfuscated>" indicator
+    // still appears) rather than the model's empty value. Create/edit modes
+    // use the real value as before (edit hydrates its temp copy).
     private var passwordBinding: Binding<String> {
-        formBinding(
-            createKeyPath: \.password,
-            editConnectionInfoKeyPath: \.password,
-            viewConnectionInfoKeyPath: \.password
-        )
+        if connectionStore.mode == .view {
+            return secretViewBinding(exists: selectedConnection.map { connectionStore.hasStoredPassword($0) } ?? false)
+        }
+        return formBinding(createKeyPath: \.password, editConnectionInfoKeyPath: \.password)
     }
-    
+
     private var privateKeyBinding: Binding<String> {
-        formBinding(
-            createKeyPath: \.privateKey,
-            editConnectionInfoKeyPath: \.privateKey,
-            viewConnectionInfoKeyPath: \.privateKey
-        )
+        if connectionStore.mode == .view {
+            return secretViewBinding(exists: selectedConnection.map { connectionStore.hasStoredPrivateKey($0) } ?? false)
+        }
+        return formBinding(createKeyPath: \.privateKey, editConnectionInfoKeyPath: \.privateKey)
     }
-    
+
+    /// A read-only binding whose value is a non-empty sentinel when a secret
+    /// exists. `EditableFieldView` shows "<obfuscated>" for any non-empty secure
+    /// value, so this drives the indicator without loading the secret itself.
+    private func secretViewBinding(exists: Bool) -> Binding<String> {
+        .constant(exists ? "********" : "")
+    }
+
     private var localPortBinding: Binding<String> {
         formBinding(
             createKeyPath: \.localPort,
@@ -417,7 +404,7 @@ struct MainView: View {
             viewTunnelInfoKeyPath: \.localPort
         )
     }
-    
+
     private var remoteServerBinding: Binding<String> {
         formBinding(
             createKeyPath: \.remoteServer,
@@ -425,7 +412,7 @@ struct MainView: View {
             viewTunnelInfoKeyPath: \.remoteServer
         )
     }
-    
+
     private var remotePortBinding: Binding<String> {
         formBinding(
             createKeyPath: \.remotePort,
@@ -433,9 +420,11 @@ struct MainView: View {
             viewTunnelInfoKeyPath: \.remotePort
         )
     }
-    
-    // MARK: - Views
 
+    // MARK: - Row Views
+
+    /// Small repeated fragment within this view's body — a `@ViewBuilder`
+    /// helper is appropriate here (not a factored-out section).
     @ViewBuilder
     private func infoRow(label: String, value: Binding<String>, isSecure: Bool = false) -> some View {
         HStack {
@@ -445,7 +434,7 @@ struct MainView: View {
         }
         .padding(.horizontal)
     }
-    
+
     private func connectionNameRow(label: String, value: Binding<String>) -> some View {
         HStack {
             Text(label)
@@ -454,251 +443,5 @@ struct MainView: View {
             EditableFieldView(value: value, placeholder: "Enter connection name")
                 .font(.largeTitle)
         }
-    }
-
-    func changeMode(to newMode: MainViewMode) {
-        connectionStore.mode = newMode
-    } 
-}
-
-struct ConnectionIndicatorView: View {
-    @ObservedObject var connection: Connection
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(connection.isActive ? Color.green : Color.red)
-                .frame(width: 10, height: 10)
-            Text(connection.isActive ? "Connected" : "Disconnected")
-                .multilineTextAlignment(.trailing)
-        }
-        .frame(maxWidth: .infinity, alignment: .trailing)
-    }
-}
-
-struct ConnectButtonView: View {
-    @ObservedObject var connection: Connection
-    @EnvironmentObject var connectionStore: ConnectionStore
-    @State private var showCredentialsSheet: Bool = false
-    @State private var tempPassword: String = ""
-    @State private var tempPrivateKey: String = ""
-    @State private var tempPassphrase: String = ""
-    @State private var saveCredentials: Bool = false
-    @State private var pemError: String? = nil
-    @State private var showKeyInfo: Bool = false
-    @AppStorage("KeyInfoPopoverDismissed") private var keyInfoPopoverDismissed: Bool = false
-
-    var body: some View {
-        Button(action: {
-            if connection.isActive {
-                connectionStore.disconnect(connection)
-            } else {
-                let hasPassword = !connection.connectionInfo.password.isEmpty
-                let hasKey = !connection.connectionInfo.privateKey.isEmpty
-                if !(hasPassword || hasKey) {
-                    showCredentialsSheet = true
-                    return
-                }
-                connectionStore.connect(connection)
-            }
-        }) {
-            Text(connection.isActive ? "Disconnect" : "Connect")
-        }
-        .sheet(isPresented: $showCredentialsSheet) {
-            HStack {
-                Spacer()
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Enter Credentials")
-                        .font(.title2).bold()
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Password")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        SecureField("Enter password", text: $tempPassword)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 6) {
-                            Text("Private Key (PEM)")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            Button(action: { if !keyInfoPopoverDismissed { showKeyInfo.toggle() } }) {
-                                Image(systemName: "info.circle")
-                            }
-                            .buttonStyle(.plain)
-                            .help("Key format help")
-                            .popover(isPresented: $showKeyInfo) {
-                                VStack(alignment: .leading, spacing: 10) {
-                                    Text("Key format help")
-                                        .font(.headline)
-
-                                    Text("Supported:")
-                                        .font(.subheadline)
-                                    Text("• ECDSA P-256/P-384/P-521 in PEM (EC PRIVATE KEY) or PKCS#8 (PRIVATE KEY)")
-                                        .font(.footnote)
-
-                                    Text("Not supported in this build:")
-                                        .font(.subheadline)
-                                    Text("• OpenSSH Ed25519, RSA, DSA")
-                                        .font(.footnote)
-
-                                    Divider()
-                                    CommandHelpRow(
-                                        title: "Generate an ECDSA key (recommended):",
-                                        command: "ssh-keygen -t ecdsa -b 256 -m PEM -f ~/.ssh/id_ecdsa"
-                                    )
-
-                                    Divider()
-                                    CommandHelpRow(
-                                        title: "Encrypt an existing PEM key with a passphrase (PKCS#8):",
-                                        command: "openssl pkcs8 -topk8 -v2 aes-256-cbc -in id_ecdsa -out id_ecdsa_encrypted.pem"
-                                    )
-
-                                    Divider()
-                                    Text("If you currently have an OpenSSH Ed25519 key, generate an ECDSA key for this release.")
-                                        .font(.footnote)
-                                        .foregroundColor(.secondary)
-
-                                    Toggle("Don't show again", isOn: $keyInfoPopoverDismissed)
-                                        .toggleStyle(.checkbox)
-                                }
-                                .padding(14)
-                                .frame(minWidth: 480)
-                            }
-                        }
-                        TextEditor(text: $tempPrivateKey)
-                            .frame(minHeight: 140)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .stroke(Color.secondary.opacity(0.2))
-                            )
-                            .font(.body.monospaced())
-                            .accessibilityLabel("Private Key (PEM)")
-                    }
-                    
-                    PEMKeyInfoView(keyText: $tempPrivateKey)
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 6) {
-                            Text("Passphrase (optional)")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            if isPEMEncrypted(tempPrivateKey) {
-                                Image(systemName: "lock")
-                                    .foregroundColor(.secondary)
-                                    .help("This key appears to be encrypted; enter the passphrase.")
-                            }
-                        }
-                        SecureField("Enter passphrase", text: $tempPassphrase)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                    }
-                    
-                    if let pemError = pemError {
-                        Text(pemError)
-                            .foregroundColor(.red)
-                            .font(.footnote)
-                    }
-
-                    Toggle("Save credentials to this connection", isOn: $saveCredentials)
-
-                    Text("Provide either a password or a private key (PEM). If you choose not to save, the credentials will be used for this session only.")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-
-                    HStack {
-                        Spacer()
-                        Button("Cancel") { showCredentialsSheet = false }
-                        Button("Connect") {
-                            // Logic to validate and connect...
-                            handleConnect()
-                        }
-                        .keyboardShortcut(.defaultAction)
-                    }
-                }
-                .padding(20)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color(.windowBackgroundColor))
-                )
-                .shadow(radius: 12)
-                .frame(maxWidth: 560)
-                Spacer()
-            }
-            .frame(minWidth: 480, minHeight: 420)
-#if os(macOS)
-            .presentationSizing(.fitted)
-#endif
-        }
-    }
-    
-    private func handleConnect() {
-        let providedPassword = !tempPassword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        let providedKey = !tempPrivateKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        guard providedPassword || providedKey else { return }
-
-        pemError = nil
-        
-        if providedKey {
-            let keyKind = detectPEMKeyKind(tempPrivateKey)
-            
-            guard keyKind != .unknown else {
-                pemError = "Invalid private key format."
-                return
-            }
-            
-            // Only PKCS#8 or EC (ECDSA) are supported by the current NIOSSH/SSHManager setup.
-            if !(keyKind == .pkcs8 || keyKind == .ec) {
-                pemError = "Unsupported private key type (\(keyKindDescription(keyKind))). Supported types are ECDSA (EC PRIVATE KEY) or PKCS#8 PRIVATE KEY."
-                return
-            }
-        }
-        
-        // At this point, validation passed. Store credentials temporarily/permanently.
-        
-        // If password field was filled, use it.
-        if providedPassword { connection.connectionInfo.password = tempPassword }
-        
-        // If key field was filled, use it.
-        if providedKey { 
-            connection.connectionInfo.privateKey = tempPrivateKey
-            connection.connectionInfo.privateKeyPassphrase = tempPassphrase
-        } else {
-             connection.connectionInfo.privateKeyPassphrase = ""
-        }
-        
-        // Ensure we clear the opposing field if only one was provided in the modal
-        if providedPassword && !providedKey { connection.connectionInfo.privateKey = "" }
-        if providedKey && !providedPassword { connection.connectionInfo.password = "" }
-
-        if saveCredentials {
-            // This implicitly updates the Keychain via ConnectionStore's save logic.
-            connectionStore.saveConnection(connection, connectionToUpdate: connection)
-        }
-
-        connectionStore.connect(connection)
-        showCredentialsSheet = false
-        tempPassword = ""
-        tempPrivateKey = ""
-        tempPassphrase = ""
-        saveCredentials = false
-    }
-
-    private func isValidPEMPrivateKey(_ text: String) -> Bool {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let tokens = ["OPENSSH PRIVATE KEY", "RSA PRIVATE KEY", "EC PRIVATE KEY", "DSA PRIVATE KEY", "ED25519 PRIVATE KEY", "PRIVATE KEY"]
-        return tokens.contains { trimmed.contains("-----BEGIN \($0)-----") && trimmed.contains("-----END \($0)-----") }
-    }
-}
-
-struct ConnectionEnvironmentKey: EnvironmentKey {
-    static var defaultValue: Connection?
-}
-
-extension EnvironmentValues {
-    var connection: Connection? {
-        get { self[ConnectionEnvironmentKey.self] }
-        set { self[ConnectionEnvironmentKey.self] = newValue }
     }
 }

@@ -1,5 +1,21 @@
+// Copyright 2020-2026 Comraich ANS
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import Foundation
 import CloudKit
+import Observation
+import LocalAuthentication
 
 private enum CloudKitKeys {
     static let recordType = "Connection"
@@ -16,50 +32,160 @@ private enum CloudKitKeys {
     static let knownHostKey = "knownHostKey"
 }
 
-// A wrapper to make error strings identifiable for SwiftUI Alerts
-struct ErrorAlert: Identifiable {
-    let id = UUID()
-    let message: String
+// MARK: - Database Abstraction
+
+/// The CKDatabase operations the store uses for individual record I/O. Pulled
+/// behind a protocol so tests can inject a controlled mock and exercise the
+/// save / fetch / delete failure paths without standing up real CloudKit.
+/// `CKDatabase` already provides exactly these signatures, so its conformance
+/// is an empty extension below — production code is unaffected.
+protocol ConnectionDatabase: Sendable {
+    func save(_ record: CKRecord) async throws -> CKRecord
+    func record(for recordID: CKRecord.ID) async throws -> CKRecord
+    func deleteRecord(withID recordID: CKRecord.ID) async throws -> CKRecord.ID
 }
 
-// Structure to hold host key verification details for UI
+extension CKDatabase: ConnectionDatabase {}
+
+/// Sentinel database used by the test init when the caller didn't supply one.
+/// Any accidental CloudKit call from a test fails loudly instead of reaching
+/// the user's real iCloud account.
+private struct UnconfiguredDatabase: ConnectionDatabase {
+    private static func fail() -> NSError {
+        NSError(domain: "ConnectionStore.UnconfiguredDatabase", code: 0,
+                userInfo: [NSLocalizedDescriptionKey: "no ConnectionDatabase configured"])
+    }
+    func save(_: CKRecord) async throws -> CKRecord { throw Self.fail() }
+    func record(for _: CKRecord.ID) async throws -> CKRecord { throw Self.fail() }
+    func deleteRecord(withID _: CKRecord.ID) async throws -> CKRecord.ID { throw Self.fail() }
+}
+
+// A wrapper to make error strings identifiable for SwiftUI Alerts
+struct ErrorAlert: Identifiable, Equatable {
+    let id = UUID()
+    let message: String
+
+    static func == (lhs: ErrorAlert, rhs: ErrorAlert) -> Bool {
+        lhs.message == rhs.message
+    }
+}
+
+// MARK: - Structure to hold host key verification details for UI
+
+/// Represents a host key validation request that requires user confirmation.
+/// `isMismatch` distinguishes a first-use trust prompt from a re-trust prompt
+/// triggered by a changed host key — the UI presents a stronger warning in the
+/// latter case (possible MITM, or a deliberate server rekey).
 struct HostKeyRequest: Identifiable {
     let id = UUID()
     let hostname: String
     let fingerprint: String
     let keyData: Data
+    let isMismatch: Bool
     let completion: (Bool) -> Void
 }
 
+/// Main data store for SSH connections, managing CloudKit sync and local state
 @MainActor // Mark the store to run updates on the MainActor
-class ConnectionStore: ObservableObject {
-    @Published var mode: MainViewMode = .loading
-    @Published var connections: [Connection] = []
-    @Published var tempConnection: Connection?
+@Observable
+class ConnectionStore {
     
-    // Properties for the "Create" form
-    @Published var connectionName = ""
-    @Published var serverAddress = ""
-    @Published var portNumber = ""
-    @Published var username = ""
-    @Published var password = ""
-    @Published var privateKey = ""
-    @Published var localPort = ""
-    @Published var remoteServer = ""
-    @Published var remotePort = ""
+    // MARK: - Nested Types
     
-    @Published var migrationNotice: String? = nil
-    @Published var cloudNotice: String? = nil
-    @Published var errorAlert: ErrorAlert? = nil
-    @Published var hostKeyRequest: HostKeyRequest? = nil
+    enum Mode: CaseIterable, Codable {
+        case create
+        case edit
+        case view
+        case loading
+    }
 
-    private var managers: [UUID: SSHManager] = [:]
-    
-    private let container = CKContainer.default()
-    private let database = CKContainer.default().privateCloudDatabase
-    private var customZone: CKRecordZone?
+    /// A menu command's request to begin an import/export flow. `ContentView`
+    /// observes this, runs the passphrase prompt + file dialog, then clears it.
+    enum TransferRequest: Equatable {
+        case exportAll
+        case exportSelected
+        case importConnections
+    }
+
+    var mode: Mode = .loading
+
+    /// The connection currently selected in the sidebar. Hoisted into the store
+    /// (rather than living as `ContentView` state) so the app's menu commands can
+    /// read and act on the selection — Connect/Disconnect/Edit/Delete/Export.
+    var selectedConnection: Connection?
+
+    /// Set by a menu command to ask `ContentView` to start a transfer flow.
+    var transferRequest: TransferRequest?
+
+    private(set) var connections: [Connection] = []
+    private(set) var tempConnection: Connection?
+
+    // Properties for the "Create" form
+    var connectionName = ""
+    var serverAddress = ""
+    var portNumber = ""
+    var username = ""
+    var password = ""
+    var privateKey = ""
+    var localPort = ""
+    var remoteServer = ""
+    var remotePort = ""
+
+    var migrationNotice: String? = nil
+    var cloudNotice: String? = nil
+    var errorAlert: ErrorAlert? = nil
+    var hostKeyRequest: HostKeyRequest? = nil
+
+    /// The resume handler for an in-flight host-key prompt, if any. Tracked so a
+    /// superseding prompt can deny the previous one instead of leaking its
+    /// awaiting Task.
+    @ObservationIgnored private var pendingHostKeyDecision: ((Bool) -> Void)?
+
+    @ObservationIgnored private var managers: [UUID: SSHManager] = [:]
+
+    // MARK: - Credential authentication grace window
+    //
+    // When "require authentication" is on, the user authenticates once via
+    // `LAContext.evaluatePolicy`; that context is then reused for the Keychain
+    // reads (which therefore don't re-prompt) and kept alive for a short grace
+    // window so reconnects within it need no prompt at all.
+    @ObservationIgnored private var graceContext: LAContext?
+    @ObservationIgnored private var graceExpiry: Date?
+    @ObservationIgnored private var graceExpiryTask: Task<Void, Never>?
+
+    /// `UserDefaults` key backing the grace-window preference (seconds).
+    static let credentialGraceSecondsKey = "CredentialGraceSeconds"
+
+    /// How long a single authentication is honoured before the next connect
+    /// re-prompts. Defaults to 5 minutes when unset; an explicit `0` means
+    /// "ask every time".
+    var credentialGraceSeconds: TimeInterval {
+        let defaults = UserDefaults.standard
+        guard defaults.object(forKey: Self.credentialGraceSecondsKey) != nil else { return 300 }
+        return max(0, defaults.double(forKey: Self.credentialGraceSecondsKey))
+    }
+
+    /// Credentials storage (Keychain in production, mock for tests)
+    private let credentialsStore: CredentialsStore
+
+    /// Explicit CloudKit container identifier. Must match the value in
+    /// SSH_TunnelBuilder.entitlements. We reference the container explicitly
+    /// rather than via `CKContainer.default()` because `default()` resolves to
+    /// `iCloud.<bundleID>` (the legacy container) regardless of the entitlements
+    /// list, which would silently keep using the old container.
+    static let containerIdentifier = "iCloud.no.comraich.sshTunnelBuilder"
+
+    private let container: CKContainer
+    private var database: CKDatabase { container.privateCloudDatabase }
+
+    /// Pulled out from `database` so tests can supply a mock that fails (or
+    /// succeeds) the save / fetch / delete paths deterministically. Zone setup
+    /// and `recordZoneChanges` still go through `database` directly — they are
+    /// only exercised by the production setup task, which the test init skips.
+    private let recordIO: ConnectionDatabase
+    @ObservationIgnored private var customZone: CKRecordZone?
     private let customZoneName = "ConnectionZone"
-    
+
     private let migrationNotifiedKey = "MigratedCredentialsNotified"
 
     private func hasShownMigrationNotice(for uuid: UUID) -> Bool {
@@ -77,33 +203,100 @@ class ConnectionStore: ObservableObject {
         }
     }
     
-    init() {
-        // Since init is run on the Main Actor, we can use Task {} here.
+    /// Produces a detailed, log-friendly description of a CloudKit error.
+    /// Crucially this surfaces the underlying `CKError.Code` and any
+    /// per-item partial errors, which `localizedDescription` alone hides.
+    /// (e.g. the "Field 'recordName' is not marked queryable" condition.)
+    private func cloudKitErrorDescription(_ error: Error) -> String {
+        let ns = error as NSError
+        var parts: [String] = ["domain=\(ns.domain) code=\(ns.code) desc=\(ns.localizedDescription)"]
+        if let ckError = error as? CKError {
+            parts.append("ckCode=\(ckError.code.rawValue) (\(String(describing: ckError.code)))")
+            if let retry = ckError.retryAfterSeconds {
+                parts.append("retryAfter=\(retry)s")
+            }
+            if let partial = ckError.partialErrorsByItemID, !partial.isEmpty {
+                for (item, itemError) in partial {
+                    let itemNS = itemError as NSError
+                    parts.append("partial[\(item)]=code:\(itemNS.code) \(itemNS.localizedDescription)")
+                }
+            }
+        }
+        if let underlying = ns.userInfo[NSUnderlyingErrorKey] as? NSError {
+            parts.append("underlying=domain:\(underlying.domain) code:\(underlying.code) \(underlying.localizedDescription)")
+        }
+        return parts.joined(separator: " | ")
+    }
+    
+    /// If CloudKit setup hasn't resolved within this window, fall back to local
+    /// create mode so the UI never gets stuck on the loading screen.
+    private static let loadingFallbackSeconds = 8
+
+    init(credentialsStore: CredentialsStore = KeychainService.shared) {
+        self.credentialsStore = credentialsStore
+        let container = CKContainer(identifier: Self.containerIdentifier)
+        self.container = container
+        self.recordIO = container.privateCloudDatabase
+        // init runs on the Main Actor, so these Tasks inherit @MainActor isolation.
         Task {
+            // Watchdog runs concurrently with the CloudKit setup below. Because the
+            // store is @MainActor, it gets to run during any `await` suspension in
+            // the setup, so it genuinely times out a slow/hung fetch — unlike a
+            // sequential sleep, which only runs *after* the fetch has returned.
+            // Captures self strongly to match the enclosing Task; the `defer`
+            // below cancels this watchdog as soon as setup finishes, so it never
+            // outlives the work it is guarding.
+            let watchdog = Task {
+                try? await Task.sleep(for: .seconds(ConnectionStore.loadingFallbackSeconds))
+                guard !Task.isCancelled else { return }
+                if self.mode == .loading {
+                    self.mode = .create
+                    self.cloudNotice = "CloudKit is taking a while or is unavailable. You can create connections locally; credentials are stored in Keychain."
+                }
+            }
+            defer { watchdog.cancel() }
+
             await self.createCustomZoneAsync()
             if self.customZone != nil {
-                await self.fetchConnectionsAsync(cursor: nil)
+                await self.fetchConnectionsAsync()
             } else {
+                 Logger.error("Custom zone unavailable after createCustomZoneAsync; falling back to local create mode", log: Logger.cloudKit)
                  self.mode = .create
                 // Show a notice explaining the fallback
                 self.cloudNotice = "CloudKit unavailable. You can create connections locally; credentials will be stored in Keychain."
             }
-            
-            // Fallback: if we're still loading after a short delay, allow creating locally
-            // Using Task.sleep(for: .seconds(3.0)) can throw, so needs guarding or handling
-            do {
-                try await Task.sleep(for: .seconds(3.0))
-            } catch {
-                // Sleep was cancelled; proceed without delay.
-                print("Task.sleep cancelled: \(error.localizedDescription)")
-            }
-            
+
             if self.mode == .loading {
                 self.mode = .create
             }
         }
     }
     
+    /// Internal initializer for testing and previews
+    /// - Parameters:
+    ///   - mode: Initial mode
+    ///   - connections: Pre-populated connections
+    ///   - credentialsStore: Credential storage (defaults to mock for tests)
+    ///   - customZone: Pre-populated CloudKit zone. Pass a non-nil value to
+    ///     exercise the save / update / delete paths in tests; leave `nil` to
+    ///     hit the "zone unavailable" branch.
+    ///   - database: Database mock for the save / fetch / delete record I/O
+    ///     paths. Defaults to a sentinel that fails every call so a stray
+    ///     CloudKit reach-through is loud rather than silent.
+    internal init(mode: Mode, connections: [Connection],
+                  credentialsStore: CredentialsStore = MockCredentialsStore(),
+                  customZone: CKRecordZone? = nil,
+                  database: ConnectionDatabase? = nil) {
+        self.mode = mode
+        self.connections = connections
+        self.credentialsStore = credentialsStore
+        self.container = CKContainer(identifier: Self.containerIdentifier)
+        self.recordIO = database ?? UnconfiguredDatabase()
+        self.customZone = customZone
+        // Don't start CloudKit tasks for test/preview instances
+    }
+    
+    /// Clears all fields in the create connection form
     func clearCreateForm() {
         connectionName = ""
         serverAddress = ""
@@ -115,6 +308,130 @@ class ConnectionStore: ObservableObject {
         remoteServer = ""
         remotePort = ""
     }
+    
+    /// Displays an error alert to the user
+    /// - Parameter message: The error message to display
+    func showError(_ message: String) {
+        errorAlert = ErrorAlert(message: message)
+    }
+
+    /// Presents the unknown-host (or changed-host) prompt and suspends until the
+    /// user answers. On trust, records the key on the connection and persists it,
+    /// replacing any previously pinned key when this is a mismatch re-trust.
+    /// `internal` rather than `private` so tests can drive the prompt directly
+    /// (resolving `hostKeyRequest.completion` themselves) — the production call
+    /// site is still only `configureHandlers`.
+    /// - Returns: `true` if the user trusts the host, `false` otherwise.
+    internal func confirmHostKeyTrust(host: String, fingerprint: String,
+                                      keyData: Data, isMismatch: Bool,
+                                      connection: Connection) async -> Bool {
+        // If a prior prompt is still awaiting an answer, deny it before replacing
+        // it so its awaiting Task can't leak.
+        pendingHostKeyDecision?(false)
+
+        let trusted = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+            // Resume at most once, whether the answer arrives from the UI or from
+            // a superseding prompt clearing this one.
+            var hasResumed = false
+            let decide: (Bool) -> Void = { [weak self] decision in
+                guard !hasResumed else { return }
+                hasResumed = true
+                self?.pendingHostKeyDecision = nil
+                continuation.resume(returning: decision)
+            }
+            pendingHostKeyDecision = decide
+            hostKeyRequest = HostKeyRequest(hostname: host, fingerprint: fingerprint,
+                                            keyData: keyData, isMismatch: isMismatch,
+                                            completion: decide)
+        }
+
+        if trusted {
+            // Record the now-trusted key on the connection and persist to CloudKit.
+            // On a mismatch re-trust this overwrites the previously pinned key.
+            connection.connectionInfo.knownHostKey = keyData.base64EncodedString()
+            saveConnection(connection, connectionToUpdate: connection)
+        }
+        return trusted
+    }
+
+    /// Populates `connection`'s secrets from the Keychain if they aren't already
+    /// set in memory. A no-op for fields that already carry a value (e.g. typed
+    /// into the credentials sheet for this session).
+    private func hydrateCredentials(for connection: Connection) {
+        let needsPassword = connection.connectionInfo.password.isEmpty
+        let needsPrivateKey = connection.connectionInfo.privateKey.isEmpty
+        // Nothing to read (both already provided this session, or still in memory
+        // from a connect within the grace window) — avoid touching the Keychain.
+        guard needsPassword || needsPrivateKey else { return }
+
+        // Read both secrets reusing the context authenticated up front in
+        // `connect` (see `authenticateForCredentialUse`), so the reads don't
+        // re-prompt. Only fill empty fields, preserving values typed in the sheet.
+        let credentials = credentialsStore.loadCredentials(for: connection.id, authenticatedContext: graceContext)
+        if needsPassword {
+            connection.connectionInfo.password = credentials.password ?? ""
+        }
+        if needsPrivateKey {
+            connection.connectionInfo.privateKey = credentials.privateKey ?? ""
+        }
+    }
+
+    /// Ensures the user is authenticated to use saved credentials, prompting at
+    /// most once per grace window. Returns `true` when allowed to proceed (always
+    /// true when protection is off or the device can't evaluate a policy).
+    private func authenticateForCredentialUse() async -> Bool {
+        guard isCredentialProtectionEnabled else { return true }
+
+        // Inside an active grace window with a live context: no prompt.
+        if let expiry = graceExpiry, graceContext != nil, expiry > Date() {
+            return true
+        }
+
+        let context = LAContext()
+        context.localizedReason = "Authenticate to use your saved SSH credentials."
+        // Reuse the authentication for the Keychain reads that follow.
+        context.touchIDAuthenticationAllowableReuseDuration = credentialGraceSeconds
+
+        var policyError: NSError?
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &policyError) else {
+            // No biometrics / passcode available to evaluate — don't hard-block;
+            // fall back to letting the Keychain reads handle access themselves.
+            Logger.info("Credential auth: policy not evaluable (\(policyError?.localizedDescription ?? "n/a")); proceeding", log: Logger.keychain)
+            return true
+        }
+
+        do {
+            let ok = try await context.evaluatePolicy(.deviceOwnerAuthentication,
+                                                      localizedReason: context.localizedReason)
+            if ok {
+                graceContext = context
+                graceExpiry = Date().addingTimeInterval(credentialGraceSeconds)
+                scheduleGraceExpiry()
+            }
+            return ok
+        } catch {
+            Logger.info("Credential auth cancelled/failed: \(error.localizedDescription)", log: Logger.keychain)
+            return false
+        }
+    }
+
+    /// Schedules clearing of the grace context (and in-memory secrets) when the
+    /// window lapses, so secrets don't linger indefinitely after it expires.
+    private func scheduleGraceExpiry() {
+        graceExpiryTask?.cancel()
+        let seconds = credentialGraceSeconds
+        graceExpiryTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(seconds))
+            guard let self, !Task.isCancelled else { return }
+            self.graceContext = nil
+            self.graceExpiry = nil
+            // Drop hydrated secrets from connections that aren't currently active.
+            for connection in self.connections where !connection.isActive {
+                connection.connectionInfo.password = ""
+                connection.connectionInfo.privateKey = ""
+            }
+        }
+    }
 
     private func manager(for connection: Connection) -> SSHManager {
         if let existing = managers[connection.id] { return existing }
@@ -124,40 +441,90 @@ class ConnectionStore: ObservableObject {
         return new
     }
 
+    /// Initiates an SSH connection for the given connection object
+    /// - Parameter connection: The connection to establish
     func connect(_ connection: Connection) {
-        let mgr = manager(for: connection)
-        
-        // Configure the host key validation callback
-        mgr.hostKeyValidationCallback = { [weak self] host, fingerprint, _, keyData, completion in
-            Task { @MainActor in
-                // We wrap the original completion to handle saving the key if trusted
-                self?.hostKeyRequest = HostKeyRequest(hostname: host, fingerprint: fingerprint, keyData: keyData) { trusted in
-                    if trusted {
-                        // Update the connection object with the new trusted key
-                        connection.connectionInfo.knownHostKey = keyData.base64EncodedString()
-                        // Persist this change to CloudKit immediately
-                        self?.saveConnection(connection, connectionToUpdate: connection)
-                    }
-                    completion(trusted)
-                }
-            }
-        }
-        
         Task {
+            // Authenticate once up front (or reuse an active grace window), then
+            // hydrate the secrets from the Keychain reusing that authentication —
+            // so a connect prompts at most once, and reconnects within the grace
+            // window not at all. Bail clearly if the user cancels.
+            guard await authenticateForCredentialUse() else {
+                self.errorAlert = ErrorAlert(message: "Authentication is required to use this connection's saved credentials.")
+                return
+            }
+            hydrateCredentials(for: connection)
+
+            let mgr = manager(for: connection)
+
+            // Wire up the host-key and error handlers. Done in a helper method
+            // (not inline) so these `[weak self]` closures — weak to avoid the
+            // store↔manager retain cycle — aren't nested inside this Task's
+            // strong self-capture, which the compiler flags as a mismatch.
+            configureHandlers(for: mgr, connection: connection)
+
             do {
+                Logger.info("Starting SSH connection for \(connection.connectionInfo.name)", log: Logger.ssh)
                 try await mgr.connect()
+                Logger.info("SSH connection successful for \(connection.connectionInfo.name)", log: Logger.ssh)
             } catch {
-                self.errorAlert = ErrorAlert(message: "Connection failed: \(error.localizedDescription)")
+                // Show the error - SSHTunnelError provides good localized descriptions
+                let errorMsg = error.localizedDescription
+                Logger.error("SSH connection failed for \(connection.connectionInfo.name): \(errorMsg)", log: Logger.ssh)
+                self.errorAlert = ErrorAlert(message: errorMsg)
             }
         }
     }
 
+    /// Wires the host-key validation and error handlers onto `mgr`. Kept as a
+    /// method so the `[weak self]` capture (which breaks the store↔manager retain
+    /// cycle) isn't nested inside a strong-self-capturing closure.
+    private func configureHandlers(for mgr: SSHManager, connection: Connection) {
+        // Host key validation suspends until the user answers the prompt, then
+        // returns their trust decision.
+        mgr.hostKeyValidationHandler = { [weak self] host, fingerprint, _, keyData, isMismatch in
+            guard let self else { return false }
+            return await self.confirmHostKeyTrust(host: host, fingerprint: fingerprint,
+                                                  keyData: keyData, isMismatch: isMismatch,
+                                                  connection: connection)
+        }
+
+        // Surface SSH errors as alerts.
+        mgr.errorCallback = { [weak self] errorMsg in
+            Task { @MainActor in
+                self?.showError(errorMsg)
+            }
+        }
+    }
+
+    /// Disconnects an active SSH connection. Performs no Keychain access and never
+    /// authenticates — hydrated secrets are cleared when the grace window lapses
+    /// (`scheduleGraceExpiry`), not here, so a quick reconnect stays prompt-free.
     func disconnect(_ connection: Connection) {
         if let mgr = managers[connection.id] {
             Task {
                 await mgr.disconnect()
             }
         }
+    }
+
+    /// Whether the user has opted in to requiring authentication to use saved
+    /// credentials. Mirrors the Settings toggle.
+    var isCredentialProtectionEnabled: Bool {
+        UserDefaults.standard.bool(forKey: KeychainService.protectionEnabledKey)
+    }
+
+    /// Migrates any pre-existing `.userPresence`-protected Keychain items to the
+    /// new unprotected form (gated only by the app-side `evaluatePolicy` check
+    /// in `authenticateForCredentialUse()`). Items already stored without
+    /// access control just round-trip a re-save. Called when the user toggles
+    /// the Settings preference so a freshly-enabled "require authentication"
+    /// state immediately gives them the single-prompt-per-grace-window
+    /// behaviour, even if their old items still carried the legacy flag.
+    /// The `enabled` value is forwarded for API symmetry but no longer changes
+    /// how items are stored.
+    func reprotectStoredCredentials(enabled: Bool) {
+        credentialsStore.setCredentialProtection(enabled: enabled, for: connections.map(\.id))
     }
     
     // MARK: - CloudKit Helpers (Synchronized via Task/Async/Await)
@@ -166,113 +533,96 @@ class ConnectionStore: ObservableObject {
         let newZone = CKRecordZone(zoneName: customZoneName)
         
         do {
-            let savedZone = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<CKRecordZone, Error>) in
-                let createZoneOperation = CKModifyRecordZonesOperation(recordZonesToSave: [newZone], recordZoneIDsToDelete: nil)
-                
-                var finalSavedZone: CKRecordZone?
-                
-                createZoneOperation.perRecordZoneSaveBlock = { (_, result) in
-                    if case .success(let zone) = result {
-                        finalSavedZone = zone
-                    }
-                }
-
-                createZoneOperation.modifyRecordZonesResultBlock = { result in
-                    switch result {
-                    case .success:
-                        if let zone = finalSavedZone {
-                            continuation.resume(returning: zone)
-                        } else {
-                            // This might happen if the operation succeeds but perRecordZoneSaveBlock wasn't hit, 
-                            // though unlikely for creation. Assume success based on operation result.
-                            continuation.resume(returning: newZone) 
-                        }
-                    case .failure(let error):
-                        continuation.resume(throwing: error)
-                    }
-                }
-                self.database.add(createZoneOperation)
-            }
+            let result = try await database.modifyRecordZones(saving: [newZone], deleting: [])
+            // If the server didn't report a per-zone result (unlikely for a
+            // successful save), fall back to the zone we asked it to create.
+            let savedZone = try result.saveResults[newZone.zoneID]?.get() ?? newZone
             self.customZone = savedZone
+            Logger.info("Custom zone ready: \(savedZone.zoneID.zoneName) owner=\(savedZone.zoneID.ownerName)", log: Logger.cloudKit)
         } catch {
-            print("Failed to create custom zone: \(error.localizedDescription)")
+            Logger.error("Failed to create custom zone: \(self.cloudKitErrorDescription(error))", log: Logger.cloudKit)
             self.errorAlert = ErrorAlert(message: "Failed to create iCloud zone: \(error.localizedDescription)")
         }
     }
     
-    private func fetchConnectionsAsync(cursor: CKQueryOperation.Cursor? = nil) async {
+    private func fetchConnectionsAsync() async {
         guard let customZoneID = customZone?.zoneID else {
             self.mode = .create
             self.cloudNotice = "CloudKit not configured. Working locally with Keychain for credentials."
             return
         }
 
-        let query = CKQuery(recordType: CloudKitKeys.recordType, predicate: NSPredicate(value: true))
-        query.sortDescriptors = []
-        
-        let queryOperation: CKQueryOperation
-        if let cursor = cursor {
-            queryOperation = CKQueryOperation(cursor: cursor)
-        } else {
-            queryOperation = CKQueryOperation(query: query)
+        // Fetch via recordZoneChanges(inZoneWith:since:) rather than a CKQuery:
+        // listing a custom zone this way needs NO queryable indexes (CKQuery
+        // requires a Queryable index on `recordName`, which is easy to forget when
+        // deploying to Production). We start from a nil change token to fetch every
+        // record and intentionally do NOT persist the token across launches — the
+        // app keeps no local record cache, so a persisted token would return only
+        // deltas and the list would appear empty on relaunch. (Persisting the
+        // token + caching records for incremental/offline sync is a future step.)
+        // The token is still used within this call to page through `moreComing`.
+        var fetchedRecords: [CKRecord] = []
+        var recordErrors: [(name: String, error: Error)] = []
+        var deletedRecordNames: [String] = []
+        var fetchError: Error?
+        var token: CKServerChangeToken?
+
+        pageLoop: while true {
+            do {
+                let changes = try await database.recordZoneChanges(inZoneWith: customZoneID, since: token)
+                for (recordID, modificationResult) in changes.modificationResultsByID {
+                    switch modificationResult {
+                    case .success(let modification):
+                        fetchedRecords.append(modification.record)
+                    case .failure(let error):
+                        recordErrors.append((recordID.recordName, error))
+                    }
+                }
+                for deletion in changes.deletions {
+                    deletedRecordNames.append(deletion.recordID.recordName)
+                }
+                token = changes.changeToken
+                if !changes.moreComing { break pageLoop }
+            } catch {
+                fetchError = error
+                break pageLoop
+            }
         }
 
-        queryOperation.desiredKeys = [
-            CloudKitKeys.uuid, CloudKitKeys.name, CloudKitKeys.serverAddress, CloudKitKeys.portNumber, CloudKitKeys.username,
-            CloudKitKeys.password, CloudKitKeys.privateKey, CloudKitKeys.localPort, CloudKitKeys.remoteServer, CloudKitKeys.remotePort,
-            CloudKitKeys.knownHostKey
-        ]
-        queryOperation.zoneID = customZoneID
-        queryOperation.queuePriority = .veryHigh
-        
+        Logger.info("Fetch done: records=\(fetchedRecords.count) recordErrors=\(recordErrors.count) deleted=\(deletedRecordNames.count) fetchError=\(fetchError.map { self.cloudKitErrorDescription($0) } ?? "none")", log: Logger.cloudKit)
+
+        // Back on the MainActor: report per-record failures, then map the records.
+        for failure in recordErrors {
+            Logger.error("Failed to fetch record \(failure.name): \(self.cloudKitErrorDescription(failure.error))", log: Logger.cloudKit)
+        }
+
+        if let fetchError {
+            Logger.error("Error fetching connections: \(self.cloudKitErrorDescription(fetchError))", log: Logger.cloudKit)
+            self.errorAlert = ErrorAlert(message: "Failed to fetch connections: \(fetchError.localizedDescription)")
+        }
+
         var fetchedConnections: [Connection] = []
-
-        queryOperation.recordMatchedBlock = { [weak self] recordID, result in
-            guard let self = self else { return }
-            switch result {
-            case .success(let record):
-                // Ensure migration/parsing runs on the main actor if it affects @Published state, 
-                // but the code within migrateSecretsIfNeeded handles synchronization internally.
-                self.migrateSecretsIfNeeded(from: record)
-                if let connection = self.recordToConnection(record: record) {
-                    fetchedConnections.append(connection)
-                } else {
-                    print("Failed to convert record to connection: \(record)")
-                }
-            case .failure(let error):
-                print("Failed to fetch record \(recordID): \(error.localizedDescription)")
+        for record in fetchedRecords {
+            self.migrateSecretsIfNeeded(from: record)
+            if let connection = self.recordToConnection(record: record) {
+                fetchedConnections.append(connection)
             }
+            // recordToConnection logs its own detail when it drops a record.
         }
 
-        // Bridge CKOperation to async/await using CheckedContinuation
-        let (result, cursor) = await withCheckedContinuation { continuation in
-            queryOperation.queryResultBlock = { result in
-                switch result {
-                case .success(let cursor):
-                    continuation.resume(returning: (Result<Void, Error>.success(()), cursor))
-                case .failure(let error):
-                    continuation.resume(returning: (Result<Void, Error>.failure(error), nil))
-                }
-            }
-            database.add(queryOperation)
+        // Apply results: drop any reported deletions, then upsert fetched records.
+        if !deletedRecordNames.isEmpty {
+            let deleted = Set(deletedRecordNames)
+            self.connections.removeAll { deleted.contains($0.id.uuidString) }
+        }
+        for connection in fetchedConnections {
+            self.upsertConnection(connection)
         }
 
-        // Update @Published properties only on completion of the operation
-        self.connections.append(contentsOf: fetchedConnections)
+        // Sort connections by name in memory (CloudKit sorting requires indexes).
+        self.connections.sort { $0.connectionInfo.name.localizedCaseInsensitiveCompare($1.connectionInfo.name) == .orderedAscending }
 
-        switch result {
-        case .failure(let error):
-            print("Error fetching connections: \(error.localizedDescription)")
-            self.errorAlert = ErrorAlert(message: "Failed to fetch connections: \(error.localizedDescription)")
-            
-        case .success:
-            if let nextCursor = cursor {
-                print("Fetching more connections")
-                await self.fetchConnectionsAsync(cursor: nextCursor)
-            } else {
-                print("Finished fetching connections")
-            }
-        }
+        Logger.info("Finished fetching connections (total: \(self.connections.count))", log: Logger.cloudKit)
 
         self.mode = self.connections.isEmpty ? .create : .view
         self.cloudNotice = nil
@@ -284,7 +634,33 @@ class ConnectionStore: ObservableObject {
     }
     
     func updateTempConnection(with connection: Connection) {
-        self.tempConnection = connection.copy() // Use a copy for editing
+        let copy = connection.copy() // Use a copy for editing
+        // Secrets aren't held in the in-memory model at rest (lazy loading), so
+        // pull them into the editable copy now. Otherwise saving an edit (even
+        // an unrelated change like the name) would persist empty secrets over
+        // the stored ones. This is also where a future auth prompt for editing
+        // would surface.
+        if copy.connectionInfo.password.isEmpty {
+            copy.connectionInfo.password = credentialsStore.loadPassword(for: connection.id) ?? ""
+        }
+        if copy.connectionInfo.privateKey.isEmpty {
+            copy.connectionInfo.privateKey = credentialsStore.loadPrivateKey(for: connection.id) ?? ""
+        }
+        self.tempConnection = copy
+    }
+
+    /// Whether a password is stored for this connection, without reading it.
+    func hasStoredPassword(_ connection: Connection) -> Bool {
+        credentialsStore.hasPassword(for: connection.id)
+    }
+
+    /// Whether a private key is stored for this connection, without reading it.
+    func hasStoredPrivateKey(_ connection: Connection) -> Bool {
+        credentialsStore.hasPrivateKey(for: connection.id)
+    }
+    
+    func clearTempConnection() {
+        self.tempConnection = nil
     }
 
     func saveConnection(_ connection: Connection, connectionToUpdate: Connection? = nil) {
@@ -299,139 +675,224 @@ class ConnectionStore: ObservableObject {
         }
     }
     
-    // Helper to wrap CKDatabase.fetch(withRecordID:completionHandler:)
-    private func fetchRecord(with recordID: CKRecord.ID) async throws -> CKRecord {
-        return try await withCheckedThrowingContinuation { continuation in
-            database.fetch(withRecordID: recordID) { record, error in
-                if let record = record {
-                    continuation.resume(returning: record)
-                } else if let error = error {
-                    continuation.resume(throwing: error)
-                } else {
-                    continuation.resume(throwing: NSError(domain: "CKError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unknown CloudKit fetch error."]))
-                }
-            }
+    /// Inserts the connection, or replaces the existing entry with the same id.
+    /// Keeps the in-memory list free of duplicates when re-fetching after a save.
+    private func upsertConnection(_ connection: Connection) {
+        if let existing = self.connections.first(where: { $0.id == connection.id }) {
+            // Mutate the existing @Observable instance in place rather than
+            // swapping in a new one. `Connection` is Equatable/Hashable by `id`
+            // only, so SwiftUI's List/ForEach treats a replacement instance as
+            // unchanged and never refreshes the row or `selectedConnection` — the
+            // edited name wouldn't appear until a relaunch rebuilt the list.
+            // Updating the observed properties of the same instance propagates to
+            // the UI immediately, and preserves live runtime state (connection
+            // state / byte counters) that a fetched record would otherwise reset.
+            existing.connectionInfo = connection.connectionInfo
+            existing.tunnelInfo = connection.tunnelInfo
+        } else {
+            self.connections.append(connection)
         }
+        // Keep Spotlight in sync (no-op unless the user has opted in). This is the
+        // single choke point for additions/updates, so it covers create, edit,
+        // and each record restored during a fetch.
+        SpotlightIndexer.index(connection)
     }
 
-    // Helper to wrap CKDatabase.save(_:completionHandler:)
-    private func saveRecord(_ record: CKRecord) async throws -> CKRecord {
-        return try await withCheckedThrowingContinuation { continuation in
-            database.save(record) { savedRecord, error in
-                if let savedRecord = savedRecord {
-                    continuation.resume(returning: savedRecord)
-                } else if let error = error {
-                    continuation.resume(throwing: error)
-                } else {
-                    continuation.resume(throwing: NSError(domain: "CKError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unknown CloudKit save error."]))
-                }
-            }
+    /// `internal` so tests can `await` it directly (rather than chasing the
+    /// fire-and-forget Task spawned by `saveConnection`). Behaviour unchanged.
+    internal func updateConnectionAsync(_ connection: Connection, connectionToUpdate: Connection) async {
+        guard let recordID = connectionToUpdate.recordID else {
+            // No server record exists yet (never synced) — create one instead of
+            // silently dropping the edit.
+            Logger.info("updateConnectionAsync: no existing recordID; creating a new record instead (id=\(connection.id))", log: Logger.cloudKit)
+            await createConnectionAsync(connection)
+            return
         }
-    }
-    
-    // Helper to wrap CKDatabase.delete(withRecordID:completionHandler:)
-    private func deleteRecord(with recordID: CKRecord.ID) async throws -> CKRecord.ID {
-        return try await withCheckedThrowingContinuation { continuation in
-            database.delete(withRecordID: recordID) { deletedRecordID, error in
-                if let deletedRecordID = deletedRecordID {
-                    continuation.resume(returning: deletedRecordID)
-                } else if let error = error {
-                    continuation.resume(throwing: error)
-                } else {
-                    continuation.resume(throwing: NSError(domain: "CKError", code: 0, userInfo: [NSLocalizedDescriptionKey: "Unknown CloudKit delete error."]))
-                }
-            }
-        }
-    }
 
-    private func updateConnectionAsync(_ connection: Connection, connectionToUpdate: Connection) async {
-        guard let recordID = connectionToUpdate.recordID else { return }
-        
         do {
-            // FIX: Use async wrappers
-            let fetchedRecord = try await fetchRecord(with: recordID)
+            let fetchedRecord = try await recordIO.record(for: recordID)
             self.updateRecordFields(fetchedRecord, withConnection: connection)
-            let savedRecord = try await saveRecord(fetchedRecord)
-            
-            if let index = self.connections.firstIndex(where: { $0.id == connection.id }) {
-                if let newConnect = self.recordToConnection(record: savedRecord) {
-                    self.connections[index] = newConnect
-                }
+            let savedRecord = try await recordIO.save(fetchedRecord)
+
+            if let newConnect = self.recordToConnection(record: savedRecord) {
+                self.upsertConnection(newConnect)
             }
         } catch {
+            Logger.error("Failed to update connection: \(self.cloudKitErrorDescription(error))", log: Logger.cloudKit)
             self.errorAlert = ErrorAlert(message: "Failed to save changes: \(error.localizedDescription)")
         }
     }
 
-    private func createConnectionAsync(_ connection: Connection) async {
+    /// `internal` so tests can `await` it directly. Behaviour unchanged.
+    internal func createConnectionAsync(_ connection: Connection) async {
         guard let zoneID = customZone?.zoneID else {
+            Logger.error("createConnectionAsync: customZone is nil; connection not persisted (id=\(connection.id))", log: Logger.cloudKit)
             self.errorAlert = ErrorAlert(message: "Cannot save connection: CloudKit zone not available.")
             return
         }
-        
+
         let recordID = CKRecord.ID(recordName: connection.id.uuidString, zoneID: zoneID)
         let record = CKRecord(recordType: CloudKitKeys.recordType, recordID: recordID)
         updateRecordFields(record, withConnection: connection)
-        
+
         record[CloudKitKeys.uuid] = connection.id.uuidString
-        
+
         do {
-            let savedRecord = try await saveRecord(record)
-            await self.fetchConnectionAsync(withId: savedRecord.recordID)
+            // Upsert straight from the record CloudKit echoes back from save(),
+            // rather than issuing a second record(for:) fetch. The extra fetch
+            // adds a round-trip and can race — the just-saved record sometimes
+            // reads back before all fields propagate, which surfaced as a new
+            // connection appearing in the sidebar with a blank name until relaunch.
+            let savedRecord = try await recordIO.save(record)
+            if let saved = self.recordToConnection(record: savedRecord) {
+                self.upsertConnection(saved)
+            }
         } catch {
+            Logger.error("Failed to save connection: \(self.cloudKitErrorDescription(error))", log: Logger.cloudKit)
             self.errorAlert = ErrorAlert(message: "Failed to save connection: \(error.localizedDescription)")
         }
     }
 
     private func fetchConnectionAsync(withId recordID: CKRecord.ID) async {
         do {
-            let fetchedRecord = try await fetchRecord(with: recordID)
+            let fetchedRecord = try await recordIO.record(for: recordID)
             self.migrateSecretsIfNeeded(from: fetchedRecord)
             if let connection = self.recordToConnection(record: fetchedRecord) {
-                self.connections.append(connection)
+                self.upsertConnection(connection)
             }
         } catch {
+            Logger.error("Failed to fetch connection: \(self.cloudKitErrorDescription(error))", log: Logger.cloudKit)
             self.errorAlert = ErrorAlert(message: "Failed to fetch connection: \(error.localizedDescription)")
         }
+    }
+
+    // MARK: - Port field bridging (CloudKit schema stores ports as NUMBER_INT64)
+
+    /// Writes a port-like value into a field that the CloudKit schema defines as
+    /// `NUMBER_INT64`. The app models ports as `String`, so we parse to `Int64`.
+    /// Blank or non-numeric values are stored as an absent field (read back as "").
+    private func setPortField(_ record: CKRecord, _ key: String, _ stringValue: String) {
+        let trimmed = stringValue.trimmingCharacters(in: .whitespaces)
+        if let intValue = Int64(trimmed) {
+            record[key] = intValue
+        } else {
+            record[key] = nil
+        }
+    }
+
+    /// Reads a port-like field back into the app's `String` model. Accepts the
+    /// current `Int64` schema as well as legacy `Int`/`String` representations,
+    /// so mapping is robust across environments. Returns "" when absent.
+    private func portString(_ record: CKRecord, _ key: String) -> String {
+        if let intValue = record[key] as? Int64 { return String(intValue) }
+        if let intValue = record[key] as? Int { return String(intValue) }
+        if let stringValue = record[key] as? String { return stringValue }
+        return ""
     }
 
     func updateRecordFields(_ record: CKRecord, withConnection connection: Connection) {
         record[CloudKitKeys.name] = connection.connectionInfo.name
         record[CloudKitKeys.serverAddress] = connection.connectionInfo.serverAddress
-        record[CloudKitKeys.portNumber] = connection.connectionInfo.portNumber
+        setPortField(record, CloudKitKeys.portNumber, connection.connectionInfo.portNumber)
         record[CloudKitKeys.username] = connection.connectionInfo.username
         record[CloudKitKeys.password] = "" // placeholder
         record[CloudKitKeys.privateKey] = "" // placeholder
         record[CloudKitKeys.knownHostKey] = connection.connectionInfo.knownHostKey
-        
+
         // Keychain operations remain synchronous but are protected by @MainActor scope
-        KeychainService.shared.savePassword(connection.connectionInfo.password, for: connection.id)
-        KeychainService.shared.savePrivateKey(connection.connectionInfo.privateKey, for: connection.id)
-        
-        record[CloudKitKeys.localPort] = connection.tunnelInfo.localPort
+        credentialsStore.savePassword(connection.connectionInfo.password, for: connection.id)
+        credentialsStore.savePrivateKey(connection.connectionInfo.privateKey, for: connection.id)
+
+        setPortField(record, CloudKitKeys.localPort, connection.tunnelInfo.localPort)
         record[CloudKitKeys.remoteServer] = connection.tunnelInfo.remoteServer
-        record[CloudKitKeys.remotePort] = connection.tunnelInfo.remotePort
+        setPortField(record, CloudKitKeys.remotePort, connection.tunnelInfo.remotePort)
     }
 
     func deleteConnection(_ connection: Connection) {
-        guard let recordID = connection.recordID else { return }
+        // Always clean up keychain regardless of CloudKit state
+        self.disconnect(connection)
+        self.managers[connection.id] = nil
+        credentialsStore.deleteCredentials(for: connection.id)
+        // Remove from Spotlight regardless of opt-in state, so a deleted
+        // connection never lingers in the system index.
+        SpotlightIndexer.deindex(id: connection.id)
+        
+        guard let recordID = connection.recordID else {
+            // Connection exists only locally (no CloudKit record yet)
+            self.connections.removeAll { $0.id == connection.id }
+            return
+        }
         
         Task {
             do {
-                let deletedRecordID = try await deleteRecord(with: recordID)
-                
-                if let toDelete = self.connections.first(where: { $0.recordID == deletedRecordID }) {
-                    self.disconnect(toDelete)
-                    self.managers[toDelete.id] = nil
-                    KeychainService.shared.deleteCredentials(for: toDelete.id)
-                }
+                let deletedRecordID = try await recordIO.deleteRecord(withID: recordID)
                 self.connections.removeAll { $0.recordID == deletedRecordID }
             } catch {
-                self.errorAlert = ErrorAlert(message: "Failed to delete connection: \(error.localizedDescription)")
+                self.errorAlert = ErrorAlert(message: "Failed to delete connection from iCloud: \(error.localizedDescription)")
+                // Note: Local state and keychain were already cleaned up above
             }
         }
     }
     
+    // MARK: - Import / Export
+
+    /// Builds an export payload for the given connections, reading their secrets
+    /// from the Keychain. Reading protected credentials may prompt for Touch ID /
+    /// password. `privateKeyPassphrase` is never persisted, so it exports empty.
+    func makeExportPayload(for connections: [Connection]) -> ExportPayload {
+        let exported = connections.map { connection -> ExportedConnection in
+            let info = connection.connectionInfo
+            let tunnel = connection.tunnelInfo
+            return ExportedConnection(
+                name: info.name,
+                serverAddress: info.serverAddress,
+                portNumber: info.portNumber,
+                username: info.username,
+                password: credentialsStore.loadPassword(for: connection.id) ?? "",
+                privateKey: credentialsStore.loadPrivateKey(for: connection.id) ?? "",
+                privateKeyPassphrase: "",
+                knownHostKey: info.knownHostKey,
+                localPort: tunnel.localPort,
+                remoteServer: tunnel.remoteServer,
+                remotePort: tunnel.remotePort
+            )
+        }
+        return ExportPayload(connections: exported)
+    }
+
+    /// Imports connections from a decrypted payload. Each becomes a brand-new
+    /// connection (fresh id / CloudKit record) saved through the normal path, so
+    /// secrets land in the Keychain and nothing overwrites an existing record.
+    /// Returns the number of connections queued for import.
+    @discardableResult
+    func importConnections(from payload: ExportPayload) -> Int {
+        for item in payload.connections {
+            // Discard any host-key pin from the import. A pinned `knownHostKey`
+            // short-circuits the TOFU prompt on first connect, so honouring one
+            // from an untrusted bundle would let the bundle author silently
+            // pre-pin a key they control. Forcing it empty here makes the user
+            // see and confirm the real server fingerprint on first connect to
+            // each imported host.
+            let connectionInfo = ConnectionInfo(
+                name: item.name,
+                serverAddress: item.serverAddress,
+                portNumber: item.portNumber,
+                username: item.username,
+                password: item.password,
+                privateKey: item.privateKey,
+                privateKeyPassphrase: item.privateKeyPassphrase,
+                knownHostKey: ""
+            )
+            let tunnelInfo = TunnelInfo(
+                localPort: item.localPort,
+                remoteServer: item.remoteServer,
+                remotePort: item.remotePort
+            )
+            newConnection(connectionInfo: connectionInfo, tunnelInfo: tunnelInfo)
+        }
+        return payload.connections.count
+    }
+
     private func migrateSecret(from record: CKRecord, field: String, for uuid: UUID, saveAction: (String, UUID) -> Void) -> Bool {
         if let encodedValue = record[field] as? String, !encodedValue.isEmpty {
             saveAction(encodedValue, uuid)
@@ -446,46 +907,61 @@ class ConnectionStore: ObservableObject {
         
         let friendlyName: String = (record[CloudKitKeys.name] as? String) ?? "connection"
         
-        let passwordMigrated = migrateSecret(from: record, field: CloudKitKeys.password, for: uuid, saveAction: KeychainService.shared.savePassword)
-        let keyMigrated = migrateSecret(from: record, field: CloudKitKeys.privateKey, for: uuid, saveAction: KeychainService.shared.savePrivateKey)
+        let passwordMigrated = migrateSecret(from: record, field: CloudKitKeys.password, for: uuid, saveAction: credentialsStore.savePassword)
+        let keyMigrated = migrateSecret(from: record, field: CloudKitKeys.privateKey, for: uuid, saveAction: credentialsStore.savePrivateKey)
 
         if passwordMigrated || keyMigrated {
             Task {
                 do {
-                    _ = try await saveRecord(record)
+                    _ = try await recordIO.save(record)
                     if !self.hasShownMigrationNotice(for: uuid) {
                         self.migrationNotice = "Credentials for '\(friendlyName)' were moved to Keychain and removed from iCloud."
                         self.markMigrationNoticeShown(for: uuid)
                     }
-                    print("Migrated secrets to Keychain and cleared CloudKit for record: \(record.recordID.recordName)")
+                    Logger.info("Migrated secrets to Keychain and cleared CloudKit for record: \(record.recordID.recordName)", log: Logger.cloudKit)
                 } catch {
-                    print("Migration save error: \(error)")
+                    Logger.error("Migration save error: \(error)", log: Logger.cloudKit)
                 }
             }
         }
     }
 
     func recordToConnection(record: CKRecord) -> Connection? {
-        guard let id = record[CloudKitKeys.uuid] as? String,
-              let uuid = UUID(uuidString: id),
-              let name = record[CloudKitKeys.name] as? String,
-              let serverAddress = record[CloudKitKeys.serverAddress] as? String,
-              let portNumber = record[CloudKitKeys.portNumber] as? String,
-              let username = record[CloudKitKeys.username] as? String,
-              let localPort = record[CloudKitKeys.localPort] as? String,
-              let remoteServer = record[CloudKitKeys.remoteServer] as? String,
-              let remotePort = record[CloudKitKeys.remotePort] as? String else {
+        // Per-field extraction so we can log exactly which field is missing
+        // when a record is silently dropped from the list.
+        func requireString(_ key: String) -> String? {
+            if let value = record[key] as? String { return value }
+            Logger.error("recordToConnection: record \(record.recordID.recordName) missing required field '\(key)'", log: Logger.cloudKit)
             return nil
         }
-        
-        let knownHostKey = (record[CloudKitKeys.knownHostKey] as? String) ?? ""
-        
-        // Keychain operations are synchronous
-        let password = KeychainService.shared.loadPassword(for: uuid) ?? ""
-        let privateKey = KeychainService.shared.loadPrivateKey(for: uuid) ?? ""
-        // Note: privateKeyPassphrase is not persisted long-term
 
-        let connectionInfo = ConnectionInfo(name: name, serverAddress: serverAddress, portNumber: portNumber, username: username, password: password, privateKey: privateKey, privateKeyPassphrase: "", knownHostKey: knownHostKey)
+        guard let id = requireString(CloudKitKeys.uuid),
+              let uuid = UUID(uuidString: id),
+              let name = requireString(CloudKitKeys.name),
+              let serverAddress = requireString(CloudKitKeys.serverAddress),
+              let username = requireString(CloudKitKeys.username),
+              let remoteServer = requireString(CloudKitKeys.remoteServer) else {
+            return nil
+        }
+
+        // Port fields are stored as NUMBER_INT64 in the CloudKit schema; read
+        // them leniently and convert back to the app's String model.
+        let portNumber = portString(record, CloudKitKeys.portNumber)
+        let localPort = portString(record, CloudKitKeys.localPort)
+        let remotePort = portString(record, CloudKitKeys.remotePort)
+
+        let knownHostKey = (record[CloudKitKeys.knownHostKey] as? String) ?? ""
+
+        // Secrets are NOT loaded into the in-memory model here. They're read
+        // lazily from the Keychain at the moment they're needed — at connect
+        // time (`hydrateCredentials`) and when editing (`updateTempConnection`).
+        // This keeps the whole connection list from pulling every secret on
+        // launch, and is the single choke point a future "require auth to use
+        // credentials" prompt can hook into. Existence (for display and the
+        // connect gate) is checked via `hasStoredPassword`/`hasStoredPrivateKey`
+        // without reading the secret value.
+        // Note: privateKeyPassphrase is not persisted long-term.
+        let connectionInfo = ConnectionInfo(name: name, serverAddress: serverAddress, portNumber: portNumber, username: username, password: "", privateKey: "", privateKeyPassphrase: "", knownHostKey: knownHostKey)
         let tunnelInfo = TunnelInfo(localPort: localPort, remoteServer: remoteServer, remotePort: remotePort)
 
         return Connection(id: uuid, recordID: record.recordID, connectionInfo: connectionInfo, tunnelInfo: tunnelInfo)
