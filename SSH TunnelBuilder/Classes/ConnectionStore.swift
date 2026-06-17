@@ -107,11 +107,16 @@ class ConnectionStore {
     @ObservationIgnored private var graceExpiry: Date?
     @ObservationIgnored private var graceExpiryTask: Task<Void, Never>?
 
+    /// `UserDefaults` key backing the grace-window preference (seconds).
+    static let credentialGraceSecondsKey = "CredentialGraceSeconds"
+
     /// How long a single authentication is honoured before the next connect
-    /// re-prompts. Configurable via `UserDefaults`; defaults to 5 minutes.
+    /// re-prompts. Defaults to 5 minutes when unset; an explicit `0` means
+    /// "ask every time".
     var credentialGraceSeconds: TimeInterval {
-        let stored = UserDefaults.standard.double(forKey: "CredentialGraceSeconds")
-        return stored > 0 ? stored : 300
+        let defaults = UserDefaults.standard
+        guard defaults.object(forKey: Self.credentialGraceSecondsKey) != nil else { return 300 }
+        return max(0, defaults.double(forKey: Self.credentialGraceSecondsKey))
     }
 
     /// Credentials storage (Keychain in production, mock for tests)
