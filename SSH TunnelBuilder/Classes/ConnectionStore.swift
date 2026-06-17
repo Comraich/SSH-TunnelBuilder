@@ -41,9 +41,9 @@ private struct UnconfiguredDatabase: ConnectionDatabase {
         NSError(domain: "ConnectionStore.UnconfiguredDatabase", code: 0,
                 userInfo: [NSLocalizedDescriptionKey: "no ConnectionDatabase configured"])
     }
-    func save(_ record: CKRecord) async throws -> CKRecord { throw Self.fail() }
-    func record(for recordID: CKRecord.ID) async throws -> CKRecord { throw Self.fail() }
-    func deleteRecord(withID recordID: CKRecord.ID) async throws -> CKRecord.ID { throw Self.fail() }
+    func save(_: CKRecord) async throws -> CKRecord { throw Self.fail() }
+    func record(for _: CKRecord.ID) async throws -> CKRecord { throw Self.fail() }
+    func deleteRecord(withID _: CKRecord.ID) async throws -> CKRecord.ID { throw Self.fail() }
 }
 
 // A wrapper to make error strings identifiable for SwiftUI Alerts

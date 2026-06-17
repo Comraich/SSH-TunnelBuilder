@@ -100,7 +100,7 @@ final class GenericRelayHandler<InboundType, OutboundType: Sendable>: ChannelInb
         self.transform = transform
     }
 
-    func channelRead(context: ChannelHandlerContext, data: NIOAny) {
+    func channelRead(context _: ChannelHandlerContext, data: NIOAny) {
         let inboundData = self.unwrapInboundIn(data)
         let (outboundData, count) = transform(inboundData)
 

@@ -886,10 +886,10 @@ struct HostKeyRequestTests {
     func isMismatchFlagPreserved() {
         let mismatch = HostKeyRequest(hostname: "h", fingerprint: "f",
                                       keyData: Data([0x01]), isMismatch: true,
-                                      completion: { _ in })
+                                      completion: { _ in /* test only inspects isMismatch */ })
         let firstUse = HostKeyRequest(hostname: "h", fingerprint: "f",
                                       keyData: Data([0x01]), isMismatch: false,
-                                      completion: { _ in })
+                                      completion: { _ in /* test only inspects isMismatch */ })
         #expect(mismatch.isMismatch == true)
         #expect(firstUse.isMismatch == false)
     }
