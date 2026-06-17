@@ -704,3 +704,964 @@ private extension NIOSSHUserAuthenticationOffer.Offer {
         return false
     }
 }
+
+// MARK: - Keychain Protection Tests
+
+/// Guards against re-introducing `.userPresence` access control on Keychain
+/// items. That flag re-prompts for Touch ID / password on every read regardless
+/// of the authenticated `LAContext` and defeats the single-prompt-per-grace-window
+/// model the app relies on (see `ConnectionStore.authenticateForCredentialUse`).
+@Suite("Keychain Protection Tests")
+struct KeychainProtectionTests {
+    // Mirrors the `service` constant on `KeychainService`. Hardcoded so the test
+    // can inspect raw Keychain attributes without exposing internal state.
+    private let service = "SSH Tunnel Manager"
+
+    @Test("Saved password is stored without an access-control attribute")
+    func passwordHasNoAccessControl() throws {
+        let id = UUID()
+        let keychain = KeychainService.shared
+        keychain.savePassword("pw-attr-test", for: id)
+        defer { keychain.deleteCredentials(for: id) }
+
+        let attrs = try #require(rawAttributes(account: CredentialAccount.password(for: id)))
+        #expect(attrs[kSecAttrAccessControl as String] == nil,
+                "Items must not carry `.userPresence`; the app gate handles auth.")
+    }
+
+    @Test("Saved private key is stored without an access-control attribute")
+    func privateKeyHasNoAccessControl() throws {
+        let id = UUID()
+        let keychain = KeychainService.shared
+        keychain.savePrivateKey("key-attr-test", for: id)
+        defer { keychain.deleteCredentials(for: id) }
+
+        let attrs = try #require(rawAttributes(account: CredentialAccount.privateKey(for: id)))
+        #expect(attrs[kSecAttrAccessControl as String] == nil)
+    }
+
+    private func rawAttributes(account: String) -> [String: Any]? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecReturnAttributes as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        var item: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess else { return nil }
+        return item as? [String: Any]
+    }
+}
+
+// MARK: - MockCredentialsStore Tests
+
+@Suite("MockCredentialsStore Tests")
+struct MockCredentialsStoreTests {
+    @Test("loadCredentials default extension returns both saved secrets")
+    func loadCredentialsReturnsBothSecrets() {
+        let mock = MockCredentialsStore()
+        let id = UUID()
+        mock.savePassword("pw", for: id)
+        mock.savePrivateKey("key", for: id)
+
+        let creds = mock.loadCredentials(for: id, authenticatedContext: nil)
+        #expect(creds.password == "pw")
+        #expect(creds.privateKey == "key")
+    }
+
+    @Test("setCredentialProtection default extension is a safe no-op")
+    func setCredentialProtectionIsNoOp() {
+        let mock = MockCredentialsStore()
+        let id = UUID()
+        mock.savePassword("pw", for: id)
+
+        mock.setCredentialProtection(enabled: true, for: [id])
+        #expect(mock.loadPassword(for: id) == "pw", "No-op must not lose data.")
+        mock.setCredentialProtection(enabled: false, for: [id])
+        #expect(mock.loadPassword(for: id) == "pw")
+    }
+
+    @Test("hasPassword / hasPrivateKey reflect storage without reading the value")
+    func existenceChecks() {
+        let mock = MockCredentialsStore()
+        let id = UUID()
+        #expect(mock.hasPassword(for: id) == false)
+        #expect(mock.hasPrivateKey(for: id) == false)
+
+        mock.savePassword("pw", for: id)
+        mock.savePrivateKey("key", for: id)
+        #expect(mock.hasPassword(for: id))
+        #expect(mock.hasPrivateKey(for: id))
+
+        mock.deleteCredentials(for: id)
+        #expect(mock.hasPassword(for: id) == false)
+        #expect(mock.hasPrivateKey(for: id) == false)
+    }
+}
+
+// MARK: - ConnectionStore Credential Lifecycle Tests
+
+@Suite("ConnectionStore Credential Lifecycle Tests")
+struct ConnectionStoreCredentialLifecycleTests {
+    @MainActor private func makeConnection(id: UUID = UUID(),
+                                           password: String = "pw",
+                                           privateKey: String = "key") -> Connection {
+        let info = ConnectionInfo(name: "Test", serverAddress: "127.0.0.1",
+                                  portNumber: "22", username: "user",
+                                  password: password, privateKey: privateKey,
+                                  privateKeyPassphrase: "")
+        let tunnel = TunnelInfo(localPort: "8080", remoteServer: "remote", remotePort: "80")
+        return Connection(id: id, connectionInfo: info, tunnelInfo: tunnel)
+    }
+
+    @Test("updateRecordFields persists secrets to the credentials store and leaves CloudKit fields empty")
+    @MainActor func updateRecordFieldsPersistsSecretsViaStore() {
+        let mock = MockCredentialsStore()
+        let store = ConnectionStore(mode: .view, connections: [], credentialsStore: mock)
+        let id = UUID()
+        let connection = makeConnection(id: id, password: "topsecret", privateKey: "PEM-here")
+
+        let record = CKRecord(recordType: "Connection",
+                              recordID: CKRecord.ID(recordName: id.uuidString))
+        store.updateRecordFields(record, withConnection: connection)
+
+        #expect(mock.loadPassword(for: id) == "topsecret")
+        #expect(mock.loadPrivateKey(for: id) == "PEM-here")
+        // The CloudKit-side fields stay empty so secrets never touch iCloud.
+        #expect((record["password"] as? String) == "")
+        #expect((record["privateKey"] as? String) == "")
+    }
+
+    @Test("deleteConnection removes the connection and clears its credentials")
+    @MainActor func deleteConnectionRemovesCredentials() {
+        let mock = MockCredentialsStore()
+        let id = UUID()
+        let connection = makeConnection(id: id, password: "pw", privateKey: "key")
+        mock.savePassword("pw", for: id)
+        mock.savePrivateKey("key", for: id)
+
+        let store = ConnectionStore(mode: .view, connections: [connection],
+                                    credentialsStore: mock)
+        store.deleteConnection(connection)
+
+        #expect(store.connections.isEmpty,
+                "Local-only connection should be removed synchronously")
+        #expect(mock.loadPassword(for: id) == nil,
+                "deleteConnection must clear the password from the credentials store")
+        #expect(mock.loadPrivateKey(for: id) == nil,
+                "deleteConnection must clear the private key from the credentials store")
+    }
+}
+
+// MARK: - HostKeyRequest / Error Tests
+
+@Suite("Host Key Request Tests")
+struct HostKeyRequestTests {
+    @Test("isMismatch flag is carried on the request value")
+    func isMismatchFlagPreserved() {
+        let mismatch = HostKeyRequest(hostname: "h", fingerprint: "f",
+                                      keyData: Data([0x01]), isMismatch: true,
+                                      completion: { _ in })
+        let firstUse = HostKeyRequest(hostname: "h", fingerprint: "f",
+                                      keyData: Data([0x01]), isMismatch: false,
+                                      completion: { _ in })
+        #expect(mismatch.isMismatch == true)
+        #expect(firstUse.isMismatch == false)
+    }
+
+    @Test("completion handler is invoked with the user's decision")
+    func completionHandlerRunsOnce() {
+        var received: Bool?
+        let request = HostKeyRequest(hostname: "h", fingerprint: "f",
+                                     keyData: Data(), isMismatch: false,
+                                     completion: { received = $0 })
+        request.completion(true)
+        #expect(received == true)
+    }
+
+    @Test("hostKeyMismatch has a non-empty user-facing description")
+    func hostKeyMismatchHasMessage() {
+        let message = SSHTunnelError.hostKeyMismatch.localizedDescription
+        #expect(!message.isEmpty)
+        #expect(message.localizedCaseInsensitiveContains("host key"),
+                "Message should mention 'host key' so users understand what failed.")
+    }
+}
+
+// MARK: - ConnectionTransfer Tests
+
+/// Tests the encrypted import/export codec. PBKDF2 at 600k iterations is slow,
+/// so KDF-touching tests run separately from the cheap envelope-validation
+/// tests (which fail before key derivation).
+@Suite("Connection Transfer Tests")
+struct ConnectionTransferTests {
+    private static let passphrase = "correct horse battery staple"
+
+    private static func makePayload(name: String = "Prod Bastion") -> ExportPayload {
+        let exported = ExportedConnection(
+            name: name, serverAddress: "bastion.example.com",
+            portNumber: "22", username: "deploy",
+            password: "s3cr3t-pw", privateKey: "-----BEGIN OPENSSH PRIVATE KEY-----\nfake\n-----END OPENSSH PRIVATE KEY-----",
+            privateKeyPassphrase: "",  // never persisted in real exports
+            knownHostKey: "AAAAC3NzaC1lZDI1NTE5AAAAIODWg9L7e5NYe+ORTnd2yR1iFBEQYCCB91Mnj0SNeDKg",
+            localPort: "8080", remoteServer: "internal.db", remotePort: "5432"
+        )
+        return ExportPayload(connections: [exported])
+    }
+
+    @Test("Round-trip encrypts and decrypts back to the original payload")
+    func roundTripPreservesPayload() throws {
+        let payload = Self.makePayload()
+        let blob = try ConnectionTransfer.encrypt(payload, passphrase: Self.passphrase)
+        let recovered = try ConnectionTransfer.decrypt(blob, passphrase: Self.passphrase)
+        #expect(recovered == payload)
+    }
+
+    @Test("Wrong passphrase fails with wrongPassphraseOrCorruptFile")
+    func wrongPassphraseRejected() throws {
+        let payload = Self.makePayload()
+        let blob = try ConnectionTransfer.encrypt(payload, passphrase: Self.passphrase)
+        expectThrows(.wrongPassphraseOrCorruptFile) {
+            _ = try ConnectionTransfer.decrypt(blob, passphrase: Self.passphrase + "-wrong")
+        }
+    }
+
+    @Test("Empty passphrase is rejected on encrypt without running the KDF")
+    func emptyPassphraseEncryptRejected() {
+        expectThrows(.emptyPassphrase) {
+            _ = try ConnectionTransfer.encrypt(Self.makePayload(), passphrase: "")
+        }
+    }
+
+    @Test("Empty passphrase is rejected on decrypt without running the KDF")
+    func emptyPassphraseDecryptRejected() {
+        // The blob doesn't have to be a real envelope — the empty-passphrase
+        // check fires before any decoding work.
+        expectThrows(.emptyPassphrase) {
+            _ = try ConnectionTransfer.decrypt(Data("anything".utf8), passphrase: "")
+        }
+    }
+
+    @Test("Non-envelope JSON is rejected as unrecognized format")
+    func nonEnvelopeJSONRejected() {
+        let junk = Data(#"{"hello":"world"}"#.utf8)
+        expectThrows(.unrecognizedFormat) {
+            _ = try ConnectionTransfer.decrypt(junk, passphrase: Self.passphrase)
+        }
+    }
+
+    @Test("Envelope with the wrong format tag is rejected as unrecognized format")
+    func wrongFormatTagRejected() throws {
+        let bogus = Data("""
+            {
+              "cipher": "aes-256-gcm",
+              "data": "AA==",
+              "format": "something-else",
+              "iterations": 600000,
+              "kdf": "pbkdf2-hmac-sha256",
+              "salt": "AAAAAAAAAAAAAAAAAAAAAA==",
+              "version": 1
+            }
+            """.utf8)
+        expectThrows(.unrecognizedFormat) {
+            _ = try ConnectionTransfer.decrypt(bogus, passphrase: Self.passphrase)
+        }
+    }
+
+    /// Pattern-matching helper so each test reads as one line. We can't use
+    /// `#expect(throws: ConnectionTransferError.someCase)` directly because
+    /// `ConnectionTransferError` isn't `Equatable` (its associated values
+    /// include `Error`, which isn't), and we don't want to widen the
+    /// production type's conformance just for tests.
+    private func expectThrows(
+        _ expected: ConnectionTransferError,
+        sourceLocation: SourceLocation = #_sourceLocation,
+        _ body: () throws -> Void
+    ) {
+        do {
+            try body()
+            Issue.record("Expected \(expected) to be thrown, got success",
+                         sourceLocation: sourceLocation)
+        } catch let actual as ConnectionTransferError where matches(expected, actual) {
+            // Expected case.
+        } catch {
+            Issue.record("Expected \(expected), got \(error)",
+                         sourceLocation: sourceLocation)
+        }
+    }
+
+    private func matches(_ expected: ConnectionTransferError,
+                         _ actual: ConnectionTransferError) -> Bool {
+        switch (expected, actual) {
+        case (.emptyPassphrase, .emptyPassphrase),
+             (.wrongPassphraseOrCorruptFile, .wrongPassphraseOrCorruptFile),
+             (.unrecognizedFormat, .unrecognizedFormat),
+             (.randomGenerationFailed, .randomGenerationFailed),
+             (.keyDerivationFailed, .keyDerivationFailed):
+            return true
+        case (.unsupportedVersion(let l), .unsupportedVersion(let r)):
+            return l == r
+        case (.malformed(let l), .malformed(let r)):
+            return l == r
+        default:
+            return false
+        }
+    }
+
+    @Test("Envelope from a newer format version is rejected with unsupportedVersion")
+    func futureVersionRejected() throws {
+        let future = Data("""
+            {
+              "cipher": "aes-256-gcm",
+              "data": "AA==",
+              "format": "ssh-tunnelbuilder-export",
+              "iterations": 600000,
+              "kdf": "pbkdf2-hmac-sha256",
+              "salt": "AAAAAAAAAAAAAAAAAAAAAA==",
+              "version": 999
+            }
+            """.utf8)
+
+        // Use `do/catch` so we can inspect the associated value on the case.
+        do {
+            _ = try ConnectionTransfer.decrypt(future, passphrase: Self.passphrase)
+            Issue.record("Expected unsupportedVersion error to be thrown")
+        } catch ConnectionTransferError.unsupportedVersion(let version) {
+            #expect(version == 999)
+        } catch {
+            Issue.record("Expected unsupportedVersion, got \(error)")
+        }
+    }
+}
+
+// MARK: - Host Key Trust Flow Tests
+
+/// Covers `ConnectionStore.confirmHostKeyTrust`: the prompt presented to the
+/// user during SSH handshake when a host key is unknown (first use) or has
+/// changed since it was last trusted (mismatch).
+@Suite("Host Key Trust Flow Tests")
+struct HostKeyTrustFlowTests {
+    @MainActor private func makeStore(connection: Connection) -> ConnectionStore {
+        ConnectionStore(mode: .view, connections: [connection],
+                        credentialsStore: MockCredentialsStore())
+    }
+
+    @MainActor private func makeConnection(knownHostKey: String = "") -> Connection {
+        var info = ConnectionInfo(name: "Test", serverAddress: "127.0.0.1",
+                                  portNumber: "22", username: "user",
+                                  password: "", privateKey: "",
+                                  privateKeyPassphrase: "")
+        info.knownHostKey = knownHostKey
+        let tunnel = TunnelInfo(localPort: "8080", remoteServer: "remote", remotePort: "80")
+        return Connection(id: UUID(), connectionInfo: info, tunnelInfo: tunnel)
+    }
+
+    /// Spins until `hostKeyRequest` is published, then returns it. Cheap because
+    /// `confirmHostKeyTrust` sets the request before its first suspension point.
+    @MainActor private func waitForRequest(_ store: ConnectionStore) async -> HostKeyRequest {
+        while store.hostKeyRequest == nil {
+            await Task.yield()
+        }
+        return store.hostKeyRequest!
+    }
+
+    @Test("Trusting a first-use prompt pins the presented key on the connection")
+    @MainActor func firstUseTrustPinsKey() async {
+        let connection = makeConnection(knownHostKey: "")
+        let store = makeStore(connection: connection)
+        let newKey = Data([0xAA, 0xBB, 0xCC, 0xDD])
+
+        async let trusted = store.confirmHostKeyTrust(
+            host: "h", fingerprint: "SHA256:fp",
+            keyData: newKey, isMismatch: false, connection: connection
+        )
+        let request = await waitForRequest(store)
+        #expect(request.isMismatch == false)
+        request.completion(true)
+
+        let result = await trusted
+        #expect(result == true)
+        #expect(connection.connectionInfo.knownHostKey == newKey.base64EncodedString())
+    }
+
+    @Test("Trusting a mismatch prompt overwrites the previously pinned key")
+    @MainActor func mismatchTrustOverwritesPinnedKey() async {
+        let originalKey = Data([0x01, 0x02, 0x03])
+        let connection = makeConnection(knownHostKey: originalKey.base64EncodedString())
+        let store = makeStore(connection: connection)
+        let newKey = Data([0xDE, 0xAD, 0xBE, 0xEF])
+
+        async let trusted = store.confirmHostKeyTrust(
+            host: "h", fingerprint: "SHA256:new",
+            keyData: newKey, isMismatch: true, connection: connection
+        )
+        let request = await waitForRequest(store)
+        #expect(request.isMismatch == true)
+        request.completion(true)
+
+        let result = await trusted
+        #expect(result == true)
+        #expect(connection.connectionInfo.knownHostKey == newKey.base64EncodedString(),
+                "The new key must overwrite the previously pinned one.")
+    }
+
+    @Test("Cancelling a mismatch prompt leaves the previously pinned key intact")
+    @MainActor func mismatchCancelKeepsPinnedKey() async {
+        let originalKey = Data([0x01, 0x02, 0x03])
+        let pinned = originalKey.base64EncodedString()
+        let connection = makeConnection(knownHostKey: pinned)
+        let store = makeStore(connection: connection)
+
+        async let trusted = store.confirmHostKeyTrust(
+            host: "h", fingerprint: "SHA256:new",
+            keyData: Data([0x99]), isMismatch: true, connection: connection
+        )
+        let request = await waitForRequest(store)
+        request.completion(false)
+
+        let result = await trusted
+        #expect(result == false)
+        #expect(connection.connectionInfo.knownHostKey == pinned,
+                "Cancelling must not modify the pinned host key.")
+    }
+
+    @Test("A superseding prompt denies the earlier one to avoid leaking awaiting Tasks")
+    @MainActor func supersedingPromptDeniesPriorOne() async {
+        let connection = makeConnection()
+        let store = makeStore(connection: connection)
+
+        // Start the first prompt; don't answer it.
+        async let first = store.confirmHostKeyTrust(
+            host: "first", fingerprint: "fp1",
+            keyData: Data([0x01]), isMismatch: false, connection: connection
+        )
+        _ = await waitForRequest(store)
+
+        // Start a second prompt; the first should resolve as denied.
+        async let second = store.confirmHostKeyTrust(
+            host: "second", fingerprint: "fp2",
+            keyData: Data([0x02]), isMismatch: false, connection: connection
+        )
+
+        // First call resolves to `false` because the second prompt superseded it.
+        let firstResult = await first
+        #expect(firstResult == false)
+
+        // Resolve the second prompt to let its Task complete cleanly.
+        // The store has already replaced `hostKeyRequest` for the second call.
+        let secondRequest = await waitForRequest(store)
+        secondRequest.completion(false)
+        _ = await second
+    }
+}
+
+// MARK: - Keychain loadCredentials Tests
+
+@Suite("KeychainService.loadCredentials Tests")
+struct KeychainLoadCredentialsTests {
+    @Test("loadCredentials returns both saved secrets")
+    func loadCredentialsReturnsBothSecrets() {
+        let id = UUID()
+        let keychain = KeychainService.shared
+        keychain.savePassword("pw", for: id)
+        keychain.savePrivateKey("key", for: id)
+        defer { keychain.deleteCredentials(for: id) }
+
+        let creds = keychain.loadCredentials(for: id, authenticatedContext: nil)
+        #expect(creds.password == "pw")
+        #expect(creds.privateKey == "key")
+    }
+
+    @Test("loadCredentials returns nil values when nothing is stored")
+    func loadCredentialsMissingReturnsNil() {
+        let id = UUID()
+        let creds = KeychainService.shared.loadCredentials(for: id, authenticatedContext: nil)
+        #expect(creds.password == nil)
+        #expect(creds.privateKey == nil)
+    }
+
+    @Test("loadCredentials returns just the saved secret when the other is absent")
+    func loadCredentialsPartial() {
+        let id = UUID()
+        let keychain = KeychainService.shared
+        keychain.savePassword("only-pw", for: id)
+        defer { keychain.deleteCredentials(for: id) }
+
+        let creds = keychain.loadCredentials(for: id, authenticatedContext: nil)
+        #expect(creds.password == "only-pw")
+        #expect(creds.privateKey == nil)
+    }
+}
+
+// MARK: - ConnectionStore UI State Tests
+
+@Suite("ConnectionStore UI State Tests")
+struct ConnectionStoreUIStateTests {
+    @Test("showError publishes an ErrorAlert with the given message")
+    @MainActor func showErrorPublishesAlert() {
+        let store = ConnectionStore(mode: .view, connections: [])
+        #expect(store.errorAlert == nil)
+        store.showError("network down")
+        #expect(store.errorAlert?.message == "network down")
+    }
+
+    @Test("clearCreateForm resets every form-state field to empty")
+    @MainActor func clearCreateFormResetsAllFields() {
+        let store = ConnectionStore(mode: .view, connections: [])
+        store.connectionName = "Bastion"
+        store.serverAddress = "bastion.example.com"
+        store.portNumber = "22"
+        store.username = "deploy"
+        store.password = "pw"
+        store.privateKey = "key"
+        store.localPort = "8080"
+        store.remoteServer = "internal.db"
+        store.remotePort = "5432"
+
+        store.clearCreateForm()
+
+        #expect(store.connectionName == "")
+        #expect(store.serverAddress == "")
+        #expect(store.portNumber == "")
+        #expect(store.username == "")
+        #expect(store.password == "")
+        #expect(store.privateKey == "")
+        #expect(store.localPort == "")
+        #expect(store.remoteServer == "")
+        #expect(store.remotePort == "")
+    }
+
+    @Test("hasStoredPassword / hasStoredPrivateKey forward to the credentials store")
+    @MainActor func hasStoredForwardsToStore() {
+        let mock = MockCredentialsStore()
+        let id = UUID()
+        let info = ConnectionInfo(name: "T", serverAddress: "h", portNumber: "22",
+                                  username: "u", password: "", privateKey: "",
+                                  privateKeyPassphrase: "")
+        let tunnel = TunnelInfo(localPort: "8080", remoteServer: "r", remotePort: "80")
+        let connection = Connection(id: id, connectionInfo: info, tunnelInfo: tunnel)
+        let store = ConnectionStore(mode: .view, connections: [connection],
+                                    credentialsStore: mock)
+
+        #expect(store.hasStoredPassword(connection) == false)
+        #expect(store.hasStoredPrivateKey(connection) == false)
+
+        mock.savePassword("pw", for: id)
+        mock.savePrivateKey("key", for: id)
+        #expect(store.hasStoredPassword(connection))
+        #expect(store.hasStoredPrivateKey(connection))
+    }
+}
+
+// MARK: - SSHTunnelError Description Coverage
+
+@Suite("SSHTunnelError Description Coverage")
+struct SSHTunnelErrorDescriptionTests {
+    @Test("Errors with associated values include them in the message")
+    func associatedValuesInMessage() {
+        #expect(SSHTunnelError.keyParsingFailed("bad header")
+            .localizedDescription.contains("bad header"))
+        #expect(SSHTunnelError.invalidPort("xyz")
+            .localizedDescription.contains("xyz"))
+        #expect(SSHTunnelError.internalError("boom")
+            .localizedDescription.contains("boom"))
+        #expect(SSHTunnelError.unsupportedKeyType("rsa")
+            .localizedDescription.contains("rsa"))
+    }
+
+    @Test("Every SSHTunnelError case has a non-empty localized description")
+    func everyCaseHasMessage() {
+        // Exhaustive list — adding a new case forces this test to be updated
+        // alongside the switch in `SSHTunnelError.errorDescription`.
+        let cases: [SSHTunnelError] = [
+            .missingCredentials,
+            .authenticationFailed,
+            .unsupportedKeyType("rsa"),
+            .keyParsingFailed("bad header"),
+            .encryptedKeyNoPassphrase,
+            .unsupportedCurveLength,
+            .rsaNotSupported,
+            .invalidPEM,
+            .connectionTimeout,
+            .networkError(NSError(domain: "test", code: 1)),
+            .tunnelSetupFailed(NSError(domain: "test", code: 2)),
+            .invalidPort("0"),
+            .hostKeyMismatch,
+            .hostKeyValidationMissing,
+            .hostKeyRejected,
+            .internalError("detail")
+        ]
+        for error in cases {
+            #expect(!error.localizedDescription.isEmpty,
+                    "\(error) must have a user-facing description")
+        }
+    }
+}
+
+// MARK: - Import Flow Tests
+
+@Suite("ConnectionStore Import Flow Tests")
+struct ConnectionStoreImportFlowTests {
+    private static func makeExported(name: String = "Imported") -> ExportedConnection {
+        ExportedConnection(
+            name: name, serverAddress: "host.example.com",
+            portNumber: "22", username: "user",
+            password: "pw", privateKey: "key",
+            privateKeyPassphrase: "",
+            knownHostKey: "",
+            localPort: "8080", remoteServer: "remote", remotePort: "80"
+        )
+    }
+
+    @Test("importConnections returns the count of items in the payload")
+    @MainActor func importReturnsPayloadCount() {
+        let store = ConnectionStore(mode: .view, connections: [],
+                                    credentialsStore: MockCredentialsStore())
+        let payload = ExportPayload(connections: [
+            Self.makeExported(name: "A"),
+            Self.makeExported(name: "B"),
+            Self.makeExported(name: "C")
+        ])
+        #expect(store.importConnections(from: payload) == 3)
+    }
+
+    @Test("importConnections returns 0 for an empty payload")
+    @MainActor func importEmptyReturnsZero() {
+        let store = ConnectionStore(mode: .view, connections: [],
+                                    credentialsStore: MockCredentialsStore())
+        let count = store.importConnections(from: ExportPayload(connections: []))
+        #expect(count == 0)
+    }
+}
+
+// MARK: - reprotectStoredCredentials Forwarding Tests
+
+@Suite("reprotectStoredCredentials Forwarding Tests")
+struct ReprotectForwardingTests {
+    /// Recording mock so the test can assert exactly what `ConnectionStore`
+    /// asked the credentials store to do. `MockCredentialsStore` itself is
+    /// `final`, so we replicate its in-memory storage here rather than try to
+    /// subclass it.
+    final class RecordingStore: CredentialsStore, @unchecked Sendable {
+        var storage: [String: String] = [:]
+        var protectionCalls: [(enabled: Bool, ids: [UUID])] = []
+
+        func savePassword(_ password: String, for id: UUID) {
+            storage[CredentialAccount.password(for: id)] = password
+        }
+        func savePrivateKey(_ key: String, for id: UUID) {
+            storage[CredentialAccount.privateKey(for: id)] = key
+        }
+        func loadPassword(for id: UUID) -> String? {
+            storage[CredentialAccount.password(for: id)]
+        }
+        func loadPrivateKey(for id: UUID) -> String? {
+            storage[CredentialAccount.privateKey(for: id)]
+        }
+        func deleteCredentials(for id: UUID) {
+            storage.removeValue(forKey: CredentialAccount.password(for: id))
+            storage.removeValue(forKey: CredentialAccount.privateKey(for: id))
+        }
+        func hasPassword(for id: UUID) -> Bool {
+            storage[CredentialAccount.password(for: id)] != nil
+        }
+        func hasPrivateKey(for id: UUID) -> Bool {
+            storage[CredentialAccount.privateKey(for: id)] != nil
+        }
+        func setCredentialProtection(enabled: Bool, for ids: [UUID]) {
+            protectionCalls.append((enabled, ids))
+        }
+    }
+
+    @MainActor private func makeConnection() -> Connection {
+        let info = ConnectionInfo(name: "T", serverAddress: "h", portNumber: "22",
+                                  username: "u", password: "", privateKey: "",
+                                  privateKeyPassphrase: "")
+        let tunnel = TunnelInfo(localPort: "8080", remoteServer: "r", remotePort: "80")
+        return Connection(id: UUID(), connectionInfo: info, tunnelInfo: tunnel)
+    }
+
+    @Test("reprotectStoredCredentials forwards every connection id and the enabled flag")
+    @MainActor func forwardsAllConnectionIDs() {
+        let recording = RecordingStore()
+        let c1 = makeConnection()
+        let c2 = makeConnection()
+        let c3 = makeConnection()
+        let store = ConnectionStore(mode: .view, connections: [c1, c2, c3],
+                                    credentialsStore: recording)
+
+        store.reprotectStoredCredentials(enabled: true)
+
+        #expect(recording.protectionCalls.count == 1)
+        let call = recording.protectionCalls[0]
+        #expect(call.enabled == true)
+        #expect(Set(call.ids) == Set([c1.id, c2.id, c3.id]))
+    }
+
+    @Test("reprotectStoredCredentials forwards the disabled flag too")
+    @MainActor func forwardsDisabledFlag() {
+        let recording = RecordingStore()
+        let store = ConnectionStore(mode: .view, connections: [makeConnection()],
+                                    credentialsStore: recording)
+
+        store.reprotectStoredCredentials(enabled: false)
+
+        #expect(recording.protectionCalls.last?.enabled == false)
+    }
+}
+
+// MARK: - SpotlightIndexer Tests
+
+@Suite("SpotlightIndexer Tests")
+struct SpotlightIndexerTests {
+    @Test("isEnabled reflects the spotlightIndexingEnabled UserDefaults key")
+    func isEnabledReflectsUserDefaults() {
+        // Save and restore so the test doesn't pollute the user's real default.
+        let key = SpotlightIndexer.enabledDefaultsKey
+        let original = UserDefaults.standard.bool(forKey: key)
+        defer { UserDefaults.standard.set(original, forKey: key) }
+
+        UserDefaults.standard.set(false, forKey: key)
+        #expect(SpotlightIndexer.isEnabled == false)
+        UserDefaults.standard.set(true, forKey: key)
+        #expect(SpotlightIndexer.isEnabled == true)
+    }
+
+    @Test("enabledDefaultsKey is the documented value")
+    func defaultsKeyIsStable() {
+        // `@AppStorage(SpotlightIndexer.enabledDefaultsKey)` in `SettingsView`
+        // ties the toggle to this exact string — changing it silently would
+        // orphan existing users' preference, so pin it down.
+        #expect(SpotlightIndexer.enabledDefaultsKey == "spotlightIndexingEnabled")
+    }
+}
+
+// MARK: - ConnectionTransfer Multi-Connection Tests
+
+@Suite("Connection Transfer Multi-Connection Tests")
+struct ConnectionTransferMultiTests {
+    @Test("Round-trip preserves every connection in a multi-item payload")
+    func multiConnectionRoundTrip() throws {
+        let originals: [ExportedConnection] = (0..<3).map { i in
+            ExportedConnection(
+                name: "Host \(i)", serverAddress: "h\(i).example.com",
+                portNumber: "\(2200 + i)", username: "user\(i)",
+                password: "pw\(i)", privateKey: "key\(i)",
+                privateKeyPassphrase: "",
+                knownHostKey: "fingerprint-\(i)",
+                localPort: "\(8000 + i)", remoteServer: "r\(i)", remotePort: "\(9000 + i)"
+            )
+        }
+        let payload = ExportPayload(connections: originals)
+        let passphrase = "multi-pass"
+
+        let blob = try ConnectionTransfer.encrypt(payload, passphrase: passphrase)
+        let recovered = try ConnectionTransfer.decrypt(blob, passphrase: passphrase)
+
+        #expect(recovered.connections.count == originals.count)
+        #expect(recovered == payload)
+    }
+}
+
+// MARK: - CredentialAccount Tests
+
+@Suite("CredentialAccount Tests")
+struct CredentialAccountTests {
+    @Test("Password and private-key accounts use distinct keys for the same id")
+    func accountsAreDistinct() {
+        let id = UUID()
+        let pw = CredentialAccount.password(for: id)
+        let key = CredentialAccount.privateKey(for: id)
+        #expect(pw != key,
+                "Mixing the two keys would corrupt secret retrieval.")
+        #expect(pw.contains(id.uuidString))
+        #expect(key.contains(id.uuidString))
+    }
+
+    @Test("Different ids produce different account keys")
+    func accountsScaleWithID() {
+        let a = UUID()
+        let b = UUID()
+        #expect(CredentialAccount.password(for: a) != CredentialAccount.password(for: b))
+        #expect(CredentialAccount.privateKey(for: a) != CredentialAccount.privateKey(for: b))
+    }
+}
+
+// MARK: - CKDatabase Error-Path Tests
+
+/// Controllable `ConnectionDatabase` mock for testing `ConnectionStore`'s
+/// record-I/O paths. Closures default to "should never be called" failures so
+/// each test only configures the methods it actually exercises.
+final class FakeDatabase: ConnectionDatabase, @unchecked Sendable {
+    enum FakeError: Error, Equatable {
+        case planted(String)
+    }
+
+    nonisolated(unsafe) var onSave: @Sendable (CKRecord) async throws -> CKRecord = { _ in
+        throw FakeError.planted("save not configured")
+    }
+    nonisolated(unsafe) var onRecord: @Sendable (CKRecord.ID) async throws -> CKRecord = { _ in
+        throw FakeError.planted("record(for:) not configured")
+    }
+    nonisolated(unsafe) var onDelete: @Sendable (CKRecord.ID) async throws -> CKRecord.ID = { _ in
+        throw FakeError.planted("deleteRecord not configured")
+    }
+
+    func save(_ record: CKRecord) async throws -> CKRecord { try await onSave(record) }
+    func record(for recordID: CKRecord.ID) async throws -> CKRecord { try await onRecord(recordID) }
+    func deleteRecord(withID recordID: CKRecord.ID) async throws -> CKRecord.ID {
+        try await onDelete(recordID)
+    }
+}
+
+@Suite("CKDatabase Error-Path Tests")
+struct CKDatabaseErrorPathTests {
+    private static let zoneID = CKRecordZone.ID(zoneName: "TestZone",
+                                                ownerName: CKCurrentUserDefaultName)
+    private static let zone = CKRecordZone(zoneID: zoneID)
+
+    @MainActor private func makeConnection(id: UUID = UUID(),
+                                           recordID: CKRecord.ID? = nil) -> Connection {
+        let info = ConnectionInfo(name: "Test", serverAddress: "h.example.com",
+                                  portNumber: "22", username: "u",
+                                  password: "", privateKey: "",
+                                  privateKeyPassphrase: "")
+        let tunnel = TunnelInfo(localPort: "8080", remoteServer: "r", remotePort: "80")
+        return Connection(id: id, recordID: recordID,
+                          connectionInfo: info, tunnelInfo: tunnel)
+    }
+
+    // MARK: createConnectionAsync
+
+    @Test("createConnectionAsync sets an errorAlert when no zone is available")
+    @MainActor func createWithoutZoneSetsErrorAlert() async {
+        // No customZone passed → guard fails → errorAlert.
+        let store = ConnectionStore(mode: .view, connections: [],
+                                    credentialsStore: MockCredentialsStore(),
+                                    database: FakeDatabase())
+        await store.createConnectionAsync(makeConnection())
+        #expect(store.errorAlert?.message.contains("CloudKit zone not available") == true)
+    }
+
+    @Test("createConnectionAsync surfaces save failures as an errorAlert")
+    @MainActor func createSaveFailureSetsErrorAlert() async {
+        let db = FakeDatabase()
+        db.onSave = { _ in throw FakeDatabase.FakeError.planted("save kaboom") }
+        let store = ConnectionStore(mode: .view, connections: [],
+                                    credentialsStore: MockCredentialsStore(),
+                                    customZone: Self.zone,
+                                    database: db)
+
+        await store.createConnectionAsync(makeConnection())
+
+        let message = store.errorAlert?.message ?? ""
+        #expect(message.contains("Failed to save connection"))
+        #expect(store.connections.isEmpty,
+                "A failed save must not leave a partial entry in the list")
+    }
+
+    @Test("createConnectionAsync upserts the saved record into the connections list")
+    @MainActor func createSuccessUpsertsConnection() async {
+        let db = FakeDatabase()
+        // Echo the record straight back, simulating CloudKit's save success.
+        db.onSave = { record in record }
+        let store = ConnectionStore(mode: .view, connections: [],
+                                    credentialsStore: MockCredentialsStore(),
+                                    customZone: Self.zone,
+                                    database: db)
+        let id = UUID()
+
+        await store.createConnectionAsync(makeConnection(id: id))
+
+        #expect(store.connections.count == 1)
+        #expect(store.connections.first?.id == id)
+        #expect(store.errorAlert == nil)
+    }
+
+    // MARK: updateConnectionAsync
+
+    @Test("updateConnectionAsync falls back to create when no recordID is set")
+    @MainActor func updateWithoutRecordIDFallsBackToCreate() async {
+        let db = FakeDatabase()
+        // Echo the record back, simulating CloudKit's save success.
+        db.onSave = { record in record }
+        // record(for:) should NOT be reached on the fallback path — its default
+        // throwing closure will fail the test if it is.
+        let store = ConnectionStore(mode: .view, connections: [],
+                                    credentialsStore: MockCredentialsStore(),
+                                    customZone: Self.zone,
+                                    database: db)
+        let connection = makeConnection(recordID: nil)
+
+        await store.updateConnectionAsync(connection, connectionToUpdate: connection)
+
+        // Successful save → connection ends up upserted. If the fallback ran
+        // record(for:) instead, the default throwing closure would have made
+        // the update set `errorAlert` and skip the upsert.
+        #expect(store.errorAlert == nil)
+        #expect(store.connections.count == 1)
+    }
+
+    @Test("updateConnectionAsync surfaces a fetch failure as an errorAlert")
+    @MainActor func updateFetchFailureSetsErrorAlert() async {
+        let db = FakeDatabase()
+        db.onRecord = { _ in throw FakeDatabase.FakeError.planted("fetch kaboom") }
+        let store = ConnectionStore(mode: .view, connections: [],
+                                    credentialsStore: MockCredentialsStore(),
+                                    customZone: Self.zone,
+                                    database: db)
+        let recordID = CKRecord.ID(recordName: "abc", zoneID: Self.zoneID)
+        let connection = makeConnection(recordID: recordID)
+
+        await store.updateConnectionAsync(connection, connectionToUpdate: connection)
+
+        #expect(store.errorAlert?.message.contains("Failed to save changes") == true)
+    }
+
+    @Test("updateConnectionAsync surfaces a save failure as an errorAlert")
+    @MainActor func updateSaveFailureSetsErrorAlert() async {
+        let db = FakeDatabase()
+        // Fetch succeeds, save throws.
+        db.onRecord = { recordID in
+            CKRecord(recordType: "Connection", recordID: recordID)
+        }
+        db.onSave = { _ in throw FakeDatabase.FakeError.planted("save kaboom") }
+        let store = ConnectionStore(mode: .view, connections: [],
+                                    credentialsStore: MockCredentialsStore(),
+                                    customZone: Self.zone,
+                                    database: db)
+        let recordID = CKRecord.ID(recordName: "abc", zoneID: Self.zoneID)
+        let connection = makeConnection(recordID: recordID)
+
+        await store.updateConnectionAsync(connection, connectionToUpdate: connection)
+
+        #expect(store.errorAlert?.message.contains("Failed to save changes") == true)
+    }
+
+    @Test("updateConnectionAsync succeeds end-to-end and upserts the result")
+    @MainActor func updateSuccessUpsertsConnection() async {
+        let db = FakeDatabase()
+        // A real record fetched from CloudKit already carries the `uuid` field
+        // (set when it was first created). Mirror that here so
+        // `recordToConnection` can map it back.
+        db.onRecord = { recordID in
+            let record = CKRecord(recordType: "Connection", recordID: recordID)
+            record["uuid"] = recordID.recordName
+            return record
+        }
+        db.onSave = { record in record }
+        let store = ConnectionStore(mode: .view, connections: [],
+                                    credentialsStore: MockCredentialsStore(),
+                                    customZone: Self.zone,
+                                    database: db)
+        let id = UUID()
+        let recordID = CKRecord.ID(recordName: id.uuidString, zoneID: Self.zoneID)
+        let connection = makeConnection(id: id, recordID: recordID)
+
+        await store.updateConnectionAsync(connection, connectionToUpdate: connection)
+
+        #expect(store.errorAlert == nil)
+        #expect(store.connections.first?.id == id)
+    }
+}

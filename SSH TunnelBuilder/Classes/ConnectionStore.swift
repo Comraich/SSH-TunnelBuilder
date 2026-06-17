@@ -18,6 +18,34 @@ private enum CloudKitKeys {
     static let knownHostKey = "knownHostKey"
 }
 
+// MARK: - Database Abstraction
+
+/// The CKDatabase operations the store uses for individual record I/O. Pulled
+/// behind a protocol so tests can inject a controlled mock and exercise the
+/// save / fetch / delete failure paths without standing up real CloudKit.
+/// `CKDatabase` already provides exactly these signatures, so its conformance
+/// is an empty extension below — production code is unaffected.
+protocol ConnectionDatabase: Sendable {
+    func save(_ record: CKRecord) async throws -> CKRecord
+    func record(for recordID: CKRecord.ID) async throws -> CKRecord
+    func deleteRecord(withID recordID: CKRecord.ID) async throws -> CKRecord.ID
+}
+
+extension CKDatabase: ConnectionDatabase {}
+
+/// Sentinel database used by the test init when the caller didn't supply one.
+/// Any accidental CloudKit call from a test fails loudly instead of reaching
+/// the user's real iCloud account.
+private struct UnconfiguredDatabase: ConnectionDatabase {
+    private static func fail() -> NSError {
+        NSError(domain: "ConnectionStore.UnconfiguredDatabase", code: 0,
+                userInfo: [NSLocalizedDescriptionKey: "no ConnectionDatabase configured"])
+    }
+    func save(_ record: CKRecord) async throws -> CKRecord { throw Self.fail() }
+    func record(for recordID: CKRecord.ID) async throws -> CKRecord { throw Self.fail() }
+    func deleteRecord(withID recordID: CKRecord.ID) async throws -> CKRecord.ID { throw Self.fail() }
+}
+
 // A wrapper to make error strings identifiable for SwiftUI Alerts
 struct ErrorAlert: Identifiable, Equatable {
     let id = UUID()
@@ -133,8 +161,14 @@ class ConnectionStore {
     /// list, which would silently keep using the old container.
     static let containerIdentifier = "iCloud.no.comraich.sshTunnelBuilder"
 
-    private let container = CKContainer(identifier: ConnectionStore.containerIdentifier)
+    private let container: CKContainer
     private var database: CKDatabase { container.privateCloudDatabase }
+
+    /// Pulled out from `database` so tests can supply a mock that fails (or
+    /// succeeds) the save / fetch / delete paths deterministically. Zone setup
+    /// and `recordZoneChanges` still go through `database` directly — they are
+    /// only exercised by the production setup task, which the test init skips.
+    private let recordIO: ConnectionDatabase
     @ObservationIgnored private var customZone: CKRecordZone?
     private let customZoneName = "ConnectionZone"
 
@@ -186,6 +220,9 @@ class ConnectionStore {
 
     init(credentialsStore: CredentialsStore = KeychainService.shared) {
         self.credentialsStore = credentialsStore
+        let container = CKContainer(identifier: Self.containerIdentifier)
+        self.container = container
+        self.recordIO = container.privateCloudDatabase
         // init runs on the Main Actor, so these Tasks inherit @MainActor isolation.
         Task {
             // Watchdog runs concurrently with the CloudKit setup below. Because the
@@ -226,10 +263,22 @@ class ConnectionStore {
     ///   - mode: Initial mode
     ///   - connections: Pre-populated connections
     ///   - credentialsStore: Credential storage (defaults to mock for tests)
-    internal init(mode: Mode, connections: [Connection], credentialsStore: CredentialsStore = MockCredentialsStore()) {
+    ///   - customZone: Pre-populated CloudKit zone. Pass a non-nil value to
+    ///     exercise the save / update / delete paths in tests; leave `nil` to
+    ///     hit the "zone unavailable" branch.
+    ///   - database: Database mock for the save / fetch / delete record I/O
+    ///     paths. Defaults to a sentinel that fails every call so a stray
+    ///     CloudKit reach-through is loud rather than silent.
+    internal init(mode: Mode, connections: [Connection],
+                  credentialsStore: CredentialsStore = MockCredentialsStore(),
+                  customZone: CKRecordZone? = nil,
+                  database: ConnectionDatabase? = nil) {
         self.mode = mode
         self.connections = connections
         self.credentialsStore = credentialsStore
+        self.container = CKContainer(identifier: Self.containerIdentifier)
+        self.recordIO = database ?? UnconfiguredDatabase()
+        self.customZone = customZone
         // Don't start CloudKit tasks for test/preview instances
     }
     
@@ -255,10 +304,13 @@ class ConnectionStore {
     /// Presents the unknown-host (or changed-host) prompt and suspends until the
     /// user answers. On trust, records the key on the connection and persists it,
     /// replacing any previously pinned key when this is a mismatch re-trust.
+    /// `internal` rather than `private` so tests can drive the prompt directly
+    /// (resolving `hostKeyRequest.completion` themselves) — the production call
+    /// site is still only `configureHandlers`.
     /// - Returns: `true` if the user trusts the host, `false` otherwise.
-    private func confirmHostKeyTrust(host: String, fingerprint: String,
-                                     keyData: Data, isMismatch: Bool,
-                                     connection: Connection) async -> Bool {
+    internal func confirmHostKeyTrust(host: String, fingerprint: String,
+                                      keyData: Data, isMismatch: Bool,
+                                      connection: Connection) async -> Bool {
         // If a prior prompt is still awaiting an answer, deny it before replacing
         // it so its awaiting Task can't leak.
         pendingHostKeyDecision?(false)
@@ -632,7 +684,9 @@ class ConnectionStore {
         SpotlightIndexer.index(connection)
     }
 
-    private func updateConnectionAsync(_ connection: Connection, connectionToUpdate: Connection) async {
+    /// `internal` so tests can `await` it directly (rather than chasing the
+    /// fire-and-forget Task spawned by `saveConnection`). Behaviour unchanged.
+    internal func updateConnectionAsync(_ connection: Connection, connectionToUpdate: Connection) async {
         guard let recordID = connectionToUpdate.recordID else {
             // No server record exists yet (never synced) — create one instead of
             // silently dropping the edit.
@@ -642,9 +696,9 @@ class ConnectionStore {
         }
 
         do {
-            let fetchedRecord = try await database.record(for: recordID)
+            let fetchedRecord = try await recordIO.record(for: recordID)
             self.updateRecordFields(fetchedRecord, withConnection: connection)
-            let savedRecord = try await database.save(fetchedRecord)
+            let savedRecord = try await recordIO.save(fetchedRecord)
 
             if let newConnect = self.recordToConnection(record: savedRecord) {
                 self.upsertConnection(newConnect)
@@ -655,7 +709,8 @@ class ConnectionStore {
         }
     }
 
-    private func createConnectionAsync(_ connection: Connection) async {
+    /// `internal` so tests can `await` it directly. Behaviour unchanged.
+    internal func createConnectionAsync(_ connection: Connection) async {
         guard let zoneID = customZone?.zoneID else {
             Logger.error("createConnectionAsync: customZone is nil; connection not persisted (id=\(connection.id))", log: Logger.cloudKit)
             self.errorAlert = ErrorAlert(message: "Cannot save connection: CloudKit zone not available.")
@@ -674,7 +729,7 @@ class ConnectionStore {
             // adds a round-trip and can race — the just-saved record sometimes
             // reads back before all fields propagate, which surfaced as a new
             // connection appearing in the sidebar with a blank name until relaunch.
-            let savedRecord = try await database.save(record)
+            let savedRecord = try await recordIO.save(record)
             if let saved = self.recordToConnection(record: savedRecord) {
                 self.upsertConnection(saved)
             }
@@ -686,7 +741,7 @@ class ConnectionStore {
 
     private func fetchConnectionAsync(withId recordID: CKRecord.ID) async {
         do {
-            let fetchedRecord = try await database.record(for: recordID)
+            let fetchedRecord = try await recordIO.record(for: recordID)
             self.migrateSecretsIfNeeded(from: fetchedRecord)
             if let connection = self.recordToConnection(record: fetchedRecord) {
                 self.upsertConnection(connection)
@@ -756,7 +811,7 @@ class ConnectionStore {
         
         Task {
             do {
-                let deletedRecordID = try await database.deleteRecord(withID: recordID)
+                let deletedRecordID = try await recordIO.deleteRecord(withID: recordID)
                 self.connections.removeAll { $0.recordID == deletedRecordID }
             } catch {
                 self.errorAlert = ErrorAlert(message: "Failed to delete connection from iCloud: \(error.localizedDescription)")
@@ -838,7 +893,7 @@ class ConnectionStore {
         if passwordMigrated || keyMigrated {
             Task {
                 do {
-                    _ = try await database.save(record)
+                    _ = try await recordIO.save(record)
                     if !self.hasShownMigrationNotice(for: uuid) {
                         self.migrationNotice = "Credentials for '\(friendlyName)' were moved to Keychain and removed from iCloud."
                         self.markMigrationNoticeShown(for: uuid)
