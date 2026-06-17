@@ -892,10 +892,16 @@ struct HostKeyRequestTests {
     func isMismatchFlagPreserved() {
         let mismatch = HostKeyRequest(hostname: "h", fingerprint: "f",
                                       keyData: Data([0x01]), isMismatch: true,
-                                      completion: { _ in /* test only inspects isMismatch */ })
+                                      completion: { _ in
+            // Intentionally empty: this test only asserts on the isMismatch flag,
+            // it never invokes completion.
+        })
         let firstUse = HostKeyRequest(hostname: "h", fingerprint: "f",
                                       keyData: Data([0x01]), isMismatch: false,
-                                      completion: { _ in /* test only inspects isMismatch */ })
+                                      completion: { _ in
+            // Intentionally empty: this test only asserts on the isMismatch flag,
+            // it never invokes completion.
+        })
         #expect(mismatch.isMismatch == true)
         #expect(firstUse.isMismatch == false)
     }
