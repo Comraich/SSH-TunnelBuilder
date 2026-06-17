@@ -40,8 +40,10 @@ final class SSHManager: @unchecked Sendable {
     /// runs past `handshakeTimeoutSeconds`. Guarded by `lock`.
     private var handshakeTimeoutTask: Scheduled<Void>?
 
-    // Async handler: (hostname, fingerprint, keyType, keyData) -> user's trust decision
-    var hostKeyValidationHandler: (@Sendable (String, String, String, Data) async -> Bool)?
+    // Async handler: (hostname, fingerprint, keyType, keyData, isMismatch) -> user's trust decision.
+    // `isMismatch` is true when a previously pinned key exists but no longer matches — the UI should
+    // present a stronger warning so the user can replace the pinned key knowingly.
+    var hostKeyValidationHandler: (@Sendable (String, String, String, Data, Bool) async -> Bool)?
 
     /// Callback invoked when an error occurs that should be shown to the user
     var errorCallback: (@Sendable (String) -> Void)?
@@ -211,6 +213,7 @@ final class SSHManager: @unchecked Sendable {
             fingerprint = "SHA256:UNAVAILABLE"
         }
 
+        var isMismatch = false
         if !knownHostKey.isEmpty {
             // Try raw key base64 match first (if we have raw key bytes)
             if let keyData = keyData, let knownData = Data(base64Encoded: knownHostKey), knownData == keyData {
@@ -222,12 +225,15 @@ final class SSHManager: @unchecked Sendable {
                 promise.succeed(())
                 return
             }
-            promise.fail(SSHTunnelError.hostKeyMismatch)
-            return
+            // A previously pinned key is on file but doesn't match what the server
+            // just presented. Don't auto-fail — surface the change to the user so
+            // they can re-trust the new key (e.g. after a legitimate server rekey)
+            // or reject it (possible MITM).
+            isMismatch = true
         }
 
         guard let handler = self.hostKeyValidationHandler else {
-            promise.fail(SSHTunnelError.hostKeyValidationMissing)
+            promise.fail(isMismatch ? SSHTunnelError.hostKeyMismatch : SSHTunnelError.hostKeyValidationMissing)
             return
         }
 
@@ -243,12 +249,12 @@ final class SSHManager: @unchecked Sendable {
             // against the handshake deadline. Re-arm once they trust so the
             // remaining auth phase stays bounded.
             self.cancelHandshakeTimeout()
-            let allowed = await handler(host, fingerprint, keyType, resolvedKeyData)
+            let allowed = await handler(host, fingerprint, keyType, resolvedKeyData, isMismatch)
             if allowed {
                 self.armHandshakeTimeout()
                 promise.succeed(())
             } else {
-                promise.fail(SSHTunnelError.hostKeyRejected)
+                promise.fail(isMismatch ? SSHTunnelError.hostKeyMismatch : SSHTunnelError.hostKeyRejected)
             }
         }
     }

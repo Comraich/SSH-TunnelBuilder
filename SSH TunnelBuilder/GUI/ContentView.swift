@@ -74,7 +74,22 @@ struct ContentView: View {
             ErrorSheetView(message: errorMessage, isPresented: $showingErrorSheet)
         }
         .alert(item: $connectionStore.hostKeyRequest) { request in
-            Alert(
+            if request.isMismatch {
+                // Re-trust prompt: the previously pinned key no longer matches.
+                // Use a destructive primary button so the user has to deliberately
+                // overwrite the pinned key — this path could otherwise mask a MITM.
+                return Alert(
+                    title: Text("Host Key Changed"),
+                    message: Text("The host key for '\(request.hostname)' has changed since it was last trusted.\n\nNew fingerprint:\n\(request.fingerprint)\n\nThis can happen if the server was reinstalled or rekeyed — or it could indicate a man-in-the-middle attack. Only trust the new key if you are sure it is legitimate."),
+                    primaryButton: .destructive(Text("Trust New Key")) {
+                        request.completion(true)
+                    },
+                    secondaryButton: .cancel(Text("Cancel")) {
+                        request.completion(false)
+                    }
+                )
+            }
+            return Alert(
                 title: Text("Unknown Host"),
                 message: Text("The host '\(request.hostname)' is unknown.\n\nFingerprint:\n\(request.fingerprint)\n\nDo you want to trust this host?"),
                 primaryButton: .default(Text("Trust")) {

@@ -30,12 +30,16 @@ struct ErrorAlert: Identifiable, Equatable {
 
 // MARK: - Structure to hold host key verification details for UI
 
-/// Represents a host key validation request that requires user confirmation
+/// Represents a host key validation request that requires user confirmation.
+/// `isMismatch` distinguishes a first-use trust prompt from a re-trust prompt
+/// triggered by a changed host key — the UI presents a stronger warning in the
+/// latter case (possible MITM, or a deliberate server rekey).
 struct HostKeyRequest: Identifiable {
     let id = UUID()
     let hostname: String
     let fingerprint: String
     let keyData: Data
+    let isMismatch: Bool
     let completion: (Bool) -> Void
 }
 
@@ -248,11 +252,13 @@ class ConnectionStore {
         errorAlert = ErrorAlert(message: message)
     }
 
-    /// Presents the unknown-host prompt and suspends until the user answers.
-    /// On trust, records the key on the connection and persists it.
+    /// Presents the unknown-host (or changed-host) prompt and suspends until the
+    /// user answers. On trust, records the key on the connection and persists it,
+    /// replacing any previously pinned key when this is a mismatch re-trust.
     /// - Returns: `true` if the user trusts the host, `false` otherwise.
     private func confirmHostKeyTrust(host: String, fingerprint: String,
-                                     keyData: Data, connection: Connection) async -> Bool {
+                                     keyData: Data, isMismatch: Bool,
+                                     connection: Connection) async -> Bool {
         // If a prior prompt is still awaiting an answer, deny it before replacing
         // it so its awaiting Task can't leak.
         pendingHostKeyDecision?(false)
@@ -269,11 +275,13 @@ class ConnectionStore {
             }
             pendingHostKeyDecision = decide
             hostKeyRequest = HostKeyRequest(hostname: host, fingerprint: fingerprint,
-                                            keyData: keyData, completion: decide)
+                                            keyData: keyData, isMismatch: isMismatch,
+                                            completion: decide)
         }
 
         if trusted {
             // Record the now-trusted key on the connection and persist to CloudKit.
+            // On a mismatch re-trust this overwrites the previously pinned key.
             connection.connectionInfo.knownHostKey = keyData.base64EncodedString()
             saveConnection(connection, connectionToUpdate: connection)
         }
@@ -408,10 +416,11 @@ class ConnectionStore {
     private func configureHandlers(for mgr: SSHManager, connection: Connection) {
         // Host key validation suspends until the user answers the prompt, then
         // returns their trust decision.
-        mgr.hostKeyValidationHandler = { [weak self] host, fingerprint, _, keyData in
+        mgr.hostKeyValidationHandler = { [weak self] host, fingerprint, _, keyData, isMismatch in
             guard let self else { return false }
             return await self.confirmHostKeyTrust(host: host, fingerprint: fingerprint,
-                                                  keyData: keyData, connection: connection)
+                                                  keyData: keyData, isMismatch: isMismatch,
+                                                  connection: connection)
         }
 
         // Surface SSH errors as alerts.
