@@ -111,19 +111,21 @@ struct AppCommands: Commands {
     }
 
     /// Presents the standard macOS About panel with rich credits showing the
-    /// app's license, source-code URL, and primary third-party attribution.
-    /// `NSHumanReadableCopyright` in Info.plist supplies the copyright line
-    /// shown above the credits area.
+    /// copyright, license, source-code URL, and primary third-party attribution.
+    /// The copyright is rendered inside the credits area (rather than relying on
+    /// `NSHumanReadableCopyright`) so the displayed text is controlled directly
+    /// by this method regardless of how the build's Info.plist is configured.
     @MainActor
     private static func showAboutPanel() {
         let credits = NSMutableAttributedString()
         let bodyFont = NSFont.systemFont(ofSize: 11)
+        let boldFont = NSFont.boldSystemFont(ofSize: 11)
         let centered = NSMutableParagraphStyle()
         centered.alignment = .center
 
-        func append(_ text: String, link: String? = nil) {
+        func append(_ text: String, link: String? = nil, bold: Bool = false) {
             var attrs: [NSAttributedString.Key: Any] = [
-                .font: bodyFont,
+                .font: bold ? boldFont : bodyFont,
                 .paragraphStyle: centered
             ]
             if let link, let url = URL(string: link) {
@@ -132,6 +134,7 @@ struct AppCommands: Commands {
             credits.append(NSAttributedString(string: text, attributes: attrs))
         }
 
+        append("Copyright © 2020-2026 Comraich ANS\n\n", bold: true)
         append("Licensed under the Apache License, Version 2.0\n")
         append("https://www.apache.org/licenses/LICENSE-2.0\n\n",
                link: "https://www.apache.org/licenses/LICENSE-2.0")
