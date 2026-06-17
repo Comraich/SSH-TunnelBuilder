@@ -448,9 +448,15 @@ class ConnectionStore {
         UserDefaults.standard.bool(forKey: KeychainService.protectionEnabledKey)
     }
 
-    /// Re-keys all stored credentials to match the new protection preference.
-    /// The preference itself is written by the Settings toggle (`@AppStorage`)
-    /// before this runs; here we just bring existing Keychain items in line.
+    /// Migrates any pre-existing `.userPresence`-protected Keychain items to the
+    /// new unprotected form (gated only by the app-side `evaluatePolicy` check
+    /// in `authenticateForCredentialUse()`). Items already stored without
+    /// access control just round-trip a re-save. Called when the user toggles
+    /// the Settings preference so a freshly-enabled "require authentication"
+    /// state immediately gives them the single-prompt-per-grace-window
+    /// behaviour, even if their old items still carried the legacy flag.
+    /// The `enabled` value is forwarded for API symmetry but no longer changes
+    /// how items are stored.
     func reprotectStoredCredentials(enabled: Bool) {
         credentialsStore.setCredentialProtection(enabled: enabled, for: connections.map(\.id))
     }
