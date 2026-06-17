@@ -1,6 +1,7 @@
 import Foundation
 import CloudKit
 import Observation
+import LocalAuthentication
 
 private enum CloudKitKeys {
     static let recordType = "Connection"
@@ -95,6 +96,28 @@ class ConnectionStore {
     @ObservationIgnored private var pendingHostKeyDecision: ((Bool) -> Void)?
 
     @ObservationIgnored private var managers: [UUID: SSHManager] = [:]
+
+    // MARK: - Credential authentication grace window
+    //
+    // When "require authentication" is on, the user authenticates once via
+    // `LAContext.evaluatePolicy`; that context is then reused for the Keychain
+    // reads (which therefore don't re-prompt) and kept alive for a short grace
+    // window so reconnects within it need no prompt at all.
+    @ObservationIgnored private var graceContext: LAContext?
+    @ObservationIgnored private var graceExpiry: Date?
+    @ObservationIgnored private var graceExpiryTask: Task<Void, Never>?
+
+    /// `UserDefaults` key backing the grace-window preference (seconds).
+    static let credentialGraceSecondsKey = "CredentialGraceSeconds"
+
+    /// How long a single authentication is honoured before the next connect
+    /// re-prompts. Defaults to 5 minutes when unset; an explicit `0` means
+    /// "ask every time".
+    var credentialGraceSeconds: TimeInterval {
+        let defaults = UserDefaults.standard
+        guard defaults.object(forKey: Self.credentialGraceSecondsKey) != nil else { return 300 }
+        return max(0, defaults.double(forKey: Self.credentialGraceSecondsKey))
+    }
 
     /// Credentials storage (Keychain in production, mock for tests)
     private let credentialsStore: CredentialsStore
@@ -261,11 +284,78 @@ class ConnectionStore {
     /// set in memory. A no-op for fields that already carry a value (e.g. typed
     /// into the credentials sheet for this session).
     private func hydrateCredentials(for connection: Connection) {
-        if connection.connectionInfo.password.isEmpty {
-            connection.connectionInfo.password = credentialsStore.loadPassword(for: connection.id) ?? ""
+        let needsPassword = connection.connectionInfo.password.isEmpty
+        let needsPrivateKey = connection.connectionInfo.privateKey.isEmpty
+        // Nothing to read (both already provided this session, or still in memory
+        // from a connect within the grace window) — avoid touching the Keychain.
+        guard needsPassword || needsPrivateKey else { return }
+
+        // Read both secrets reusing the context authenticated up front in
+        // `connect` (see `authenticateForCredentialUse`), so the reads don't
+        // re-prompt. Only fill empty fields, preserving values typed in the sheet.
+        let credentials = credentialsStore.loadCredentials(for: connection.id, authenticatedContext: graceContext)
+        if needsPassword {
+            connection.connectionInfo.password = credentials.password ?? ""
         }
-        if connection.connectionInfo.privateKey.isEmpty {
-            connection.connectionInfo.privateKey = credentialsStore.loadPrivateKey(for: connection.id) ?? ""
+        if needsPrivateKey {
+            connection.connectionInfo.privateKey = credentials.privateKey ?? ""
+        }
+    }
+
+    /// Ensures the user is authenticated to use saved credentials, prompting at
+    /// most once per grace window. Returns `true` when allowed to proceed (always
+    /// true when protection is off or the device can't evaluate a policy).
+    private func authenticateForCredentialUse() async -> Bool {
+        guard isCredentialProtectionEnabled else { return true }
+
+        // Inside an active grace window with a live context: no prompt.
+        if let expiry = graceExpiry, graceContext != nil, expiry > Date() {
+            return true
+        }
+
+        let context = LAContext()
+        context.localizedReason = "Authenticate to use your saved SSH credentials."
+        // Reuse the authentication for the Keychain reads that follow.
+        context.touchIDAuthenticationAllowableReuseDuration = credentialGraceSeconds
+
+        var policyError: NSError?
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &policyError) else {
+            // No biometrics / passcode available to evaluate — don't hard-block;
+            // fall back to letting the Keychain reads handle access themselves.
+            Logger.info("Credential auth: policy not evaluable (\(policyError?.localizedDescription ?? "n/a")); proceeding", log: Logger.keychain)
+            return true
+        }
+
+        do {
+            let ok = try await context.evaluatePolicy(.deviceOwnerAuthentication,
+                                                      localizedReason: context.localizedReason)
+            if ok {
+                graceContext = context
+                graceExpiry = Date().addingTimeInterval(credentialGraceSeconds)
+                scheduleGraceExpiry()
+            }
+            return ok
+        } catch {
+            Logger.info("Credential auth cancelled/failed: \(error.localizedDescription)", log: Logger.keychain)
+            return false
+        }
+    }
+
+    /// Schedules clearing of the grace context (and in-memory secrets) when the
+    /// window lapses, so secrets don't linger indefinitely after it expires.
+    private func scheduleGraceExpiry() {
+        graceExpiryTask?.cancel()
+        let seconds = credentialGraceSeconds
+        graceExpiryTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(seconds))
+            guard let self, !Task.isCancelled else { return }
+            self.graceContext = nil
+            self.graceExpiry = nil
+            // Drop hydrated secrets from connections that aren't currently active.
+            for connection in self.connections where !connection.isActive {
+                connection.connectionInfo.password = ""
+                connection.connectionInfo.privateKey = ""
+            }
         }
     }
 
@@ -280,31 +370,25 @@ class ConnectionStore {
     /// Initiates an SSH connection for the given connection object
     /// - Parameter connection: The connection to establish
     func connect(_ connection: Connection) {
-        // Load stored secrets just before connecting. They're not kept in the
-        // in-memory model at rest, so this is the point where they're read back —
-        // and, when "require authentication" is on, where the OS prompts for
-        // Touch ID / password. Values already present (e.g. just entered in the
-        // credentials sheet) are left untouched.
-        hydrateCredentials(for: connection)
-
-        let mgr = manager(for: connection)
-
-        // Configure the host key validation handler. It suspends until the user
-        // answers the prompt, then returns their trust decision.
-        mgr.hostKeyValidationHandler = { [weak self] host, fingerprint, _, keyData in
-            guard let self else { return false }
-            return await self.confirmHostKeyTrust(host: host, fingerprint: fingerprint,
-                                                  keyData: keyData, connection: connection)
-        }
-
-        // Configure the error callback to show alerts
-        mgr.errorCallback = { [weak self] errorMsg in
-            Task { @MainActor in
-                self?.showError(errorMsg)
-            }
-        }
-
         Task {
+            // Authenticate once up front (or reuse an active grace window), then
+            // hydrate the secrets from the Keychain reusing that authentication —
+            // so a connect prompts at most once, and reconnects within the grace
+            // window not at all. Bail clearly if the user cancels.
+            guard await authenticateForCredentialUse() else {
+                self.errorAlert = ErrorAlert(message: "Authentication is required to use this connection's saved credentials.")
+                return
+            }
+            hydrateCredentials(for: connection)
+
+            let mgr = manager(for: connection)
+
+            // Wire up the host-key and error handlers. Done in a helper method
+            // (not inline) so these `[weak self]` closures — weak to avoid the
+            // store↔manager retain cycle — aren't nested inside this Task's
+            // strong self-capture, which the compiler flags as a mismatch.
+            configureHandlers(for: mgr, connection: connection)
+
             do {
                 Logger.info("Starting SSH connection for \(connection.connectionInfo.name)", log: Logger.ssh)
                 try await mgr.connect()
@@ -313,27 +397,38 @@ class ConnectionStore {
                 // Show the error - SSHTunnelError provides good localized descriptions
                 let errorMsg = error.localizedDescription
                 Logger.error("SSH connection failed for \(connection.connectionInfo.name): \(errorMsg)", log: Logger.ssh)
-                await MainActor.run {
-                    self.errorAlert = ErrorAlert(message: errorMsg)
-                }
+                self.errorAlert = ErrorAlert(message: errorMsg)
             }
         }
     }
 
-    /// Disconnects an active SSH connection
-    /// - Parameter connection: The connection to disconnect
+    /// Wires the host-key validation and error handlers onto `mgr`. Kept as a
+    /// method so the `[weak self]` capture (which breaks the store↔manager retain
+    /// cycle) isn't nested inside a strong-self-capturing closure.
+    private func configureHandlers(for mgr: SSHManager, connection: Connection) {
+        // Host key validation suspends until the user answers the prompt, then
+        // returns their trust decision.
+        mgr.hostKeyValidationHandler = { [weak self] host, fingerprint, _, keyData in
+            guard let self else { return false }
+            return await self.confirmHostKeyTrust(host: host, fingerprint: fingerprint,
+                                                  keyData: keyData, connection: connection)
+        }
+
+        // Surface SSH errors as alerts.
+        mgr.errorCallback = { [weak self] errorMsg in
+            Task { @MainActor in
+                self?.showError(errorMsg)
+            }
+        }
+    }
+
+    /// Disconnects an active SSH connection. Performs no Keychain access and never
+    /// authenticates — hydrated secrets are cleared when the grace window lapses
+    /// (`scheduleGraceExpiry`), not here, so a quick reconnect stays prompt-free.
     func disconnect(_ connection: Connection) {
         if let mgr = managers[connection.id] {
             Task {
                 await mgr.disconnect()
-                // When credentials are protected, drop the hydrated secrets from
-                // memory after use so the next connect re-authenticates. (When
-                // protection is off we leave them, preserving the prior behaviour
-                // where session-entered credentials survive a reconnect.)
-                if self.isCredentialProtectionEnabled {
-                    connection.connectionInfo.password = ""
-                    connection.connectionInfo.privateKey = ""
-                }
             }
         }
     }

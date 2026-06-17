@@ -6,6 +6,7 @@ struct SettingsView: View {
     @Environment(ConnectionStore.self) private var connectionStore
     @AppStorage(SpotlightIndexer.enabledDefaultsKey) private var spotlightEnabled = false
     @AppStorage(KeychainService.protectionEnabledKey) private var requireAuthForCredentials = false
+    @AppStorage(ConnectionStore.credentialGraceSecondsKey) private var credentialGraceSeconds = 300.0
 
     var body: some View {
         Form {
@@ -25,6 +26,20 @@ struct SettingsView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+
+                if requireAuthForCredentials {
+                    Picker("Remember authentication", selection: $credentialGraceSeconds) {
+                        Text("Ask every time").tag(0.0)
+                        Text("For 5 minutes").tag(300.0)
+                        Text("For 15 minutes").tag(900.0)
+                        Text("For 30 minutes").tag(1800.0)
+                        Text("For 1 hour").tag(3600.0)
+                    }
+                    Text("How long a single authentication is remembered. Within this window, reconnecting won't ask again.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             } header: {
                 Text("Security")
             }

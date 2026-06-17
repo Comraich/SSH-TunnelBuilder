@@ -9,6 +9,15 @@ protocol CredentialsStore {
     func savePrivateKey(_ key: String, for id: UUID)
     func loadPassword(for id: UUID) -> String?
     func loadPrivateKey(for id: UUID) -> String?
+
+    /// Loads both stored secrets for `id` in one call. Pass an `authenticatedContext`
+    /// that the caller has *already* authenticated via `LAContext.evaluatePolicy`
+    /// so these reads reuse that single authentication instead of prompting per
+    /// secret (Keychain-level reuse alone does not suppress per-read prompts).
+    /// Declared on the protocol (not just an extension) so the real Keychain
+    /// implementation is reached through the protocol-typed store.
+    func loadCredentials(for id: UUID, authenticatedContext: LAContext?) -> (password: String?, privateKey: String?)
+
     func deleteCredentials(for id: UUID)
 
     /// Whether a password is stored for `id`, checked *without* reading the
@@ -27,6 +36,13 @@ protocol CredentialsStore {
 
 extension CredentialsStore {
     func setCredentialProtection(enabled: Bool, for ids: [UUID]) {}
+
+    /// Default: read each secret independently. Stores without OS-level
+    /// authentication (e.g. the mock) don't prompt, so the context is ignored.
+    /// `KeychainService` overrides this to read with the authenticated context.
+    func loadCredentials(for id: UUID, authenticatedContext: LAContext?) -> (password: String?, privateKey: String?) {
+        (loadPassword(for: id), loadPrivateKey(for: id))
+    }
 }
 
 // MARK: - Account Keys
@@ -77,6 +93,16 @@ final class KeychainService: CredentialsStore, Sendable {
 
     func loadPrivateKey(for id: UUID) -> String? {
         loadString(account: CredentialAccount.privateKey(for: id), context: makeAuthContext(reason: Self.useReason))
+    }
+
+    func loadCredentials(for id: UUID, authenticatedContext: LAContext?) -> (password: String?, privateKey: String?) {
+        // Reuse the caller's already-authenticated context so neither read
+        // re-prompts. If none is supplied (protection off), a fresh context is
+        // harmless: unprotected items never prompt.
+        let context = authenticatedContext ?? makeAuthContext(reason: Self.useReason)
+        let password = loadString(account: CredentialAccount.password(for: id), context: context)
+        let privateKey = loadString(account: CredentialAccount.privateKey(for: id), context: context)
+        return (password, privateKey)
     }
 
     func deleteCredentials(for id: UUID) {
