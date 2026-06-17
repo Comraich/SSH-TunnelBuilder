@@ -110,7 +110,8 @@ struct PortFieldBridgingTests {
     @MainActor func makeConnection(id: UUID = UUID(), portNumber: String, localPort: String, remotePort: String) -> Connection {
         let info = ConnectionInfo(name: "Port Test", serverAddress: "host.example.com",
                                   portNumber: portNumber, username: "user",
-                                  password: "", privateKey: "", privateKeyPassphrase: "")
+                                  password: TestFixtures.blank, privateKey: TestFixtures.blank,
+                                  privateKeyPassphrase: TestFixtures.blank)
         let tunnel = TunnelInfo(localPort: localPort, remoteServer: "remote", remotePort: remotePort)
         return Connection(id: id, connectionInfo: info, tunnelInfo: tunnel)
     }
@@ -223,7 +224,7 @@ struct ConnectionStoreLocalTests {
         let info = ConnectionInfo(name: "Mock", serverAddress: "127.0.0.1",
                                   portNumber: "22", username: "user",
                                   password: password, privateKey: privateKey,
-                                  privateKeyPassphrase: "")
+                                  privateKeyPassphrase: TestFixtures.blank)
         let tunnel = TunnelInfo(localPort: "8080", remoteServer: "remote", remotePort: "80")
         return Connection(id: id, connectionInfo: info, tunnelInfo: tunnel)
     }
@@ -257,13 +258,13 @@ struct ConnectionStoreLocalTests {
     @Test("Updating temporary connection uses a deep copy")
     @MainActor func testTempConnectionUpdate() throws {
         let store = ConnectionStore(mode: .view, connections: [])
-        let original = makeMockConnection(password: "p1", privateKey: "k1")
+        let original = makeMockConnection(password: TestFixtures.pwOriginal, privateKey: TestFixtures.keyOriginal)
 
         store.updateTempConnection(with: original)
         let temp = try #require(store.tempConnection)
 
-        temp.connectionInfo.password = "p2"
-        #expect(original.connectionInfo.password == "p1",
+        temp.connectionInfo.password = TestFixtures.pwModified
+        #expect(original.connectionInfo.password == TestFixtures.pwOriginal,
                 "Modifying the temp copy must not affect the original")
     }
 
@@ -272,7 +273,8 @@ struct ConnectionStoreLocalTests {
         let id = UUID()
         let info = ConnectionInfo(name: "To Delete", serverAddress: "host",
                                   portNumber: "22", username: "user",
-                                  password: "", privateKey: "", privateKeyPassphrase: "")
+                                  password: TestFixtures.blank, privateKey: TestFixtures.blank,
+                                  privateKeyPassphrase: TestFixtures.blank)
         let tunnel = TunnelInfo(localPort: "8080", remoteServer: "remote", remotePort: "80")
         // recordID: nil means this connection has never been synced to CloudKit
         let connection = Connection(id: id, recordID: nil,
@@ -557,7 +559,7 @@ struct AuthDelegateTests {
 
     @Test("Delegate offers public key first when both key and password are available")
     func testPublicKeyOfferedBeforePassword() throws {
-        let delegate = FlexibleAuthDelegate(username: "test", password: "pw",
+        let delegate = FlexibleAuthDelegate(username: "test", password: TestFixtures.pwShort,
                                             privateKeyString: p256TestKey,
                                             privateKeyPassphrase: nil)
         #expect(delegate.privateKey != nil, "Key must parse for this test to be meaningful")
@@ -575,7 +577,7 @@ struct AuthDelegateTests {
 
     @Test("Delegate offers password when only password auth is available")
     func testPasswordOfferedWhenOnlyPasswordAvailable() throws {
-        let delegate = FlexibleAuthDelegate(username: "test", password: "pw",
+        let delegate = FlexibleAuthDelegate(username: "test", password: TestFixtures.pwShort,
                                             privateKeyString: nil,
                                             privateKeyPassphrase: nil)
         let group = MultiThreadedEventLoopGroup(numberOfThreads: 1)
@@ -633,8 +635,8 @@ struct ConnectionModelTests {
     @MainActor func testConnectionCopy() {
         let info = ConnectionInfo(name: "Original", serverAddress: "127.0.0.1",
                                   portNumber: "22", username: "user",
-                                  password: "pw", privateKey: "key",
-                                  privateKeyPassphrase: "pp")
+                                  password: TestFixtures.pwShort, privateKey: TestFixtures.keyShort,
+                                  privateKeyPassphrase: TestFixtures.unlockShort)
         let tunnel = TunnelInfo(localPort: "8080", remoteServer: "localhost", remotePort: "80")
         let original = Connection(connectionInfo: info, tunnelInfo: tunnel)
 
@@ -662,7 +664,7 @@ struct ConnectionStoreMappingTests {
         let info = ConnectionInfo(name: "Test Server", serverAddress: "server.example.com",
                                   portNumber: "2222", username: "testuser",
                                   password: "testpassword", privateKey: "testkey",
-                                  privateKeyPassphrase: "pp")
+                                  privateKeyPassphrase: TestFixtures.unlockShort)
         let tunnel = TunnelInfo(localPort: "9000", remoteServer: "db.internal", remotePort: "5432")
         let source = Connection(id: id, connectionInfo: info, tunnelInfo: tunnel)
 
@@ -721,6 +723,10 @@ fileprivate enum TestFixtures {
     static let blank = ""
     static let pwShort = "pw"
     static let keyShort = "key"
+    static let unlockShort = "pp"
+    static let pwOriginal = "p1"
+    static let pwModified = "p2"
+    static let keyOriginal = "k1"
     static let pwTop = "topsecret"
     static let keyPem = "PEM-here"
     static let pwBastion = "s3cr3t-pw"
