@@ -64,17 +64,14 @@ final class KeychainService: CredentialsStore, Sendable {
 
     /// `UserDefaults` key backing the "require Touch ID / password to use saved
     /// credentials" setting. Shared with the `@AppStorage` binding in Settings.
+    /// The toggle is enforced *app-side* by `ConnectionStore.authenticateForCredentialUse()`
+    /// — Keychain items themselves are no longer gated with `.userPresence`
+    /// because that flag prompts on every read regardless of `LAContext` state,
+    /// which defeats the single-prompt-per-grace-window model the user expects.
     static let protectionEnabledKey = "RequireAuthForStoredCredentials"
 
-    /// Whether stored credentials should be protected by user-presence
-    /// (Touch ID / password). Read fresh on each save so a toggle takes effect
-    /// immediately for subsequently re-keyed items.
-    private var isProtectionEnabled: Bool {
-        UserDefaults.standard.bool(forKey: Self.protectionEnabledKey)
-    }
-
     /// Default prompt shown when the OS asks the user to authenticate before a
-    /// protected credential is read.
+    /// legacy `.userPresence`-protected credential is read during lazy migration.
     private static let useReason = "Authenticate to use your saved SSH credentials."
 
     // MARK: - Public API
@@ -118,16 +115,22 @@ final class KeychainService: CredentialsStore, Sendable {
         containsItem(account: CredentialAccount.privateKey(for: id))
     }
 
-    /// Re-saves every stored secret so its Keychain protection matches the
-    /// current `isProtectionEnabled` preference. A single `LAContext` is reused
-    /// across the batch so disabling protection (which must *read* the currently
-    /// protected items) prompts the user only once.
+    /// Reads each stored secret and re-saves it without the legacy `.userPresence`
+    /// access control flag, using a single reusable `LAContext` so the migration
+    /// authenticates at most once. After this runs every item is gated solely by
+    /// the app-side `evaluatePolicy` check in `ConnectionStore`, which means a
+    /// single Touch ID per grace window covers every connect/edit/export. Safe
+    /// to call repeatedly: items already saved without access control just
+    /// round-trip a re-save (cheap, idempotent).
+    ///
+    /// The `enabled` parameter is accepted for source compatibility with the
+    /// old toggle-driven re-key call site but no longer affects how items are
+    /// stored — they are always stored without `.userPresence`.
     func setCredentialProtection(enabled: Bool, for ids: [UUID]) {
-        let reason = enabled
-            ? "Authenticate to protect your saved SSH credentials with Touch ID or your password."
-            : "Authenticate to remove Touch ID / password protection from your saved SSH credentials."
-        // One reusable context so the whole re-key pass authenticates at most once.
-        let context = makeAuthContext(reason: reason, reuseDuration: 30)
+        let context = makeAuthContext(
+            reason: "Authenticate to unlock your saved SSH credentials.",
+            reuseDuration: 30
+        )
 
         for id in ids {
             let pwAccount = CredentialAccount.password(for: id)
@@ -159,45 +162,24 @@ final class KeychainService: CredentialsStore, Sendable {
 
     private func saveString(_ string: String, account: String) {
         guard let data = string.data(using: .utf8) else { return }
-        // Delete existing item first to avoid duplicates
+        // Delete existing item first to avoid duplicates and to strip any legacy
+        // `.userPresence` access-control attribute the item may have carried.
         deleteItem(account: account)
 
-        var query: [String: Any] = [
+        let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
-            kSecValueData as String: data
+            kSecValueData as String: data,
+            // Items stay on this Mac and require login (no `.userPresence`):
+            // the app-side `evaluatePolicy` gate in `ConnectionStore` is what
+            // governs the Touch ID prompt, honoured once per grace window.
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]
-        // When protection is enabled, gate reads behind user presence
-        // (Touch ID / password). `kSecAttrAccessControl` and `kSecAttrAccessible`
-        // are mutually exclusive, so set exactly one.
-        if isProtectionEnabled, let accessControl = makeUserPresenceAccessControl() {
-            query[kSecAttrAccessControl as String] = accessControl
-        } else {
-            query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-        }
         let status = SecItemAdd(query as CFDictionary, nil)
         if status != errSecSuccess {
             Logger.error("Failed to save item for account '\(account)'. OSStatus: \(status)", log: Logger.keychain)
         }
-    }
-
-    /// Builds a user-presence access-control object: the item can only be read
-    /// after the user authenticates with Touch ID or their login password
-    /// (`.userPresence`), and never leaves this device.
-    private func makeUserPresenceAccessControl() -> SecAccessControl? {
-        var error: Unmanaged<CFError>?
-        let accessControl = SecAccessControlCreateWithFlags(
-            nil,
-            kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
-            .userPresence,
-            &error
-        )
-        if let error = error?.takeRetainedValue() {
-            Logger.error("Failed to create Keychain access control: \(error)", log: Logger.keychain)
-            return nil
-        }
-        return accessControl
     }
 
     /// Builds an `LAContext` carrying the prompt text shown when the OS asks the
@@ -211,23 +193,36 @@ final class KeychainService: CredentialsStore, Sendable {
         return context
     }
 
-    /// Reads a stored string. For access-control-protected items the OS presents
-    /// an authentication prompt (using `context.localizedReason`); a shared
-    /// `context` lets a batch authenticate once. Unprotected items never prompt.
+    /// Reads a stored string. New items have no access-control flag so reads are
+    /// silent. Legacy items saved under the previous `.userPresence` regime
+    /// prompt the OS on read; on first successful read we transparently re-save
+    /// them without the flag (lazy migration) so subsequent reads are silent.
     private func loadString(account: String, context: LAContext? = nil) -> String? {
         var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
             kSecReturnData as String: true,
+            kSecReturnAttributes as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
         if let context { query[kSecUseAuthenticationContext as String] = context }
 
         var item: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &item)
-        guard status == errSecSuccess, let data = item as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
+        guard status == errSecSuccess,
+              let dict = item as? [String: Any],
+              let data = dict[kSecValueData as String] as? Data,
+              let value = String(data: data, encoding: .utf8) else { return nil }
+
+        // Lazy migration: items with `kSecAttrAccessControl` present in their
+        // returned attributes are legacy `.userPresence`-protected items. Re-save
+        // them without the flag now that we've successfully read the plaintext,
+        // so future reads no longer trigger per-item OS prompts.
+        if dict[kSecAttrAccessControl as String] != nil {
+            saveString(value, account: account)
+        }
+        return value
     }
 
     private func deleteItem(account: String) {

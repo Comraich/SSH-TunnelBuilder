@@ -22,7 +22,7 @@ struct SettingsView: View {
 
             Section {
                 Toggle("Require Touch ID or password to use saved credentials", isOn: $requireAuthForCredentials)
-                Text("When enabled, your saved passwords and private keys are stored so that connecting (or editing a connection) requires Touch ID or your login password. This adds a layer of protection if someone gains access to your unlocked Mac, at the cost of an authentication prompt each time you connect.")
+                Text("When enabled, using a saved password or private key requires a single Touch ID / login-password prompt per session — connecting, editing, and exporting are all covered by the same authentication for the duration of the grace window below. Your secrets stay on this Mac and never leave the Keychain.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -56,10 +56,11 @@ struct SettingsView: View {
             }
         }
         .onChange(of: requireAuthForCredentials) { _, isOn in
-            // The preference (read by KeychainService when saving) is already
-            // updated by @AppStorage; re-key the existing stored credentials so
-            // the new protection applies to them too. Disabling prompts once to
-            // read the currently protected items.
+            // The toggle now governs *only* the app-side `evaluatePolicy` gate
+            // — Keychain items are no longer stamped with `.userPresence`. We
+            // still run a one-pass migration so any pre-existing protected
+            // items from older app versions are re-saved without the flag, so
+            // future connects honour the single-prompt-per-grace-window model.
             connectionStore.reprotectStoredCredentials(enabled: isOn)
         }
     }
