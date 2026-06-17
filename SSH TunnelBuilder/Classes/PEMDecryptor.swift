@@ -367,7 +367,7 @@ private struct ASN1Parser {
         guard offset + length <= data.count else {
             throw PEMDecryptorError.asn1ParseError("ANY length exceeds data")
         }
-        let anyData = data[(offset-2-length)..<(offset+length)]
+        let anyData = data[offset..<(offset + length)]
         offset += length
         return try ASN1Parser(data: anyData)
     }

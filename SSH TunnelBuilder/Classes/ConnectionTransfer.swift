@@ -92,6 +92,13 @@ enum ConnectionTransfer {
     private static let saltByteCount = 16
     private static let keyByteCount = 32 // AES-256
 
+    /// Bounds for envelope-supplied KDF parameters. Files outside this range are
+    /// treated as malformed before the (slow) key-derivation step runs — both to
+    /// avoid a `UInt32(...)` overflow trap on a hostile `iterations` field and to
+    /// reject obviously-broken salt lengths that no honest exporter would write.
+    private static let iterationsRange = 100_000...10_000_000
+    private static let saltLengthRange = 8...64
+
     /// Encrypts `payload` under `passphrase`, returning the bytes to write to disk.
     static func encrypt(_ payload: ExportPayload, passphrase: String) throws -> Data {
         guard !passphrase.isEmpty else { throw ConnectionTransferError.emptyPassphrase }
@@ -146,6 +153,12 @@ enum ConnectionTransfer {
             let combined = Data(base64Encoded: envelope.data)
         else {
             throw ConnectionTransferError.malformed("invalid base64")
+        }
+        guard iterationsRange.contains(envelope.iterations) else {
+            throw ConnectionTransferError.malformed("iterations out of range")
+        }
+        guard saltLengthRange.contains(salt.count) else {
+            throw ConnectionTransferError.malformed("salt length out of range")
         }
 
         let key = try deriveKey(passphrase: passphrase, salt: salt, iterations: envelope.iterations)
