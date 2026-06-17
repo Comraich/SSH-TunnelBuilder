@@ -383,20 +383,11 @@ class ConnectionStore {
 
             let mgr = manager(for: connection)
 
-            // Configure the host key validation handler. It suspends until the
-            // user answers the prompt, then returns their trust decision.
-            mgr.hostKeyValidationHandler = { [weak self] host, fingerprint, _, keyData in
-                guard let self else { return false }
-                return await self.confirmHostKeyTrust(host: host, fingerprint: fingerprint,
-                                                      keyData: keyData, connection: connection)
-            }
-
-            // Configure the error callback to show alerts
-            mgr.errorCallback = { [weak self] errorMsg in
-                Task { @MainActor in
-                    self?.showError(errorMsg)
-                }
-            }
+            // Wire up the host-key and error handlers. Done in a helper method
+            // (not inline) so these `[weak self]` closures — weak to avoid the
+            // store↔manager retain cycle — aren't nested inside this Task's
+            // strong self-capture, which the compiler flags as a mismatch.
+            configureHandlers(for: mgr, connection: connection)
 
             do {
                 Logger.info("Starting SSH connection for \(connection.connectionInfo.name)", log: Logger.ssh)
@@ -407,6 +398,26 @@ class ConnectionStore {
                 let errorMsg = error.localizedDescription
                 Logger.error("SSH connection failed for \(connection.connectionInfo.name): \(errorMsg)", log: Logger.ssh)
                 self.errorAlert = ErrorAlert(message: errorMsg)
+            }
+        }
+    }
+
+    /// Wires the host-key validation and error handlers onto `mgr`. Kept as a
+    /// method so the `[weak self]` capture (which breaks the store↔manager retain
+    /// cycle) isn't nested inside a strong-self-capturing closure.
+    private func configureHandlers(for mgr: SSHManager, connection: Connection) {
+        // Host key validation suspends until the user answers the prompt, then
+        // returns their trust decision.
+        mgr.hostKeyValidationHandler = { [weak self] host, fingerprint, _, keyData in
+            guard let self else { return false }
+            return await self.confirmHostKeyTrust(host: host, fingerprint: fingerprint,
+                                                  keyData: keyData, connection: connection)
+        }
+
+        // Surface SSH errors as alerts.
+        mgr.errorCallback = { [weak self] errorMsg in
+            Task { @MainActor in
+                self?.showError(errorMsg)
             }
         }
     }
