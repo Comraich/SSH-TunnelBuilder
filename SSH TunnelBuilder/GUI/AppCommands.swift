@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import AppKit
 import SwiftUI
 
 /// App-wide menu commands operating on the shared `ConnectionStore`.
@@ -24,6 +25,16 @@ struct AppCommands: Commands {
     var store: ConnectionStore
 
     var body: some Commands {
+        // App ▸ override the default About item so the standard macOS panel
+        // surfaces the license, source-code URL, and primary third-party
+        // attribution alongside the name / version / copyright the panel
+        // already reads from Info.plist.
+        CommandGroup(replacing: .appInfo) {
+            Button("About SSH TunnelBuilder") {
+                Self.showAboutPanel()
+            }
+        }
+
         // File ▸ swap the default "New Window" for "New Connection", and add the
         // import / export items beneath it.
         CommandGroup(replacing: .newItem) {
@@ -97,5 +108,40 @@ struct AppCommands: Commands {
     @MainActor private var canDisconnect: Bool {
         guard let connection = store.selectedConnection else { return false }
         return connection.isActive || connection.isConnecting
+    }
+
+    /// Presents the standard macOS About panel with rich credits showing the
+    /// app's license, source-code URL, and primary third-party attribution.
+    /// `NSHumanReadableCopyright` in Info.plist supplies the copyright line
+    /// shown above the credits area.
+    @MainActor
+    private static func showAboutPanel() {
+        let credits = NSMutableAttributedString()
+        let bodyFont = NSFont.systemFont(ofSize: 11)
+        let centered = NSMutableParagraphStyle()
+        centered.alignment = .center
+
+        func append(_ text: String, link: String? = nil) {
+            var attrs: [NSAttributedString.Key: Any] = [
+                .font: bodyFont,
+                .paragraphStyle: centered
+            ]
+            if let link, let url = URL(string: link) {
+                attrs[.link] = url
+            }
+            credits.append(NSAttributedString(string: text, attributes: attrs))
+        }
+
+        append("Licensed under the Apache License, Version 2.0\n")
+        append("https://www.apache.org/licenses/LICENSE-2.0\n\n",
+               link: "https://www.apache.org/licenses/LICENSE-2.0")
+        append("Source code and third-party attributions:\n")
+        append("https://github.com/Comraich/SSH-TunnelBuilder\n\n",
+               link: "https://github.com/Comraich/SSH-TunnelBuilder")
+        append("Built on Apple's SwiftNIO and NIOSSH.")
+
+        NSApplication.shared.orderFrontStandardAboutPanel(options: [
+            .credits: credits
+        ])
     }
 }
