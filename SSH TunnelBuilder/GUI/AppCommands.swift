@@ -1,3 +1,18 @@
+// Copyright 2020-2026 Comraich ANS
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import AppKit
 import SwiftUI
 
 /// App-wide menu commands operating on the shared `ConnectionStore`.
@@ -10,6 +25,16 @@ struct AppCommands: Commands {
     var store: ConnectionStore
 
     var body: some Commands {
+        // App ▸ override the default About item so the standard macOS panel
+        // surfaces the license, source-code URL, and primary third-party
+        // attribution alongside the name / version / copyright the panel
+        // already reads from Info.plist.
+        CommandGroup(replacing: .appInfo) {
+            Button("About SSH TunnelBuilder") {
+                Self.showAboutPanel()
+            }
+        }
+
         // File ▸ swap the default "New Window" for "New Connection", and add the
         // import / export items beneath it.
         CommandGroup(replacing: .newItem) {
@@ -83,5 +108,43 @@ struct AppCommands: Commands {
     @MainActor private var canDisconnect: Bool {
         guard let connection = store.selectedConnection else { return false }
         return connection.isActive || connection.isConnecting
+    }
+
+    /// Presents the standard macOS About panel with rich credits showing the
+    /// copyright, license, source-code URL, and primary third-party attribution.
+    /// The copyright is rendered inside the credits area (rather than relying on
+    /// `NSHumanReadableCopyright`) so the displayed text is controlled directly
+    /// by this method regardless of how the build's Info.plist is configured.
+    @MainActor
+    private static func showAboutPanel() {
+        let credits = NSMutableAttributedString()
+        let bodyFont = NSFont.systemFont(ofSize: 11)
+        let boldFont = NSFont.boldSystemFont(ofSize: 11)
+        let centered = NSMutableParagraphStyle()
+        centered.alignment = .center
+
+        func append(_ text: String, link: String? = nil, bold: Bool = false) {
+            var attrs: [NSAttributedString.Key: Any] = [
+                .font: bold ? boldFont : bodyFont,
+                .paragraphStyle: centered
+            ]
+            if let link, let url = URL(string: link) {
+                attrs[.link] = url
+            }
+            credits.append(NSAttributedString(string: text, attributes: attrs))
+        }
+
+        append("Copyright © 2020-2026 Comraich ANS\n\n", bold: true)
+        append("Licensed under the Apache License, Version 2.0\n")
+        append("https://www.apache.org/licenses/LICENSE-2.0\n\n",
+               link: "https://www.apache.org/licenses/LICENSE-2.0")
+        append("Source code and third-party attributions:\n")
+        append("https://github.com/Comraich/SSH-TunnelBuilder\n\n",
+               link: "https://github.com/Comraich/SSH-TunnelBuilder")
+        append("Built on Apple's SwiftNIO and NIOSSH.")
+
+        NSApplication.shared.orderFrontStandardAboutPanel(options: [
+            .credits: credits
+        ])
     }
 }
