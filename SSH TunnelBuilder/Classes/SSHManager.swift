@@ -199,7 +199,7 @@ final class SSHManager: @unchecked Sendable {
 
     // MARK: - Host Key Validation
 
-    private func handleHostKeyValidation(host: String, port: Int, key: NIOSSHPublicKey, promise: EventLoopPromise<Void>, knownHostKey: String) {
+    private func handleHostKeyValidation(host: String, port _: Int, key: NIOSSHPublicKey, promise: EventLoopPromise<Void>, knownHostKey: String) {
         let keyData = serialize(key: key)
         let fingerprint: String
         if let keyData = keyData {

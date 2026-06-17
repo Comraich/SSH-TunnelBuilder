@@ -35,12 +35,16 @@ protocol CredentialsStore {
 }
 
 extension CredentialsStore {
-    func setCredentialProtection(enabled: Bool, for ids: [UUID]) {}
+    /// Default no-op: stores without OS-level credential protection (e.g. the
+    /// mock used in tests) have no items to re-key. `KeychainService` overrides.
+    func setCredentialProtection(enabled _: Bool, for _: [UUID]) {
+        // Intentionally empty — no-op default for stores without OS-level protection.
+    }
 
     /// Default: read each secret independently. Stores without OS-level
     /// authentication (e.g. the mock) don't prompt, so the context is ignored.
     /// `KeychainService` overrides this to read with the authenticated context.
-    func loadCredentials(for id: UUID, authenticatedContext: LAContext?) -> (password: String?, privateKey: String?) {
+    func loadCredentials(for id: UUID, authenticatedContext _: LAContext?) -> (password: String?, privateKey: String?) {
         (loadPassword(for: id), loadPrivateKey(for: id))
     }
 }
@@ -58,7 +62,10 @@ enum CredentialAccount {
 
 final class KeychainService: CredentialsStore, Sendable {
     static let shared = KeychainService()
-    private init() {}
+    private init() {
+        // Singleton: prevent external instantiation. No initialization state to set up —
+        // service identifier is a constant, and Keychain access is performed lazily.
+    }
 
     private let service = "SSH Tunnel Manager"
 
@@ -126,7 +133,7 @@ final class KeychainService: CredentialsStore, Sendable {
     /// The `enabled` parameter is accepted for source compatibility with the
     /// old toggle-driven re-key call site but no longer affects how items are
     /// stored — they are always stored without `.userPresence`.
-    func setCredentialProtection(enabled: Bool, for ids: [UUID]) {
+    func setCredentialProtection(enabled _: Bool, for ids: [UUID]) {
         let context = makeAuthContext(
             reason: "Authenticate to unlock your saved SSH credentials.",
             reuseDuration: 30
