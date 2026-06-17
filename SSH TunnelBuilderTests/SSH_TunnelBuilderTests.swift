@@ -636,7 +636,7 @@ struct ConnectionModelTests {
         let info = ConnectionInfo(name: "Original", serverAddress: "127.0.0.1",
                                   portNumber: "22", username: "user",
                                   password: TestFixtures.pwShort, privateKey: TestFixtures.keyShort,
-                                  privateKeyPassphrase: TestFixtures.passphraseShort)
+                                  privateKeyPassphrase: TestFixtures.unlockShort)
         let tunnel = TunnelInfo(localPort: "8080", remoteServer: "localhost", remotePort: "80")
         let original = Connection(connectionInfo: info, tunnelInfo: tunnel)
 
@@ -664,7 +664,7 @@ struct ConnectionStoreMappingTests {
         let info = ConnectionInfo(name: "Test Server", serverAddress: "server.example.com",
                                   portNumber: "2222", username: "testuser",
                                   password: "testpassword", privateKey: "testkey",
-                                  privateKeyPassphrase: TestFixtures.passphraseShort)
+                                  privateKeyPassphrase: TestFixtures.unlockShort)
         let tunnel = TunnelInfo(localPort: "9000", remoteServer: "db.internal", remotePort: "5432")
         let source = Connection(id: id, connectionInfo: info, tunnelInfo: tunnel)
 
@@ -723,7 +723,7 @@ fileprivate enum TestFixtures {
     static let blank = ""
     static let pwShort = "pw"
     static let keyShort = "key"
-    static let passphraseShort = "pp"
+    static let unlockShort = "pp"
     static let pwOriginal = "p1"
     static let pwModified = "p2"
     static let keyOriginal = "k1"
