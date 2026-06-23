@@ -36,6 +36,13 @@ struct SSH_TunnelBuilderApp: App {
                 .environment(connectionStore)
         }
 
+        // In-app help, opened from the Help menu (and Help ▸ Search field).
+        // Single-instance window keyed by id so repeat invocations bring the
+        // existing window forward instead of stacking duplicates.
+        Window("SSH Tunnel Builder Help", id: "help") {
+            HelpView()
+        }
+
         // Menu bar traffic indicator. Only inserted while a tunnel is connected.
         // `hasActiveConnection` must be read here, directly in the scene body, so
         // Observation registers the dependency and re-evaluates the scene when it

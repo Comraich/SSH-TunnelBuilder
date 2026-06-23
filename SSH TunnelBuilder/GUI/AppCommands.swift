@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// App-wide menu commands operating on the shared `ConnectionStore`.
 ///
@@ -89,6 +90,24 @@ struct AppCommands: Commands {
             .keyboardShortcut("1", modifiers: .command)
 
             Divider()
+        }
+
+        // Help ▸ replace the default Apple-help-search entry (which would try
+        // to look us up in Apple's help system and fail) with an in-app help
+        // window and a direct link to the issue tracker.
+        CommandGroup(replacing: .help) {
+            Button("SSH Tunnel Builder Help") {
+                openWindow(id: "help")
+            }
+            .keyboardShortcut("?", modifiers: .command)
+
+            Divider()
+
+            Button("Report a Problem…") {
+                if let url = URL(string: "https://github.com/Comraich/SSH-TunnelBuilder/issues/new") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
         }
     }
 
