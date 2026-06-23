@@ -14,14 +14,6 @@
 
 import AppKit
 import SwiftUI
-import AppKit
-
-/// App-wide menu commands operating on the shared `ConnectionStore`.
-///
-/// Selection lives in the store (`selectedConnection`), so these commands stay
-/// in sync with the sidebar. Import/export are triggered indirectly: the command
-/// sets `store.transferRequest`, which `ContentView` observes to run the
-/// passphrase prompt and file dialog.
 struct AppCommands: Commands {
     var store: ConnectionStore
 
