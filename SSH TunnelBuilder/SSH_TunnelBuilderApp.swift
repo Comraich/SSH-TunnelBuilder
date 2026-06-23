@@ -13,9 +13,15 @@
 // limitations under the License.
 
 import SwiftUI
+import AppKit
 
 @main
 struct SSH_TunnelBuilderApp: App {
+    // Keeps the app (and any active tunnels) alive after the window is closed,
+    // and reopens the window on a dock click. Without this, closing the window
+    // terminates the app and tears down every connection — see `AppDelegate`.
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     @State private var connectionStore: ConnectionStore
     @State private var trafficMonitor: MenuBarTrafficMonitor
 
@@ -28,7 +34,11 @@ struct SSH_TunnelBuilderApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        // Single-instance `Window` (not `WindowGroup`) so SwiftUI auto-adds it
+        // to the Window menu — closing the window leaves the entry there, and
+        // the user can reopen it from the menu (or the menu bar item, or the
+        // dock icon).
+        Window("SSH Tunnel Builder", id: "main") {
             ContentView(connectionStore: connectionStore)
         }
         .commands {
@@ -38,6 +48,13 @@ struct SSH_TunnelBuilderApp: App {
         Settings {
             SettingsView()
                 .environment(connectionStore)
+        }
+
+        // In-app help, opened from the Help menu (and Help ▸ Search field).
+        // Single-instance window keyed by id so repeat invocations bring the
+        // existing window forward instead of stacking duplicates.
+        Window("SSH Tunnel Builder Help", id: "help") {
+            HelpView()
         }
 
         // Menu bar traffic indicator. Only inserted while a tunnel is connected.
@@ -51,5 +68,24 @@ struct SSH_TunnelBuilderApp: App {
         } label: {
             MenuBarTrafficLabel(monitor: trafficMonitor)
         }
+    }
+}
+
+/// Keeps the app running after the user closes the main window so active
+/// tunnels survive, and brings the window back on a dock click.
+///
+/// SwiftUI's `Window` scene treats the close button as "quit the app" by
+/// default (unlike `WindowGroup`), which would tear down every tunnel.
+/// Returning `false` from `applicationShouldTerminateAfterLastWindowClosed`
+/// suppresses that, leaving the dock icon and any active `MenuBarExtra` in
+/// place; `applicationShouldHandleReopen` then lets the system perform its
+/// standard re-show of the main window when the dock icon is clicked.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        true
     }
 }
