@@ -24,6 +24,11 @@ import SwiftUI
 struct AppCommands: Commands {
     var store: ConnectionStore
 
+    // `openWindow(id:)` brings the main window back if it has been closed.
+    // SwiftUI's `Window` scene does not always populate the Window menu with a
+    // re-open entry on its own, so we add one explicitly below.
+    @Environment(\.openWindow) private var openWindow
+
     var body: some Commands {
         // App ▸ override the default About item so the standard macOS panel
         // surfaces the license, source-code URL, and primary third-party
@@ -97,6 +102,18 @@ struct AppCommands: Commands {
             }
             .keyboardShortcut(.delete, modifiers: .command)
             .disabled(store.selectedConnection == nil)
+        }
+
+        // Window ▸ a guaranteed re-open entry. With our single-`Window` scene
+        // and `AppDelegate` keeping the app alive after the window is closed,
+        // this is the canonical macOS way to bring it back from the menu bar.
+        CommandGroup(before: .windowArrangement) {
+            Button("Open main window") {
+                openWindow(id: "main")
+            }
+            .keyboardShortcut("1", modifiers: .command)
+
+            Divider()
         }
     }
 
