@@ -131,9 +131,11 @@ struct MenuBarTrafficLabel: View {
 }
 
 /// The dropdown shown when the menu bar item is clicked: one line per connected
-/// tunnel with its cumulative sent/received totals.
+/// tunnel with its cumulative sent/received totals, plus a button to bring the
+/// main window back if it's been closed.
 struct MenuBarTrafficContent: View {
     var store: ConnectionStore
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         let active = store.connections.filter { $0.state.isActive }
@@ -143,6 +145,12 @@ struct MenuBarTrafficContent: View {
             ForEach(active) { connection in
                 Text("\(connection.connectionInfo.name) — ↑ \(connection.bytesSent.formatted(.byteCount(style: .file)))  ↓ \(connection.bytesReceived.formatted(.byteCount(style: .file)))")
             }
+        }
+
+        Divider()
+
+        Button("Show Main Window") {
+            openWindow(id: "main")
         }
     }
 }
