@@ -1,7 +1,7 @@
 # Swift API Modernization Roadmap
 
 Opportunities to adopt newer Swift / SwiftUI / Foundation / CloudKit APIs.
-Deployment target is **macOS 15.6**, so all modern APIs below are available.
+Deployment target is **macOS 14.0**. Check availability before adopting an API — anything gated at macOS 15+ needs an `@available` fallback, not a bump to the deployment target.
 
 ## Workflow
 

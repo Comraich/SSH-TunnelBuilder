@@ -150,7 +150,7 @@ struct ConnectButtonView: View {
         }
         .frame(minWidth: 480, minHeight: 420)
 #if os(macOS)
-        .presentationSizing(.fitted)
+        .fittedPresentationSizing()
 #endif
     }
 
@@ -265,3 +265,18 @@ struct ConnectButtonView: View {
         saveCredentials = false
     }
 }
+
+#if os(macOS)
+private extension View {
+    /// `presentationSizing` requires macOS 15. On macOS 14 the sheet falls back to
+    /// its default sizing, which is the only visible difference.
+    @ViewBuilder
+    func fittedPresentationSizing() -> some View {
+        if #available(macOS 15.0, *) {
+            self.presentationSizing(.fitted)
+        } else {
+            self
+        }
+    }
+}
+#endif
