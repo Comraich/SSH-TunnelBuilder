@@ -1,7 +1,7 @@
 [![CodeFactor](https://www.codefactor.io/repository/github/comraich/ssh-tunnelbuilder/badge)](https://www.codefactor.io/repository/github/comraich/ssh-tunnelbuilder)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
-# SSH Tunnel Manager
+# SSH TunnelBuilder
 
 Licensed under the Apache License, Version 2.0. See [LICENSE.TXT](LICENSE.TXT) for the full license text and [NOTICE.txt](NOTICE.txt) for attributions.
 
