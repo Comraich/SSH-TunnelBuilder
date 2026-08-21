@@ -171,7 +171,7 @@ and the new `Document` protocol (26) are all still out of reach.
 | 11 | Legacy `Alert` → modern alert modifier | `refactor/swift-api-modernization-round2` | Medium | Done |
 | 12 | Remove last `NSError` construction | `refactor/swift-api-modernization-round2` | Low | Done |
 | 13 | `SecRandomCopyBytes` / `String(format:)` cleanup | `refactor/swift-api-modernization-round2` | Low | Done |
-| 14 | **Replace hand-rolled ASN.1 parser with SwiftASN1** | _(not started)_ | High | **Next** |
+| 14 | **Replace hand-rolled ASN.1 parser with SwiftASN1** | `refactor/swift-api-modernization-round2` | High | Done |
 | 15 | `CKSyncEngine` for CloudKit sync | _(not started)_ | High | Deferred |
 | 16 | `_CryptoExtras` to retire CommonCrypto | _(not started)_ | Medium | Not recommended yet |
 
@@ -179,8 +179,43 @@ Tasks 9–13 shipped together as one branch — all mechanical, all compile-veri
 
 ---
 
-## 14. Replace the hand-rolled ASN.1 parser with SwiftASN1  ← **do this next**
+## 14. Replace the hand-rolled ASN.1 parser with SwiftASN1 — **DONE (2026-08-21)**
 **Impact:** High · **Risk:** Medium (crypto parsing path, needs test coverage)
+
+**Outcome:** `SwiftASN1` linked to the app target; `ASN1Parser` (~170 lines),
+`parseOID`, and the `UInt8.asn1TagDescription` helper from task 13 all deleted.
+`PEMDecryptor.swift` went 438 → ~400 lines while gaining typed OID constants and
+structural validation. Public signatures unchanged, so `SSHKeyParsing`,
+`KeyValidation`, and the tests were untouched. 94/94 tests pass, zero warnings.
+
+Notes for future readers:
+- `DER.sequence` **throws on unconsumed trailing nodes**, which replaces the old
+  parser's manual `isAtEnd` checks for free. Where the old code deliberately
+  ignored trailing OPTIONAL fields (EC curve OID, PKCS#8 `[0] attributes`, SEC1
+  `[0]`/`[1]`), a `drainRemaining` helper keeps that tolerance explicit so
+  behaviour didn't silently become stricter.
+- OIDs are compared as typed `ASN1ObjectIdentifier` values, not
+  `String(describing:)` — SwiftASN1 makes no stability promise about `description`.
+- The `prf` DEFAULT is left as RFC 8018's hmacWithSHA1 (the old code defaulted the
+  *variable* to SHA-256), so an omitted `prf` is now correctly rejected by the
+  SHA-256-only policy check rather than assumed compliant.
+- Validated beyond the test suite against independently OpenSSL-generated keys
+  (encrypted PKCS#8 Ed25519, plain PKCS#8 Ed25519, PKCS#8 EC P-256, SEC1 P-256):
+  byte-identical scalars/seeds vs. the old parser, and malformed input throws
+  `PEMDecryptorError` rather than trapping.
+
+**Pre-existing issue found while validating (NOT introduced here, NOT fixed):**
+`AESCBC.decrypt` passes `kCCOptionPKCS7Padding`, but a wrong passphrase is
+accepted by that layer **every time** — 200/200 wrong passphrases returned
+"successfully" with garbage, on both the old and new parser (verified by swapping
+the pre-change file back in). So `decryptEncryptedPKCS8PEM` is *not* a passphrase
+oracle on its own; wrong passphrases are caught only when the result is
+subsequently parsed. Every current caller does parse it (`SSHKeyParsing`,
+`KeyValidation`, tests), so there's no live bug — but the guarantee is implicit and
+a future caller that trusts the decrypt alone would be wrong. Worth either
+validating padding explicitly or documenting the contract on the function.
+
+<details><summary>Original plan</summary>
 
 `PEMDecryptor.swift` carries ~160 lines of hand-written DER parsing
 (`private struct ASN1Parser`, plus `parseOID`). This is the code whose
@@ -209,6 +244,13 @@ Scope:
 crypto parsing path, validate with `RunCodeSnippet` against the full key matrix
 — OpenSSH Ed25519/ECDSA, PKCS#8 EC plain + encrypted, SEC1 P-256/384/521 —
 exactly as the 2026-06-15 fix was validated.
+
+</details>
+
+> The "before starting" caveat above was written when the test suite was blocked.
+> By the time the task ran, the suite was green, so the 19 `AuthDelegateTests`
+> covered the key matrix automatically — the snippet validation was done anyway as
+> a cross-check against independently generated keys.
 
 ---
 

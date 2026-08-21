@@ -35,26 +35,9 @@ import os
 // establishment, `startLocalListener` / port-forwarding, `invalidPort`, and the
 // host-key prompt's pause/re-arm of the handshake deadline.
 //
-// (These live here rather than in `SSHManagerTests.swift` because that file is
-// mistakenly compiled into the *app* module as well as the test one, so it can't
-// import `Testing` — which is why its contents were commented out. See the
-// target-membership note in CLAUDE.md.)
-
-/// The **app module's** `SSHTunnelError`, named explicitly — do not replace this
-/// with a bare `SSHTunnelError` in this file.
-///
-/// `SSHTunnelError.swift` is currently compiled into the *test* module as well as
-/// the app's (via a synchronized-group membership exception), so the test module
-/// has a second, independent copy of the enum. An unqualified `SSHTunnelError`
-/// resolves to that local copy, so `errorThrownByTheApp as? SSHTunnelError`
-/// always fails — the two types are unrelated at runtime even though both print
-/// as "SSH_TunnelBuilder.SSHTunnelError", which makes the failure baffling.
-/// Qualifying with the module name pins us to the copy `SSHManager` actually
-/// throws.
-///
-/// The real fix is to uncheck the test target for `SSHTunnelError.swift` under
-/// File Inspector ▸ Target Membership (see CLAUDE.md); this alias can go then.
-private typealias AppTunnelError = SSH_TunnelBuilder.SSHTunnelError
+// (The old `SSHManagerTests.swift` was dead, commented-out XCTest code that
+// couldn't compile because it was wrongly a member of the app target; both it and
+// that misconfiguration are gone.)
 
 /// Accepts TCP connections on loopback and then says nothing at all — the peer
 /// completes a TCP handshake but never speaks SSH, so `sessionReadyPromise` can
@@ -170,7 +153,7 @@ struct SSHManagerLifecycleTests {
 
         let error = await captureError { try await manager.connect() }
 
-        guard let tunnelError = error as? AppTunnelError else {
+        guard let tunnelError = error as? SSHTunnelError else {
             Issue.record("expected an SSHTunnelError, got \(String(describing: error))")
             return
         }
@@ -198,7 +181,7 @@ struct SSHManagerLifecycleTests {
 
         let error = await captureError { try await manager.connect() }
 
-        guard let tunnelError = error as? AppTunnelError else {
+        guard let tunnelError = error as? SSHTunnelError else {
             Issue.record("expected an SSHTunnelError, got \(String(describing: error))")
             return
         }
@@ -230,7 +213,7 @@ struct SSHManagerLifecycleTests {
         await withTimeouts(handshake: 1) {
             let error = await captureError { try await manager.connect() }
 
-            guard let tunnelError = error as? AppTunnelError else {
+            guard let tunnelError = error as? SSHTunnelError else {
                 Issue.record("expected an SSHTunnelError, got \(String(describing: error))")
                 return
             }

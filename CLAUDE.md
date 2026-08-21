@@ -16,7 +16,9 @@
 - **ConnectionStore.swift**: CloudKit sync + Keychain + SSHManager lifecycle
 - **KeychainService.swift**: Secure credential storage with protocol for testing
 - **SSHManager.swift**: NIO-based SSH client with tunneling
-- **PEMDecryptor.swift**: PKCS#8 key decryption with PBKDF2
+- **PEMDecryptor.swift**: PKCS#8 key decryption with PBKDF2. DER parsing uses
+  **SwiftASN1** (linked to the app target); the hand-rolled `ASN1Parser` was
+  deleted 2026-08-21 — don't reintroduce one
 - **BcryptPBKDF.swift**: Blowfish + `bcrypt_pbkdf` (from scratch; not in CryptoKit), used to key OpenSSH key decryption
 - **OpenSSHKeyDecryptor.swift**: decrypts encrypted `openssh-key-v1` private sections (AES-CTR/CBC/GCM)
 - **ConnectionTransfer.swift**: encrypted import/export codec (see below)
@@ -321,10 +323,10 @@ relevant coverage for this round:
 (2026-08-21) closed that gap; see Test Coverage Gaps above. The suite is
 **94/94**, green across three consecutive full runs.
 
-**Next up: task 14 — replace `PEMDecryptor`'s hand-rolled ASN.1 parser with
-`SwiftASN1`.** It's already in the resolved package graph (via swift-crypto ←
-NIOSSH) but not linked to the app target, so step one is adding the product.
-See `MODERNIZATION_ROADMAP.md` §14 for scope and the validation matrix.
+**Task 14 (SwiftASN1) is also done** — see `MODERNIZATION_ROADMAP.md` §14 for the
+outcome, the `DER.sequence` strict-consumption gotcha, and a **pre-existing**
+AES-CBC padding issue found while validating it (wrong passphrases are not
+rejected by `decryptEncryptedPKCS8PEM` alone; callers must parse the result).
 
 ---
 
@@ -448,10 +450,35 @@ compile-validated but not behaviourally tested on this toolchain.
     the selected `@Observable` instance's `connectionInfo` when selection changes
     (especially right after an edit, where `selectedConnection = tempConnection`).
 
-### Two files have wrong target membership — read this before writing tests (2026-08-21)
+### `decryptEncryptedPKCS8PEM` does not detect a wrong passphrase on its own (2026-08-21)
 
-Two mirror-image misconfigurations, both **still present** — the notes below are
-workarounds, not fixes.
+**Not a regression** — found while validating the SwiftASN1 swap, and confirmed
+present on the pre-change code too by swapping the old file back in.
+
+`AESCBC.decrypt` passes `kCCOptionPKCS7Padding`, which would normally make a
+wrong key fail with a padding error. It doesn't: **200/200** wrong passphrases
+were accepted, returning garbage plaintext, on both old and new parsers. Expected
+behaviour would be ~199/200 rejected (padding valid by luck ≈ 1/256).
+
+So `decryptEncryptedPKCS8PEM` is **not** a passphrase check. A wrong passphrase is
+only caught when the returned DER is subsequently parsed, which fails. Every
+current caller does parse it — `SSHKeyParsing.swift:146`, `KeyValidation.swift:62`,
+and the tests — so **there is no live bug**. But the guarantee is implicit: a
+future caller that treats a successful decrypt as "passphrase correct" would be
+wrong, and `KeyValidation` returning `.decryptionFailed` relies on the parse step.
+
+Options if this is worth closing: validate the PKCS#7 padding explicitly after
+`CCCrypt`, or document the contract on the function so the parse step is
+understood as load-bearing. Left alone deliberately — it's a separate concern
+from the parser swap and touches the crypto path.
+
+---
+
+### ~~Two files have wrong target membership~~ — RESOLVED (2026-08-21)
+
+Two mirror-image misconfigurations, both now **fixed**. Kept on record because the
+symptom of #1 is extremely misleading and the mechanism is worth knowing before
+adding test files.
 
 The project uses Xcode 16+ **file-system synchronized groups**
 (`PBXFileSystemSynchronizedRootGroup`), so there is no per-target Compile Sources
@@ -462,17 +489,17 @@ That's also why new files added under `SSH TunnelBuilderTests/` need no
 The duplication comes from two `PBXFileSystemSynchronizedBuildFileExceptionSet`
 entries, which *add* a file to a target that doesn't own its folder:
 
-| File | Owning folder/target | Also added to |
+| File | Owning folder/target | Had also been added to |
 |---|---|---|
-| `Classes/SSHTunnelError.swift` | `SSH TunnelBuilder` → app | **`SSH TunnelBuilderTests`** |
-| `SSHManagerTests.swift` | `SSH TunnelBuilderTests` → tests | **`SSH TunnelBuilder`** |
+| `Classes/SSHTunnelError.swift` | `SSH TunnelBuilder` → app | `SSH TunnelBuilderTests` |
+| `SSHManagerTests.swift` | `SSH TunnelBuilderTests` → tests | `SSH TunnelBuilder` |
 
-To fix either: select the file in Xcode and uncheck the extra target under
+Fix for either: select the file in Xcode and uncheck the extra target under
 **File Inspector ▸ Target Membership** (not Build Phases). Likely origin of #1:
 someone hit "cannot find SSHTunnelError in scope" in a test and added the file to
 the test target, which silently traded that error for the much subtler one below.
 
-**1. `SSHTunnelError.swift` is compiled into the *test* module as well as the app.**
+**1. `SSHTunnelError.swift` was compiled into the *test* module as well as the app.**
 
 So the test module has a *second, independent* copy of the enum. Consequence:
 
@@ -490,16 +517,18 @@ reads "expected an SSHTunnelError, got …SSHTunnelError". The existing
 the test module and only read `localizedDescription` — they never cast a value
 that crossed the module boundary.
 
-Workaround in place: `SSHManagerLifecycleTests.swift` declares
-`private typealias AppTunnelError = SSH_TunnelBuilder.SSHTunnelError` and casts to
-that. Delete the alias once membership is fixed.
+**Fixed 2026-08-21.** The test target was unchecked for this file, and the
+`AppTunnelError` typealias workaround in `SSHManagerLifecycleTests.swift` was
+removed — the tests now cast to a plain `SSHTunnelError` and pass (94/94).
 
-**2. `SSHManagerTests.swift` is compiled into the *app* module too.**
+**2. `SSHManagerTests.swift` was compiled into the *app* module too.**
 
-So it can't `import Testing` (the app target doesn't link it) — which is why its
-entire contents are commented out. It's dead weight; the live SSHManager tests are
-in `SSHManagerLifecycleTests.swift` instead. Once membership is fixed, that file
-can either be deleted or become the home for these tests.
+So it couldn't `import Testing` (the app target doesn't link it) — which is why
+its entire contents were commented out.
+
+**Fixed 2026-08-21.** The app target was unchecked, and the file — dead
+commented-out XCTest code superseded by `OpenSSHKeyParserTests.swift` — was
+deleted. The live SSHManager tests are in `SSHManagerLifecycleTests.swift`.
 
 **Check membership when adding test files.** `GetFileCompilerFlags` is the
 authoritative probe: it errors with "is not a member of a Compile Sources build
