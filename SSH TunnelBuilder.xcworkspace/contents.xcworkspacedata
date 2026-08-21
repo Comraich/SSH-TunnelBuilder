@@ -5,12 +5,6 @@
       location = "container:SSH TunnelBuilder.xcodeproj">
    </FileRef>
    <FileRef
-      location = "group:PEMKeyHelpers.swift">
-   </FileRef>
-   <FileRef
-      location = "group:SampleData.swift">
-   </FileRef>
-   <FileRef
       location = "group:REVIEW_CHANGES.md">
    </FileRef>
    <FileRef
