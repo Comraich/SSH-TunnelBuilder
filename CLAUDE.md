@@ -161,7 +161,14 @@ CryptoKit); broader PKCS#8 ciphers/KDFs.
 
 ### Test Coverage Gaps
 
-- [ ] `SSHManager` connect/disconnect flows
+- [x] `SSHManager` connect/disconnect flows — `SSHManagerLifecycleTests.swift`
+      (2026-08-21, 8 tests). Covers `missingCredentials`, `keyParsingFailed`,
+      handshake timeout against a silent TCP peer, refused connection,
+      `disconnect()` idempotency, counter reset, the already-connected no-op, and
+      a connect/disconnect concurrency stress over the refactored lock.
+      **Still uncovered** (needs a real SSH server): successful session
+      establishment, `startLocalListener` / port-forwarding, `invalidPort`, and
+      the host-key prompt's pause/re-arm of the handshake deadline.
 - [ ] CloudKit operations (mock `CKDatabase`)
 - [ ] PEM decryption with various key types
 - [ ] Error paths in `ConnectionStore`
@@ -310,11 +317,9 @@ relevant coverage for this round:
 - `SSHTunnelError Description Coverage` (2) — `everyCaseHasMessage` covers the
   `internalError` case now used by `UnconfiguredDatabase`.
 
-**Still untested:** the `SSHManager` lock refactor. Nothing in the suite drives
-`connect()`/`shutdown()` (the pre-existing `SSHManager` connect/disconnect
-coverage gap listed under Test Coverage Gaps above), so that change remains
-compile- and reasoning-verified only. Worth closing that gap given the refactor
-touched the promise-completion race.
+**The lock refactor is now covered too** — `SSHManagerLifecycleTests.swift`
+(2026-08-21) closed that gap; see Test Coverage Gaps above. The suite is
+**94/94**, green across three consecutive full runs.
 
 **Next up: task 14 — replace `PEMDecryptor`'s hand-rolled ASN.1 parser with
 `SwiftASN1`.** It's already in the resolved package graph (via swift-crypto ←
@@ -443,18 +448,83 @@ compile-validated but not behaviourally tested on this toolchain.
     the selected `@Observable` instance's `connectionInfo` when selection changes
     (especially right after an edit, where `selectedConnection = tempConnection`).
 
+### Two files have wrong target membership — read this before writing tests (2026-08-21)
+
+Two mirror-image misconfigurations, both **still present** — the notes below are
+workarounds, not fixes.
+
+The project uses Xcode 16+ **file-system synchronized groups**
+(`PBXFileSystemSynchronizedRootGroup`), so there is no per-target Compile Sources
+list to inspect: a folder maps to a target and files are members automatically.
+That's also why new files added under `SSH TunnelBuilderTests/` need no
+`project.pbxproj` change at all.
+
+The duplication comes from two `PBXFileSystemSynchronizedBuildFileExceptionSet`
+entries, which *add* a file to a target that doesn't own its folder:
+
+| File | Owning folder/target | Also added to |
+|---|---|---|
+| `Classes/SSHTunnelError.swift` | `SSH TunnelBuilder` → app | **`SSH TunnelBuilderTests`** |
+| `SSHManagerTests.swift` | `SSH TunnelBuilderTests` → tests | **`SSH TunnelBuilder`** |
+
+To fix either: select the file in Xcode and uncheck the extra target under
+**File Inspector ▸ Target Membership** (not Build Phases). Likely origin of #1:
+someone hit "cannot find SSHTunnelError in scope" in a test and added the file to
+the test target, which silently traded that error for the much subtler one below.
+
+**1. `SSHTunnelError.swift` is compiled into the *test* module as well as the app.**
+
+So the test module has a *second, independent* copy of the enum. Consequence:
+
+```swift
+// In test code, `SSHTunnelError` resolves to the TEST module's copy…
+let thrown: Error? = // …but SSHManager throws the APP module's copy
+thrown as? SSHTunnelError        // ← always nil. Two unrelated runtime types.
+thrown as? SSH_TunnelBuilder.SSHTunnelError  // ← works
+```
+
+This is genuinely baffling to debug because both copies print identically as
+`"SSH_TunnelBuilder.SSHTunnelError.missingCredentials"`, so the failure message
+reads "expected an SSHTunnelError, got …SSHTunnelError". The existing
+`SSHTunnelErrorDescriptionTests` never noticed because they construct the error in
+the test module and only read `localizedDescription` — they never cast a value
+that crossed the module boundary.
+
+Workaround in place: `SSHManagerLifecycleTests.swift` declares
+`private typealias AppTunnelError = SSH_TunnelBuilder.SSHTunnelError` and casts to
+that. Delete the alias once membership is fixed.
+
+**2. `SSHManagerTests.swift` is compiled into the *app* module too.**
+
+So it can't `import Testing` (the app target doesn't link it) — which is why its
+entire contents are commented out. It's dead weight; the live SSHManager tests are
+in `SSHManagerLifecycleTests.swift` instead. Once membership is fixed, that file
+can either be deleted or become the home for these tests.
+
+**Check membership when adding test files.** `GetFileCompilerFlags` is the
+authoritative probe: it errors with "is not a member of a Compile Sources build
+phase" for non-members and returns an empty string for members. Note that
+`project.pbxproj` is *not* a reliable place to look — under synchronized groups a
+correctly-configured file appears nowhere in it.
+
+---
+
 ### ~~Test suite cannot run reliably on the macOS 26/27 beta toolchain~~ — RESOLVED (2026-08-21)
 
 **The test suite runs clean. Run it. Do not skip testing on this basis.**
 
 Re-verified 2026-08-21 on macOS 27.0 (**26A5416b**) / Xcode 27.0 (27A5237l) /
 Swift 6.4: **86 tests in 24 suites, 86 passed**, five consecutive full runs, no
-crashes and no restarts.
+crashes and no restarts. (Now **94 tests in 25 suites** after
+`SSHManagerLifecycleTests` was added the same day — also green, three runs.)
 
 Confirmed the pass is genuine and not a workaround masking the bug:
-- Default **parallel** configuration — no `--serialized`, no test-plan changes.
-- No `.serialized` trait anywhere in the test sources (all 24 `@Suite`
-  declarations are plain names).
+- Default **parallel** configuration — no `--serialized` flag, no test-plan changes.
+- At the time of verification, no `.serialized` trait anywhere in the test sources
+  (all 24 `@Suite` declarations were plain names). **`SSHManagerLifecycleTests` is
+  now `.serialized`**, but for an unrelated and specific reason — it mutates
+  `SSHManager`'s `static var` timeout knobs — and the other 24 suites remain
+  parallel. Do not read that one trait as a revival of the old workaround.
 - Test target still has `SWIFT_APPROACHABLE_CONCURRENCY = YES` — the setting the
   2026-06-15 investigation had considered disabling as a workaround.
 
