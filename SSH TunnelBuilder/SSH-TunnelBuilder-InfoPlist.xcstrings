@@ -1,0 +1,70 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "CFBundleDisplayName" : {
+      "comment" : "Bundle display name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "SSH TunnelBuilder"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "SSH TunnelBuilder"
+          }
+        }
+      }
+    },
+    "CFBundleName" : {
+      "comment" : "Bundle name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "SSH TunnelBuilder"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "SSH TunnelBuilder"
+          }
+        }
+      }
+    },
+    "NSHumanReadableCopyright" : {
+      "comment" : "Copyright (human-readable)",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Copyright © 2020-2026 Comraich ANS. Licensed under the Apache License, Version 2.0."
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Copyright © 2020-2026 Comraich ANS. Lisensiert under Apache License, Version 2.0."
+          }
+        }
+      }
+    },
+    "SSH TunnelBuilder Connections" : {
+      "localizations" : {
+        "nb" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "SSH TunnelBuilder-tilkoblinger"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.3"
+}
