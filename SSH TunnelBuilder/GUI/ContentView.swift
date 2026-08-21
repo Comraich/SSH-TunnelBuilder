@@ -150,7 +150,7 @@ struct ContentView: View {
 
     /// The title can't come from the `presenting:` closure (only the actions and
     /// message can), so it's derived from the pending request directly.
-    private var hostKeyAlertTitle: String {
+    private var hostKeyAlertTitle: LocalizedStringKey {
         connectionStore.hostKeyRequest?.isMismatch == true ? "Host Key Changed" : "Unknown Host"
     }
 

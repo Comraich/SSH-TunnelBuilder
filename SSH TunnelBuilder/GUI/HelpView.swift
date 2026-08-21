@@ -42,7 +42,9 @@ enum HelpTopic: String, CaseIterable, Identifiable, Hashable {
 
     var id: String { rawValue }
 
-    var title: String {
+    /// `LocalizedStringKey`, not `String`, so the sidebar and detail-pane
+    /// headings are extracted into the String Catalog and localize.
+    var title: LocalizedStringKey {
         switch self {
         case .quickStart: "Quick Start"
         case .connections: "Connections"
@@ -199,9 +201,9 @@ struct HelpDetailView: View {
 // MARK: - Layout helpers
 
 private struct HelpHeader: View {
-    let title: String
+    let title: LocalizedStringKey
 
-    init(_ title: String) { self.title = title }
+    init(_ title: LocalizedStringKey) { self.title = title }
 
     var body: some View {
         Text(title)
