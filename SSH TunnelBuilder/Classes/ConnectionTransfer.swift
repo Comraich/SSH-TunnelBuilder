@@ -52,6 +52,9 @@ enum ConnectionTransferError: LocalizedError {
     case unrecognizedFormat
     case unsupportedVersion(Int)
     case malformed(String)
+    /// No longer thrown: salt generation moved from `SecRandomCopyBytes` (which
+    /// could report failure) to CryptoKit's `SymmetricKey(size:)`, which can't.
+    /// Kept so decoding older diagnostics and the error-equality tests still work.
     case randomGenerationFailed
     case keyDerivationFailed
 
@@ -113,12 +116,34 @@ enum ConnectionTransfer {
     private static let iterationsRange = 100_000...10_000_000
     private static let saltLengthRange = 8...64
 
+    // MARK: Off-actor entry points
+    //
+    // `encrypt`/`decrypt` below are pure and synchronous, which makes them easy to
+    // test but dangerous to call straight from the main actor: `deriveKey` runs
+    // PBKDF2 at 600k iterations, far longer than a frame. These `@concurrent`
+    // wrappers are the entry points UI code should use. `@concurrent` forces the
+    // hop to the concurrent thread pool — a plain `nonisolated async` function
+    // would stay on the caller's actor under this target's approachable-concurrency
+    // settings, which is exactly the trap it looks like it avoids.
+
+    /// `encrypt(_:passphrase:)`, executed off the caller's actor.
+    @concurrent
+    static func encryptInBackground(_ payload: ExportPayload, passphrase: String) async throws -> Data {
+        try encrypt(payload, passphrase: passphrase)
+    }
+
+    /// `decrypt(_:passphrase:)`, executed off the caller's actor.
+    @concurrent
+    static func decryptInBackground(_ data: Data, passphrase: String) async throws -> ExportPayload {
+        try decrypt(data, passphrase: passphrase)
+    }
+
     /// Encrypts `payload` under `passphrase`, returning the bytes to write to disk.
     static func encrypt(_ payload: ExportPayload, passphrase: String) throws -> Data {
         guard !passphrase.isEmpty else { throw ConnectionTransferError.emptyPassphrase }
 
         let plaintext = try JSONEncoder().encode(payload)
-        let salt = try randomBytes(count: saltByteCount)
+        let salt = randomBytes(count: saltByteCount)
         let key = try deriveKey(passphrase: passphrase, salt: salt, iterations: pbkdf2Iterations)
 
         let sealed = try AES.GCM.seal(plaintext, using: key)
@@ -195,13 +220,11 @@ enum ConnectionTransfer {
 
     // MARK: - Crypto helpers
 
-    private static func randomBytes(count: Int) throws -> Data {
-        var bytes = Data(count: count)
-        let status = bytes.withUnsafeMutableBytes { buffer in
-            SecRandomCopyBytes(kSecRandomDefault, count, buffer.baseAddress!)
-        }
-        guard status == errSecSuccess else { throw ConnectionTransferError.randomGenerationFailed }
-        return bytes
+    private static func randomBytes(count: Int) -> Data {
+        // CryptoKit's `SymmetricKey(size:)` is seeded from the system CSPRNG, so it
+        // is a drop-in for `SecRandomCopyBytes` that can't fail and needs no
+        // force-unwrapped `baseAddress`. Key sizes are in bits.
+        SymmetricKey(size: .init(bitCount: count * 8)).withUnsafeBytes { Data($0) }
     }
 
     /// Derives a 256-bit key from `passphrase` + `salt` via PBKDF2-HMAC-SHA256.

@@ -268,6 +268,16 @@ private enum AESCBC {
 
 // MARK: - ASN.1 Minimal Parser
 
+private extension UInt8 {
+    /// `0x`-prefixed, zero-padded hex for an ASN.1 tag byte, e.g. `0x04`.
+    /// Replaces `String(format: "0x%02X", tag)`: no `CVarArg` boxing, and the
+    /// zero-padding is visible in Swift rather than encoded in a format string.
+    var asn1TagDescription: String {
+        let digits = String(self, radix: 16, uppercase: true)
+        return digits.count == 1 ? "0x0\(digits)" : "0x\(digits)"
+    }
+}
+
 private struct ASN1Parser {
     /// Maximum number of bytes for ASN.1 length encoding (supports lengths up to 4GB)
     private static let maxLengthBytes = 4
@@ -322,7 +332,7 @@ private struct ASN1Parser {
     mutating func readSequence() throws -> ASN1Parser {
         let tag = try readByte()
         guard tag == 0x30 else {
-            throw PEMDecryptorError.asn1ParseError("Expected SEQUENCE (tag 0x30), got \(String(format:"0x%02X",tag))")
+            throw PEMDecryptorError.asn1ParseError("Expected SEQUENCE (tag 0x30), got \(tag.asn1TagDescription)")
         }
         let length = try readLength()
         guard offset + length <= data.count else {
@@ -336,7 +346,7 @@ private struct ASN1Parser {
     mutating func readOctetString() throws -> Data {
         let tag = try readByte()
         guard tag == 0x04 else {
-            throw PEMDecryptorError.asn1ParseError("Expected OCTET STRING (tag 0x04), got \(String(format:"0x%02X",tag))")
+            throw PEMDecryptorError.asn1ParseError("Expected OCTET STRING (tag 0x04), got \(tag.asn1TagDescription)")
         }
         let length = try readLength()
         guard offset + length <= data.count else {
@@ -350,7 +360,7 @@ private struct ASN1Parser {
     mutating func readOID() throws -> String {
         let tag = try readByte()
         guard tag == 0x06 else {
-            throw PEMDecryptorError.asn1ParseError("Expected OBJECT IDENTIFIER (tag 0x06), got \(String(format:"0x%02X",tag))")
+            throw PEMDecryptorError.asn1ParseError("Expected OBJECT IDENTIFIER (tag 0x06), got \(tag.asn1TagDescription)")
         }
         let length = try readLength()
         guard offset + length <= data.count else {
@@ -364,7 +374,7 @@ private struct ASN1Parser {
     mutating func readInteger() throws -> Int {
         let tag = try readByte()
         guard tag == 0x02 else {
-            throw PEMDecryptorError.asn1ParseError("Expected INTEGER (tag 0x02), got \(String(format:"0x%02X",tag))")
+            throw PEMDecryptorError.asn1ParseError("Expected INTEGER (tag 0x02), got \(tag.asn1TagDescription)")
         }
         let length = try readLength()
         guard offset + length <= data.count else {

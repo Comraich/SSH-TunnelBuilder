@@ -154,3 +154,82 @@ While here, consider a quick sweep for other unused symbols (e.g.
 
 **Risk:** Trivial. Confirm zero references before deleting (`XcodeGrep`/`Grep`),
 then build to verify.
+
+---
+
+# Round 2 (2026-08-21)
+
+A second survey after the round-1 tasks all merged. Same constraint applies:
+deployment target is **macOS 14.0**, so `Synchronization.Mutex` (15),
+`Observations` (26), CryptoKit's `RawSpan` overloads (26), `alert(_:item:)` (27),
+and the new `Document` protocol (26) are all still out of reach.
+
+| # | Task | Branch | Impact | Status |
+|---|------|--------|--------|--------|
+| 9 | `Task.detached` → `@concurrent` | `refactor/swift-api-modernization-round2` | High | Done |
+| 10 | `NSLock` → `OSAllocatedUnfairLock<State>` | `refactor/swift-api-modernization-round2` | High | Done |
+| 11 | Legacy `Alert` → modern alert modifier | `refactor/swift-api-modernization-round2` | Medium | Done |
+| 12 | Remove last `NSError` construction | `refactor/swift-api-modernization-round2` | Low | Done |
+| 13 | `SecRandomCopyBytes` / `String(format:)` cleanup | `refactor/swift-api-modernization-round2` | Low | Done |
+| 14 | **Replace hand-rolled ASN.1 parser with SwiftASN1** | _(not started)_ | High | **Next** |
+| 15 | `CKSyncEngine` for CloudKit sync | _(not started)_ | High | Deferred |
+| 16 | `_CryptoExtras` to retire CommonCrypto | _(not started)_ | Medium | Not recommended yet |
+
+Tasks 9–13 shipped together as one branch — all mechanical, all compile-verified.
+
+---
+
+## 14. Replace the hand-rolled ASN.1 parser with SwiftASN1  ← **do this next**
+**Impact:** High · **Risk:** Medium (crypto parsing path, needs test coverage)
+
+`PEMDecryptor.swift` carries ~160 lines of hand-written DER parsing
+(`private struct ASN1Parser`, plus `parseOID`). This is the code whose
+`Data`-slice indexing bug caused the EC-key parsing crash root-caused on
+2026-06-15 — the class of bug a maintained parser doesn't have.
+
+**`swift-asn1` is already in the resolved package graph** (transitively, via
+swift-crypto ← NIOSSH), so no new dependency is needed. It is *not* linked to
+the app target yet — verified: `import SwiftASN1` currently fails with
+"no such module". Step one is adding the `SwiftASN1` product to the
+**SSH TunnelBuilder** target's frameworks.
+
+Scope:
+- Add the `SwiftASN1` product to the app target.
+- Replace `ASN1Parser` with `DER.parse` / `ASN1Node` traversal in:
+  - `parsePKCS8PrivateKey` / the PBES2 + PBKDF2 parameter decoding
+  - `parseSEC1ECPrivateKey`
+  - `parseOID` → SwiftASN1's `ASN1ObjectIdentifier`
+- Delete `ASN1Parser`, `maxLengthBytes`, and the `asn1TagDescription` helper
+  added in task 13 (its only callers are the parser's own error paths).
+- Keep `PEMDecryptorError.asn1ParseError` as the app-facing error, mapping
+  SwiftASN1's thrown errors into it so UI strings don't change.
+
+**Before starting:** the test suite still can't run reliably on this toolchain
+(see the Swift Testing runner crash in `CLAUDE.md`). Since this task rewrites a
+crypto parsing path, validate with `RunCodeSnippet` against the full key matrix
+— OpenSSH Ed25519/ECDSA, PKCS#8 EC plain + encrypted, SEC1 P-256/384/521 —
+exactly as the 2026-06-15 fix was validated.
+
+---
+
+## 15. `CKSyncEngine` for CloudKit sync
+**Impact:** High · **Risk:** High — deferred, not scheduled
+
+`CKSyncEngine` is available at macOS 14 (verified: compiles unguarded at this
+target). It would subsume the manual `recordZoneChanges` paging
+(`ConnectionStore.swift`), the save loop, the loading watchdog, and the
+`NSError`-userInfo CKError triage. Real win, but it's a rewrite of the
+persistence layer with migration risk — worth doing deliberately, not as part of
+an API-modernization sweep.
+
+## 16. `_CryptoExtras` to retire CommonCrypto
+**Impact:** Medium · **Status:** not recommended yet
+
+`swift-crypto`'s `_CryptoExtras` has `KDF.Insecure.PBKDF2` and
+`AES._CBC`/`AES._CTR`, which would remove `import CommonCrypto` from
+`ConnectionTransfer`, `PEMDecryptor`, and `OpenSSHKeyDecryptor`. Also already in
+the resolved graph and also not linked. **But** the module name is underscored
+and its API is explicitly not source-stable. CryptoKit itself still has no
+PBKDF2 (checked: only HKDF and the HPKE KDFs), so `CommonCrypto` remains the
+only non-experimental option here. Revisit if/when swift-crypto promotes these
+out of `_CryptoExtras`.

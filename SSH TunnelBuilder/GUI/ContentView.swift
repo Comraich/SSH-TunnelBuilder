@@ -87,32 +87,28 @@ struct ContentView: View {
         .sheet(isPresented: $showingErrorSheet) {
             ErrorSheetView(message: errorMessage, isPresented: $showingErrorSheet)
         }
-        .alert(item: $connectionStore.hostKeyRequest) { request in
+        .alert(
+            hostKeyAlertTitle,
+            isPresented: hostKeyAlertPresented,
+            presenting: connectionStore.hostKeyRequest
+        ) { request in
+            // `request` is the value SwiftUI snapshotted when it presented, so
+            // these actions stay correct even once the store's optional is cleared.
             if request.isMismatch {
                 // Re-trust prompt: the previously pinned key no longer matches.
-                // Use a destructive primary button so the user has to deliberately
-                // overwrite the pinned key — this path could otherwise mask a MITM.
-                return Alert(
-                    title: Text("Host Key Changed"),
-                    message: Text("The host key for '\(request.hostname)' has changed since it was last trusted.\n\nNew fingerprint:\n\(request.fingerprint)\n\nThis can happen if the server was reinstalled or rekeyed — or it could indicate a man-in-the-middle attack. Only trust the new key if you are sure it is legitimate."),
-                    primaryButton: .destructive(Text("Trust New Key")) {
-                        request.completion(true)
-                    },
-                    secondaryButton: .cancel(Text("Cancel")) {
-                        request.completion(false)
-                    }
-                )
+                // Destructive role so the user has to deliberately overwrite the
+                // pinned key — this path could otherwise mask a MITM.
+                Button("Trust New Key", role: .destructive) { request.completion(true) }
+            } else {
+                Button("Trust") { request.completion(true) }
             }
-            return Alert(
-                title: Text("Unknown Host"),
-                message: Text("The host '\(request.hostname)' is unknown.\n\nFingerprint:\n\(request.fingerprint)\n\nDo you want to trust this host?"),
-                primaryButton: .default(Text("Trust")) {
-                    request.completion(true)
-                },
-                secondaryButton: .cancel(Text("Cancel")) {
-                    request.completion(false)
-                }
-            )
+            Button("Cancel", role: .cancel) { request.completion(false) }
+        } message: { request in
+            if request.isMismatch {
+                Text("The host key for '\(request.hostname)' has changed since it was last trusted.\n\nNew fingerprint:\n\(request.fingerprint)\n\nThis can happen if the server was reinstalled or rekeyed — or it could indicate a man-in-the-middle attack. Only trust the new key if you are sure it is legitimate.")
+            } else {
+                Text("The host '\(request.hostname)' is unknown.\n\nFingerprint:\n\(request.fingerprint)\n\nDo you want to trust this host?")
+            }
         }
         // Each transfer presentation lives on its own hidden host view. macOS
         // SwiftUI only reliably drives one presentation per view, so stacking the
@@ -148,6 +144,31 @@ struct ContentView: View {
                     handleImportSelection(result)
                 }
         }
+    }
+
+    // MARK: - Host-key prompt plumbing
+
+    /// The title can't come from the `presenting:` closure (only the actions and
+    /// message can), so it's derived from the pending request directly.
+    private var hostKeyAlertTitle: String {
+        connectionStore.hostKeyRequest?.isMismatch == true ? "Host Key Changed" : "Unknown Host"
+    }
+
+    /// Bridges the store's optional request to the `isPresented` binding the
+    /// modern alert modifier takes.
+    private var hostKeyAlertPresented: Binding<Bool> {
+        Binding(
+            get: { connectionStore.hostKeyRequest != nil },
+            set: { presented in
+                // Deliberately only clears presentation state — it must not answer
+                // the request. An alert can only be dismissed by one of its own
+                // buttons, and both of those answer it; answering `false` here too
+                // would race them, and since `ConnectionStore`'s decision handler
+                // latches the first answer it received, losing that race would
+                // turn a "Trust" tap into a rejection.
+                if !presented { connectionStore.hostKeyRequest = nil }
+            }
+        )
     }
 
     // MARK: - Transfer flow plumbing
@@ -215,9 +236,7 @@ struct ContentView: View {
         transferFlow = .idle // dismiss the passphrase sheet before presenting the save panel
         Task {
             do {
-                let data = try await Task.detached {
-                    try ConnectionTransfer.encrypt(payload, passphrase: passphrase)
-                }.value
+                let data = try await ConnectionTransfer.encryptInBackground(payload, passphrase: passphrase)
                 exportDocument = EncryptedExportDocument(data: data)
                 isExportingFile = true
             } catch {
@@ -248,9 +267,7 @@ struct ContentView: View {
         transferFlow = .idle // dismiss the passphrase sheet
         Task {
             do {
-                let payload = try await Task.detached {
-                    try ConnectionTransfer.decrypt(data, passphrase: passphrase)
-                }.value
+                let payload = try await ConnectionTransfer.decryptInBackground(data, passphrase: passphrase)
                 connectionStore.importConnections(from: payload)
             } catch {
                 connectionStore.errorAlert = ErrorAlert(message: errorText(error))

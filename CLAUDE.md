@@ -241,6 +241,88 @@ All eight tasks are merged into `Development`:
 
 ---
 
+## Swift API Modernization — Round 2 (2026-08-21)
+
+Branch `refactor/swift-api-modernization-round2` (off `Development`, which now
+includes the macOS 14 deployment-target change from PR #90). Tasks 9–13 in
+[`MODERNIZATION_ROADMAP.md`](MODERNIZATION_ROADMAP.md), shipped as one branch.
+
+- [x] **9. `Task.detached` → `@concurrent`** (Swift 6.2)
+  - `ConnectionTransfer` gained `encryptInBackground`/`decryptInBackground`
+    `@concurrent` wrappers around the existing pure sync `encrypt`/`decrypt`
+    (kept as-is so the tests still call them synchronously).
+  - `SSHManager.makeAuthDelegate` is now a `@concurrent` method replacing the
+    `Task.detached { … }.value` that built `FlexibleAuthDelegate`.
+  - **Why `@concurrent` and not plain `nonisolated async`:** with
+    `SWIFT_APPROACHABLE_CONCURRENCY = YES`, `nonisolated(nonsending)` is the
+    default — a plain `nonisolated async func` *stays on the caller's actor*, so
+    a main-actor caller would run PBKDF2/bcrypt on the main thread. `@concurrent`
+    is what actually forces the hop.
+
+- [x] **10. `NSLock` → `OSAllocatedUnfairLock<State>`** (`SSHManager.swift`)
+  - All seven mutable fields moved into a `private struct State` owned by the
+    lock, so there is no longer any way to *spell* an unguarded access.
+  - **This closed a real race**, not just a style change: `sessionReadyPromise`
+    and `sessionReadyCompleted` were previously plain stored properties that the
+    timeout/shutdown paths guarded but the connect path and channel initializer
+    touched unguarded (the 2026-02-05 "fixed" race was only half-fixed).
+  - Promise completion now always follows the same shape: claim-and-clear inside
+    the critical section, `fail()` outside it (NIO hops completion to the
+    promise's own event loop, so holding the lock across it is pointless).
+
+- [x] **11. Legacy `Alert` → `alert(_:isPresented:presenting:actions:message:)`**
+  - `ContentView.swift` host-key prompt. The old `.alert(item:)` + `Alert(...)`
+    API has been deprecated since macOS 12.
+  - **Ordering hazard worth remembering:** the derived `isPresented` binding
+    setter must *only* clear `hostKeyRequest`, never answer it. `ConnectionStore`'s
+    `decide` closure latches the first answer (`hasResumed`), so a setter that
+    also answered `false` could race a "Trust" tap and silently turn it into a
+    rejection. The buttons answer using the `request` value SwiftUI passes to the
+    `presenting:` closures, which stays valid after the store's optional clears.
+
+- [x] **12. Last `NSError` removed** — `ConnectionStore.UnconfiguredDatabase` now
+  throws `SSHTunnelError.internalError`.
+
+- [x] **13. `SecRandomCopyBytes` + `String(format:)` cleanup**
+  - `ConnectionTransfer.randomBytes` uses `SymmetricKey(size:)` (system CSPRNG),
+    so it no longer throws or force-unwraps `baseAddress`.
+    `ConnectionTransferError.randomGenerationFailed` is now unreachable but kept
+    — the error-equality test still references it.
+  - `PEMDecryptor`'s four `String(format:"0x%02X")` sites use a new
+    `UInt8.asn1TagDescription` helper. Verified byte-for-byte identical output
+    across `0x00…0xFF` edge values.
+
+**Verification:** both targets build clean with **zero warnings**
+(`buildForTesting`). Behaviour spot-checked via `RunCodeSnippet`: export/import
+round-trips through the new `@concurrent` entry points, salts differ between
+encryptions, wrong passphrase still yields `wrongPassphraseOrCorruptFile`, and
+the hex helper matches the old format string.
+
+**Test suite: 86/86 passing** (verified after the fact on 2026-08-21 — the
+Swift Testing runner bug that had blocked it is fixed, see Known Issues). The
+relevant coverage for this round:
+- `Connection Transfer Tests` (7) + `Connection Transfer Multi Tests` (1) —
+  exercise the new `SymmetricKey(size:)` salt path via round-trip and
+  wrong-passphrase assertions.
+- `Host Key Trust Flow Tests` (4) + `Host Key Request Tests` (3) — cover the
+  trust/mismatch/cancel/supersede flow the rewritten alert drives, including the
+  first-answer-latching behaviour the alert's binding setter has to respect.
+- `SSHTunnelError Description Coverage` (2) — `everyCaseHasMessage` covers the
+  `internalError` case now used by `UnconfiguredDatabase`.
+
+**Still untested:** the `SSHManager` lock refactor. Nothing in the suite drives
+`connect()`/`shutdown()` (the pre-existing `SSHManager` connect/disconnect
+coverage gap listed under Test Coverage Gaps above), so that change remains
+compile- and reasoning-verified only. Worth closing that gap given the refactor
+touched the promise-completion race.
+
+**Next up: task 14 — replace `PEMDecryptor`'s hand-rolled ASN.1 parser with
+`SwiftASN1`.** It's already in the resolved package graph (via swift-crypto ←
+NIOSSH) but not linked to the app target, so step one is adding the product.
+See `MODERNIZATION_ROADMAP.md` §14 for scope and the validation matrix.
+
+---
+
 ## Swift 6 Language Mode Migration (2026-06-15)
 
 Branch `refactor/swift6-language-mode`. The app target was still on the Swift 5
@@ -361,7 +443,27 @@ compile-validated but not behaviourally tested on this toolchain.
     the selected `@Observable` instance's `connectionInfo` when selection changes
     (especially right after an edit, where `selectedConnection = tempConnection`).
 
-### Test suite cannot run reliably on the macOS 26/27 beta toolchain (2026-06-15)
+### ~~Test suite cannot run reliably on the macOS 26/27 beta toolchain~~ — RESOLVED (2026-08-21)
+
+**The test suite runs clean. Run it. Do not skip testing on this basis.**
+
+Re-verified 2026-08-21 on macOS 27.0 (**26A5416b**) / Xcode 27.0 (27A5237l) /
+Swift 6.4: **86 tests in 24 suites, 86 passed**, five consecutive full runs, no
+crashes and no restarts.
+
+Confirmed the pass is genuine and not a workaround masking the bug:
+- Default **parallel** configuration — no `--serialized`, no test-plan changes.
+- No `.serialized` trait anywhere in the test sources (all 24 `@Suite`
+  declarations are plain names).
+- Test target still has `SWIFT_APPROACHABLE_CONCURRENCY = YES` — the setting the
+  2026-06-15 investigation had considered disabling as a workaround.
+
+So the `Runner._applyScopingTraits(for:testCase:_:)` crash was indeed a Swift
+Testing **runtime** bug in the older beta toolchain (macOS 27.0 26A5353q), fixed
+upstream by the OS/Xcode update. No code or project change was needed.
+
+<details>
+<summary>Original 2026-06-15 report (kept for history)</summary>
 
 **Symptom:** Running the test bundle crashes the test host in Swift Testing's
 `Runner._applyScopingTraits(for:testCase:_:)`. With the default (parallel)
@@ -369,21 +471,24 @@ configuration *no* tests run at all — every suite reports
 `Crash: ... Runner._applyScopingTraits` before any test body executes, and the
 host hits "Exceeded max restart count". No `.ips` crash report is produced.
 
-**Diagnosis:** This is a Swift Testing **runtime** bug in the current
-Xcode-beta / macOS 27.0 (26A5353q) toolchain, not a defect in the test code or
-target configuration:
+**Diagnosis:** A Swift Testing runtime bug in the then-current Xcode-beta /
+macOS 27.0 (26A5353q) toolchain, not a defect in the test code or target config:
 - The test code is plain, idiomatic Swift Testing (no custom/scoping traits).
 - The test target settings are standard (`SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated`, Swift 6, hosted by the app).
-- It reproduces on a clean `Development` checkout, independent of the `@Observable`/CloudKit modernization work.
-- Behaviour scales with concurrency: 1–6 tests run fine in isolation; the full 30-test run crashes. It is also non-deterministic — the crashing test moves between runs.
+- It reproduced on a clean `Development` checkout, independent of the `@Observable`/CloudKit modernization work.
+- Behaviour scaled with concurrency: 1–6 tests ran fine in isolation; the full 30-test run crashed. Non-deterministic — the crashing test moved between runs.
 
 **Attempted workarounds (not adopted):** Serializing every suite (`.serialized`
 roots) plus disabling `SWIFT_APPROACHABLE_CONCURRENCY` on the test target raised
 the pass count from 0 to ~20–28/30, but runs still aborted non-deterministically
-partway through. We chose **not** to ship a flaky partial workaround.
+partway through. We chose not to ship a flaky partial workaround — which turned
+out to be the right call, since the fix arrived upstream.
 
-**Action:** Revisit when the Xcode/macOS toolchain updates (re-run the full
-suite; if it's green by default, this entry can be removed).
+</details>
+
+> **Note on the suite's size:** the 2026-06-15 entry refers to a "30-test run";
+> the suite is now **86 tests in 24 suites**. Any future report should quote the
+> current count rather than trusting the older figure.
 
 > **EC-key-parsing crash — root-caused and fixed (2026-06-15).** The `AuthDelegate`
 > EC crashes were a genuine parser bug, *not* the runner instability:
