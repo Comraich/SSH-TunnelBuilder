@@ -9,6 +9,12 @@
             "value" : ""
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : ""
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -25,6 +31,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "“Connection refused” when using the tunnel"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "« Connexion refusée » lors de l’utilisation du tunnel"
           }
         },
         "nb" : {
@@ -45,6 +57,12 @@
             "value" : "“Wrong passphrase” or can't decrypt key"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "« Phrase secrète incorrecte » ou impossible de déchiffrer la clé"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -59,6 +77,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**Add a connection** — click **+** in the sidebar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Ajouter une connexion** — cliquez sur **+** dans la barre latérale."
           }
         },
         "nb" : {
@@ -77,6 +101,12 @@
             "value" : "**Authentication** — password, or a private key (optional passphrase)."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Authentification** — mot de passe ou clé privée (phrase secrète facultative)."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -91,6 +121,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**Choose authentication** — password, or a private key (with passphrase if required)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Choisir l’authentification** — mot de passe ou clé privée (avec phrase secrète si nécessaire)."
           }
         },
         "nb" : {
@@ -109,6 +145,12 @@
             "value" : "**Configure the SSH server** — host, port (usually 22), and username."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Configurer le serveur SSH** — hôte, port (généralement 22) et nom d’utilisateur."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -123,6 +165,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**Connect** — select the connection and press ⌘K, or use the Connection menu."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Se connecter** — sélectionnez la connexion et appuyez sur ⌘K, ou utilisez le menu Connexion."
           }
         },
         "nb" : {
@@ -141,6 +189,12 @@
             "value" : "**Credentials in Keychain** — passwords and private keys are stored in the macOS Keychain and only accessed when you connect or export. Touch ID may prompt to authorize access."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Identifiants dans le trousseau** — les mots de passe et les clés privées sont stockés dans le trousseau macOS et ne sont lus que lorsque vous vous connectez ou effectuez une exportation. Touch ID peut vous demander d’autoriser l’accès."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -155,6 +209,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**Don't lose the passphrase** — the file is unreadable without it. A wrong passphrase fails as a GCM tag mismatch and surfaces a friendly error."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Ne perdez pas la phrase secrète** — le fichier est illisible sans elle. Une phrase secrète incorrecte se traduit par un tag GCM non concordant et affiche un message d’erreur explicite."
           }
         },
         "nb" : {
@@ -173,6 +233,12 @@
             "value" : "**File ▸ Export ▸ Export All…** or **Export Selected…** — write a backup."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Fichier ▸ Exporter ▸ Tout exporter…** ou **Exporter la sélection…** — enregistrer une sauvegarde."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -187,6 +253,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**File ▸ Import Connections…** — read one back."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Fichier ▸ Importer des connexions…** — relire une sauvegarde."
           }
         },
         "nb" : {
@@ -205,6 +277,12 @@
             "value" : "**Host / Port / Username** — the SSH server you're connecting to."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Hôte / Port / Nom d’utilisateur** — le serveur SSH auquel vous vous connectez."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -219,6 +297,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**Host keys pinned on first use** — the app prompts the first time it sees a server's host key. After you trust it, the key is remembered. If the key later changes, the connection fails until you confirm again (this protects against man-in-the-middle attacks)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Clés d’hôte épinglées à la première utilisation** — l’app vous demande confirmation la première fois qu’elle voit la clé d’hôte d’un serveur. Une fois que vous l’avez approuvée, la clé est mémorisée. Si elle change par la suite, la connexion échoue jusqu’à ce que vous confirmiez à nouveau (cela protège contre les attaques de type « man-in-the-middle »)."
           }
         },
         "nb" : {
@@ -237,6 +321,12 @@
             "value" : "**iCloud sync (optional)** — non-secret connection metadata (name, host, port, etc.) syncs to your iCloud account if iCloud Drive is enabled. Secrets never leave the Keychain."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Synchronisation iCloud (facultative)** — les métadonnées de connexion non secrètes (nom, hôte, port, etc.) sont synchronisées avec votre compte iCloud si iCloud Drive est activé. Les données secrètes ne quittent jamais le trousseau."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -251,6 +341,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**Local port** — the port on your Mac that the tunnel listens on."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Port local** — le port de votre Mac sur lequel le tunnel écoute."
           }
         },
         "nb" : {
@@ -269,6 +365,12 @@
             "value" : "**Name** — display name shown in the sidebar."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Nom** — nom affiché dans la barre latérale."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -283,6 +385,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**No analytics, no telemetry** — the app makes no external network calls beyond the SSH connections you configure."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Aucune analyse, aucune télémétrie** — l’app n’effectue aucune requête réseau externe en dehors des connexions SSH que vous configurez."
           }
         },
         "nb" : {
@@ -301,6 +409,12 @@
             "value" : "**OpenSSH** (`openssh-key-v1`) — plain and encrypted (bcrypt + AES-CTR/CBC/GCM)."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**OpenSSH** (`openssh-key-v1`) — en clair et chiffré (bcrypt + AES-CTR/CBC/GCM)."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -315,6 +429,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**PKCS#8** (`BEGIN PRIVATE KEY`) — plain, and encrypted with PBES2 / PBKDF2-SHA256 / AES-256-CBC."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**PKCS#8** (`BEGIN PRIVATE KEY`) — en clair et chiffré avec PBES2 / PBKDF2-SHA256 / AES-256-CBC."
           }
         },
         "nb" : {
@@ -333,6 +453,12 @@
             "value" : "**Remote host / Remote port** — the destination as seen from the SSH server (e.g. `localhost:5432` for a database running on the remote machine)."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Hôte distant / Port distant** — la destination telle que vue depuis le serveur SSH (p. ex. `localhost:5432` pour une base de données exécutée sur la machine distante)."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -347,6 +473,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**SEC1** (`BEGIN EC PRIVATE KEY`) — plain only."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**SEC1** (`BEGIN EC PRIVATE KEY`) — en clair uniquement."
           }
         },
         "nb" : {
@@ -365,6 +497,12 @@
             "value" : "**Set forwarding** — a **local port** on your Mac, plus the **remote host and port** the tunnel should reach via the SSH server."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Définir la redirection** — un **port local** sur votre Mac, ainsi que l’**hôte et le port distants** que le tunnel doit atteindre via le serveur SSH."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -379,6 +517,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**Swift ASN.1** — ASN.1 parsing for PKCS#8 / SEC1 keys. © Apple Inc."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Swift ASN.1** — analyse ASN.1 des clés PKCS#8 / SEC1. © Apple Inc."
           }
         },
         "nb" : {
@@ -397,6 +541,12 @@
             "value" : "**Swift Atomics**, **Swift Collections**, **Swift System** — supporting libraries. © Apple Inc."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Swift Atomics**, **Swift Collections**, **Swift System** — bibliothèques de prise en charge. © Apple Inc."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -411,6 +561,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**Swift Crypto** — cryptographic primitives. © Apple Inc."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Swift Crypto** — primitives cryptographiques. © Apple Inc."
           }
         },
         "nb" : {
@@ -429,6 +585,12 @@
             "value" : "**SwiftNIO SSH** — SSH protocol implementation. © Apple Inc."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**SwiftNIO SSH** — implémentation du protocole SSH. © Apple Inc."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -445,6 +607,12 @@
             "value" : "**SwiftNIO** — networking foundation. © Apple Inc."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**SwiftNIO** — socle réseau. © Apple Inc."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -458,6 +626,12 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
+            "value" : "%1$@ — ↑ %2$@  ↓ %3$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
             "value" : "%1$@ — ↑ %2$@  ↓ %3$@"
           }
         },
@@ -477,6 +651,12 @@
             "value" : "%@ is not supported. Convert to ECDSA or Ed25519:"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "%@ n’est pas pris en charge. Convertissez la clé en ECDSA ou Ed25519 :"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -490,6 +670,12 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
+            "value" : "%lld."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
             "value" : "%lld."
           }
         },
@@ -509,6 +695,12 @@
             "value" : "•"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "•"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -523,6 +715,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "• ECDSA P-256/P-384/P-521 (OpenSSH, EC PRIVATE KEY, or PKCS#8)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "• ECDSA P-256/P-384/P-521 (OpenSSH, EC PRIVATE KEY ou PKCS#8)"
           }
         },
         "nb" : {
@@ -541,6 +739,12 @@
             "value" : "• Ed25519 (OpenSSH or PKCS#8 format)"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "• Ed25519 (format OpenSSH ou PKCS#8)"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -555,6 +759,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "• Encrypted OpenSSH keys (aes-ctr/cbc/gcm, with passphrase)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "• Clés OpenSSH chiffrées (aes-ctr/cbc/gcm, avec phrase secrète)"
           }
         },
         "nb" : {
@@ -573,6 +783,12 @@
             "value" : "• PKCS#8 encrypted keys (with passphrase)"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "• Clés PKCS#8 chiffrées (avec phrase secrète)"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -587,6 +803,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "• RSA, DSA keys"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "• Clés RSA, DSA"
           }
         },
         "nb" : {
@@ -605,6 +827,12 @@
             "value" : "<obfuscated>"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "<masqué>"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -619,6 +847,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "About SSH TunnelBuilder"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "À propos de SSH TunnelBuilder"
           }
         },
         "nb" : {
@@ -639,6 +873,12 @@
             "value" : "Acknowledgments"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Remerciements"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -653,6 +893,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "An export is a **full backup**: passwords and private keys are read from the Keychain and included in the encrypted blob. Connection metadata travels with them."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Une exportation est une **sauvegarde complète** : les mots de passe et les clés privées sont lus depuis le trousseau et inclus dans le bloc de données chiffré. Les métadonnées des connexions les accompagnent."
           }
         },
         "nb" : {
@@ -671,6 +917,12 @@
             "value" : "Ask every time"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Demander à chaque fois"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -685,6 +937,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Back up and restore your connections with an encrypted `.sshtunnels` file."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Sauvegardez et restaurez vos connexions avec un fichier `.sshtunnels` chiffré."
           }
         },
         "nb" : {
@@ -703,6 +961,12 @@
             "value" : "Both Macs must be signed in to the same iCloud account with iCloud Drive enabled. Sync can take a moment after the first save."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Les deux Mac doivent être connectés au même compte iCloud, avec iCloud Drive activé. La synchronisation peut prendre un moment après le premier enregistrement."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -719,6 +983,12 @@
             "value" : "Cancel"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Annuler"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -733,6 +1003,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Choose **Help ▸ Report a Problem…** to open the issue tracker."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Choisissez **Aide ▸ Signaler un problème…** pour ouvrir le suivi des problèmes."
           }
         },
         "nb" : {
@@ -768,6 +1044,34 @@
                     "stringUnit" : {
                       "state" : "machine_translated",
                       "value" : "%arg connections"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Choisissez une phrase secrète pour chiffrer %#@connections@. Vous en aurez besoin pour importer le fichier plus tard — elle ne peut pas être récupérée en cas de perte."
+          },
+          "substitutions" : {
+            "connections" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "machine_translated",
+                      "value" : "%arg connexion"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "machine_translated",
+                      "value" : "%arg connexions"
                     }
                   }
                 }
@@ -813,6 +1117,12 @@
             "value" : "Confirm passphrase"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Confirmer la phrase secrète"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -829,6 +1139,12 @@
             "value" : "Confirm the key's format is supported (see **Private Keys**) and re-enter the passphrase carefully. Passphrases are not saved, so they must be entered each time."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Vérifiez que le format de la clé est pris en charge (voir **Clés privées**) et saisissez à nouveau la phrase secrète avec attention. Les phrases secrètes ne sont pas enregistrées, elles doivent donc être saisies à chaque fois."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -843,6 +1159,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Connect"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Se connecter"
           }
         },
         "nb" : {
@@ -863,6 +1185,12 @@
             "value" : "Connected"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Connecté"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -881,6 +1209,12 @@
             "value" : "Connecting..."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Connexion..."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -895,6 +1229,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Connection"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Connexion"
           }
         },
         "nb" : {
@@ -915,6 +1255,12 @@
             "value" : "Connection hangs in “Connecting…”"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "La connexion reste bloquée sur « Connexion… »"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -933,6 +1279,12 @@
             "value" : "Connection Name:"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Nom de la connexion :"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -947,6 +1299,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Connection Status:"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "État de la connexion :"
           }
         },
         "nb" : {
@@ -967,6 +1325,12 @@
             "value" : "Connections"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Connexions"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -985,6 +1349,12 @@
             "value" : "Connections don't appear on another Mac"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Les connexions n’apparaissent pas sur un autre Mac"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -999,6 +1369,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Connections sync between your Macs via iCloud if you're signed in and have iCloud Drive enabled in System Settings. Secrets stay in the Keychain — only the connection metadata syncs."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Les connexions sont synchronisées entre vos Mac via iCloud si vous êtes connecté et si iCloud Drive est activé dans Réglages système. Les données secrètes restent dans le trousseau — seules les métadonnées des connexions sont synchronisées."
           }
         },
         "nb" : {
@@ -1017,6 +1393,12 @@
             "value" : "Convert your key:"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Convertissez votre clé :"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1031,6 +1413,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copy"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Copier"
           }
         },
         "nb" : {
@@ -1049,6 +1437,12 @@
             "value" : "Create"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Créer"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1063,6 +1457,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Create Connection"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Créer une connexion"
           }
         },
         "nb" : {
@@ -1081,6 +1481,12 @@
             "value" : "Create new connection"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Créer une nouvelle connexion"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1095,6 +1501,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Data Received: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Données reçues : %@"
           }
         },
         "nb" : {
@@ -1113,6 +1525,12 @@
             "value" : "Data Sent: %@"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Données envoyées : %@"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1127,6 +1545,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Delete Connection"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Supprimer la connexion"
           }
         },
         "nb" : {
@@ -1145,6 +1569,12 @@
             "value" : "Delete selected connection"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Supprimer la connexion sélectionnée"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1161,6 +1591,12 @@
             "value" : "Detected key: %@"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Clé détectée : %@"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1175,6 +1611,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Disconnect"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Se déconnecter"
           }
         },
         "nb" : {
@@ -1195,6 +1637,12 @@
             "value" : "Disconnected"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Déconnecté"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1213,6 +1661,12 @@
             "value" : "Disconnecting..."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Déconnexion..."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1227,6 +1681,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Dismiss notice"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Fermer l’avis"
           }
         },
         "nb" : {
@@ -1245,6 +1705,12 @@
             "value" : "Don't show again"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Ne plus afficher"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1259,6 +1725,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Each connection bundles an SSH login and a single port-forwarding rule."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Chaque connexion regroupe un accès SSH et une seule règle de redirection de port."
           }
         },
         "nb" : {
@@ -1277,6 +1749,12 @@
             "value" : "Edit Connection…"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Modifier la connexion…"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1291,6 +1769,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Edit selected connection"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Modifier la connexion sélectionnée"
           }
         },
         "nb" : {
@@ -1311,6 +1795,12 @@
             "value" : "Encrypt Export"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Chiffrer l’exportation"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1325,6 +1815,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Encrypted OpenSSH Key"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Clé OpenSSH chiffrée"
           }
         },
         "nb" : {
@@ -1345,6 +1841,12 @@
             "value" : "Encryption"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Chiffrement"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1363,6 +1865,12 @@
             "value" : "Enter connection name"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Nom de la connexion"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1377,6 +1885,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enter Credentials"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Saisissez les identifiants"
           }
         },
         "nb" : {
@@ -1397,6 +1911,12 @@
             "value" : "Enter local port"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Port local"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1413,6 +1933,12 @@
             "value" : "Enter passphrase"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Phrase secrète"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1427,6 +1953,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enter password"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Mot de passe"
           }
         },
         "nb" : {
@@ -1447,6 +1979,12 @@
             "value" : "Enter port number"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Numéro de port"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1463,6 +2001,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enter private key"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Clé privée"
           }
         },
         "nb" : {
@@ -1483,6 +2027,12 @@
             "value" : "Enter remote port"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Port distant"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1499,6 +2049,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enter remote server"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Serveur distant"
           }
         },
         "nb" : {
@@ -1519,6 +2075,12 @@
             "value" : "Enter server address"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Adresse du serveur"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1535,6 +2097,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enter the passphrase this file was encrypted with."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Saisissez la phrase secrète utilisée pour chiffrer ce fichier."
           }
         },
         "nb" : {
@@ -1555,6 +2123,12 @@
             "value" : "Enter user name"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Nom d’utilisateur"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1569,6 +2143,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Error"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Erreur"
           }
         },
         "nb" : {
@@ -1587,6 +2167,12 @@
             "value" : "Export"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Exporter"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1603,6 +2189,12 @@
             "value" : "Export All…"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Tout exporter…"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1617,6 +2209,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Export Selected…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Exporter la sélection…"
           }
         },
         "nb" : {
@@ -1637,6 +2235,12 @@
             "value" : "Failed: %@"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Échec : %@"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1651,6 +2255,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "For 1 hour"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Pendant 1 heure"
           }
         },
         "nb" : {
@@ -1669,6 +2279,12 @@
             "value" : "For 5 minutes"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Pendant 5 minutes"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1683,6 +2299,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "For 15 minutes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Pendant 15 minutes"
           }
         },
         "nb" : {
@@ -1701,6 +2323,12 @@
             "value" : "For 30 minutes"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Pendant 30 minutes"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1717,6 +2345,12 @@
             "value" : "Full license text: <https://www.apache.org/licenses/LICENSE-2.0>"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Texte intégral de la licence : <https://www.apache.org/licenses/LICENSE-2.0>"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1731,6 +2365,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Generate a new key:"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Générez une nouvelle clé :"
           }
         },
         "nb" : {
@@ -1751,6 +2391,12 @@
             "value" : "Host Key Changed"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "La clé d’hôte a changé"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1765,6 +2411,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "How long a single authentication is remembered. Within this window, reconnecting won't ask again."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Durée pendant laquelle une authentification unique reste mémorisée. Pendant cette période, une reconnexion ne la redemandera pas."
           }
         },
         "nb" : {
@@ -1785,6 +2437,12 @@
             "value" : "iCloud sync"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Synchronisation iCloud"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1801,6 +2459,12 @@
             "value" : "If your key is encrypted, you'll be prompted for the passphrase each time you connect. **Passphrases are never saved** — they live only in memory during a connect."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Si votre clé est chiffrée, la phrase secrète vous sera demandée à chaque fois que vous vous connectez. **Les phrases secrètes ne sont jamais enregistrées** — elles n’existent en mémoire que le temps de la connexion."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1815,6 +2479,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Import"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Importer"
           }
         },
         "nb" : {
@@ -1835,6 +2505,12 @@
             "value" : "Import & Export"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Importation et exportation"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1849,6 +2525,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Import Connections…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Importer des connexions…"
           }
         },
         "nb" : {
@@ -1867,6 +2549,12 @@
             "value" : "Imported connections get fresh IDs, so importing never overwrites your existing entries."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Les connexions importées reçoivent de nouveaux ID, de sorte qu’une importation n’écrase jamais vos entrées existantes."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1883,6 +2571,12 @@
             "value" : "Key format help"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Aide sur les formats de clé"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1897,6 +2591,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Loading connections..."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Chargement des connexions..."
           }
         },
         "nb" : {
@@ -1917,6 +2617,12 @@
             "value" : "Local Port:"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Port local :"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1930,6 +2636,12 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
+            "value" : "Navigation"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
             "value" : "Navigation"
           }
         },
@@ -1949,6 +2661,12 @@
             "value" : "New Connection"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Nouvelle connexion"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1963,6 +2681,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No active connections"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Aucune connexion active"
           }
         },
         "nb" : {
@@ -1981,6 +2705,12 @@
             "value" : "No Connection Selected"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Aucune connexion sélectionnée"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1997,6 +2727,12 @@
             "value" : "Not supported:"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Non pris en charge :"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2010,6 +2746,12 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
+            "value" : "OK"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
             "value" : "OK"
           }
         },
@@ -2031,6 +2773,12 @@
             "value" : "On import"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "À l’importation"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2045,6 +2793,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Once connected, point your tools at `localhost:<local-port>` to reach the remote service."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Une fois connecté, dirigez vos outils vers `localhost:<local-port>` pour atteindre le service distant."
           }
         },
         "nb" : {
@@ -2065,6 +2819,12 @@
             "value" : "Open Export"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Ouvrir l’exportation"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2079,6 +2839,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open main window"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Ouvrir la fenêtre principale"
           }
         },
         "nb" : {
@@ -2097,6 +2863,12 @@
             "value" : "OpenSSH Ed25519/ECDSA keys are supported, including passphrase-protected keys (aes-ctr, aes-cbc, aes-gcm). Enter the passphrase below if the key is encrypted."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Les clés OpenSSH Ed25519/ECDSA sont prises en charge, y compris celles protégées par une phrase secrète (aes-ctr, aes-cbc, aes-gcm). Saisissez la phrase secrète ci-dessous si la clé est chiffrée."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2113,6 +2885,12 @@
             "value" : "Passphrase"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Phrase secrète"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2127,6 +2905,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Passphrase (optional)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Phrase secrète (facultative)"
           }
         },
         "nb" : {
@@ -2147,6 +2931,12 @@
             "value" : "Passphrases"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Phrases secrètes"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2163,6 +2953,12 @@
             "value" : "Passphrases don’t match."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Les phrases secrètes ne correspondent pas."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2177,6 +2973,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Password"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Mot de passe"
           }
         },
         "nb" : {
@@ -2197,6 +2999,12 @@
             "value" : "Password:"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Mot de passe :"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2213,6 +3021,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Port Number:"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Numéro de port :"
           }
         },
         "nb" : {
@@ -2233,6 +3047,12 @@
             "value" : "Privacy & Data"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Confidentialité et données"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2247,6 +3067,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Private Key (PEM)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Clé privée (PEM)"
           }
         },
         "nb" : {
@@ -2267,6 +3093,12 @@
             "value" : "Private Key:"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Clé privée :"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2285,6 +3117,12 @@
             "value" : "Private Keys"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Clés privées"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2299,6 +3137,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Provide either a password or a private key (PEM). If you choose not to save, the credentials will be used for this session only. Note: Passphrases are never saved and must be re-entered each time."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Indiquez soit un mot de passe, soit une clé privée (PEM). Si vous choisissez de ne pas les enregistrer, les identifiants ne seront utilisés que pour cette session. À noter que les phrases secrètes ne sont jamais enregistrées et doivent être saisies à nouveau à chaque fois."
           }
         },
         "nb" : {
@@ -2319,6 +3163,12 @@
             "value" : "Quick Start"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Démarrage rapide"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2333,6 +3183,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remember authentication"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Mémoriser l’authentification"
           }
         },
         "nb" : {
@@ -2353,6 +3209,12 @@
             "value" : "Remote Port:"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Port distant :"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2367,6 +3229,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remote Server:"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Serveur distant :"
           }
         },
         "nb" : {
@@ -2385,6 +3253,12 @@
             "value" : "Report a Problem…"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Signaler un problème…"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2399,6 +3273,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Require Touch ID or password to use saved credentials"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Exiger Touch ID ou le mot de passe pour utiliser les identifiants enregistrés"
           }
         },
         "nb" : {
@@ -2417,6 +3297,12 @@
             "value" : "RSA and DSA are **not** supported. DSA was removed from OpenSSH 10.0; RSA support depends on upstream work in NIOSSH that isn't yet available."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RSA et DSA ne sont **pas** pris en charge. DSA a été supprimé d’OpenSSH 10.0, et la prise en charge de RSA dépend de travaux en amont dans NIOSSH qui ne sont pas encore disponibles."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2431,6 +3317,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "RSA Key Detected"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Clé RSA détectée"
           }
         },
         "nb" : {
@@ -2449,6 +3341,12 @@
             "value" : "Save"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Enregistrer"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2463,6 +3361,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Save credentials to this connection"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Enregistrer les identifiants pour cette connexion"
           }
         },
         "nb" : {
@@ -2481,6 +3385,12 @@
             "value" : "Security"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Sécurité"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2497,6 +3407,12 @@
             "value" : "Select a connection from the sidebar or create a new one"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Sélectionnez une connexion dans la barre latérale ou créez-en une nouvelle"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2511,6 +3427,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Select a topic"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Sélectionnez une rubrique"
           }
         },
         "nb" : {
@@ -2531,6 +3453,12 @@
             "value" : "Server Address:"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Adresse du serveur :"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2549,6 +3477,12 @@
             "value" : "Set up a tunnel"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Configurer un tunnel"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2563,6 +3497,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show connections in Spotlight"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Afficher les connexions dans Spotlight"
           }
         },
         "nb" : {
@@ -2581,6 +3521,12 @@
             "value" : "Show Main Window"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Afficher la fenêtre principale"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2594,6 +3540,12 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
+            "value" : "Spotlight"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
             "value" : "Spotlight"
           }
         },
@@ -2613,6 +3565,12 @@
             "value" : "SSH"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "SSH"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2627,6 +3585,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "SSH traffic: data sent and received indicators"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Trafic SSH : indicateurs des données envoyées et reçues"
           }
         },
         "nb" : {
@@ -2645,6 +3609,12 @@
             "value" : "SSH TunnelBuilder Help"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Aide SSH Tunnel Builder"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2659,6 +3629,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "SSH TunnelBuilder is built on the following open-source projects, all distributed under the Apache License, Version 2.0:"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "SSH Tunnel Builder repose sur les projets open source suivants, tous distribués sous licence Apache, version 2.0 :"
           }
         },
         "nb" : {
@@ -2677,6 +3653,12 @@
             "value" : "SSH TunnelBuilder itself is © 2020–2026 Comraich ANS."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "SSH Tunnel Builder est lui-même © 2020–2026 Comraich ANS."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "needs_review",
@@ -2687,7 +3669,15 @@
     },
     "SSH TunnelBuilder" : {
       "comment" : "The name of the app.",
-      "isCommentAutoGenerated" : true
+      "isCommentAutoGenerated" : true,
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "SSH TunnelBuilder"
+          }
+        }
+      }
     },
     "Status" : {
       "comment" : "A heading for the status of a connection.",
@@ -2697,6 +3687,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Status"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "État"
           }
         },
         "nb" : {
@@ -2717,6 +3713,12 @@
             "value" : "Still stuck?"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Le problème persiste ?"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2735,6 +3737,12 @@
             "value" : "Supported file formats"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Formats de fichier pris en charge"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2749,6 +3757,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Supported key algorithms: **Ed25519** and **ECDSA** (P-256 / P-384 / P-521)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Algorithmes de clé pris en charge : **Ed25519** et **ECDSA** (P-256 / P-384 / P-521)."
           }
         },
         "nb" : {
@@ -2767,6 +3781,12 @@
             "value" : "Supported:"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Pris en charge :"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2781,6 +3801,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The host '%1$@' is unknown.\n\nFingerprint:\n%2$@\n\nDo you want to trust this host?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "L’hôte '%@' est inconnu.\n\nEmpreinte :\n%@\n\nVoulez-vous approuver cet hôte ?"
           }
         },
         "nb" : {
@@ -2799,6 +3825,12 @@
             "value" : "The host is reachable, but the SSH handshake or authentication isn't completing. Click **Disconnect**, double-check the username and key/password, and try again."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "L’hôte est joignable, mais la négociation SSH ou l’authentification n’aboutit pas. Cliquez sur **Se déconnecter**, vérifiez attentivement le nom d’utilisateur ainsi que la clé ou le mot de passe, puis réessayez."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2813,6 +3845,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The host key for '%1$@' has changed since it was last trusted.\n\nNew fingerprint:\n%2$@\n\nThis can happen if the server was reinstalled or rekeyed — or it could indicate a man-in-the-middle attack. Only trust the new key if you are sure it is legitimate."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "La clé d’hôte de '%@' a changé depuis la dernière fois qu’elle a été approuvée.\n\nNouvelle empreinte :\n%@\n\nCela peut arriver si le serveur a été réinstallé ou si ses clés ont été renouvelées — mais cela peut aussi indiquer une attaque de type « man-in-the-middle ». N’approuvez la nouvelle clé que si vous avez la certitude qu’elle est légitime."
           }
         },
         "nb" : {
@@ -2831,6 +3869,12 @@
             "value" : "The indicator next to each connection shows: idle, connecting, connected (with live traffic counters), disconnecting, or failed. While connected, the menu bar displays a small SSH indicator with TX/RX dots that blink with traffic."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "L’indicateur situé à côté de chaque connexion affiche : inactif, connexion, connecté (avec des compteurs de trafic en temps réel), déconnexion ou échec. Une fois la connexion établie, la barre des menus affiche un petit indicateur SSH doté de points TX/RX qui clignotent en fonction du trafic."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2845,6 +3889,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The local port may already be in use, or the remote `host:port` can't be reached from the SSH server. Try a different local port, and confirm the remote service is up."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Le port local est peut-être déjà utilisé, ou le `host:port` distant n’est pas joignable depuis le serveur SSH. Essayez un autre port local et vérifiez que le service distant est bien actif."
           }
         },
         "nb" : {
@@ -2863,6 +3913,12 @@
             "value" : "This key appears to be encrypted; enter the passphrase."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Cette clé semble être chiffrée. Saisissez la phrase secrète."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2877,6 +3933,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This OpenSSH key is encrypted with a cipher this app doesn't support (only AES ctr/cbc/gcm; not chacha20-poly1305 or 3des-cbc). Re-encrypt it with `ssh-keygen -p -Z aes256-ctr`, remove the passphrase, or convert it to PKCS#8."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Cette clé OpenSSH est chiffrée avec un algorithme de chiffrement que l’app ne prend pas en charge (uniquement AES ctr/cbc/gcm, et non chacha20-poly1305 ou 3des-cbc). Chiffrez-la à nouveau avec `ssh-keygen -p -Z aes256-ctr`, supprimez la phrase secrète ou convertissez-la en PKCS#8."
           }
         },
         "nb" : {
@@ -2897,6 +3959,12 @@
             "value" : "Troubleshooting"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Dépannage"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2913,6 +3981,12 @@
             "value" : "Trust"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Approuver"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2927,6 +4001,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Trust New Key"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Approuver la nouvelle clé"
           }
         },
         "nb" : {
@@ -2947,6 +4027,12 @@
             "value" : "Unknown Host"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Hôte inconnu"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2965,6 +4051,12 @@
             "value" : "User Name:"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Nom d’utilisateur :"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2981,6 +4073,12 @@
             "value" : "Warning: Key appears unencrypted. Prefer an encrypted PEM (PKCS#8) with a passphrase."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Avertissement : la clé semble ne pas être chiffrée. Préférez un PEM chiffré (PKCS#8) avec une phrase secrète."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2995,6 +4093,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Welcome. SSH Tunnel Builder sets up local **SSH port forwarding** so you can reach services on a remote network through an SSH connection."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Bienvenue. SSH Tunnel Builder met en place une **redirection de port SSH** locale afin que vous puissiez atteindre des services d’un réseau distant via une connexion SSH."
           }
         },
         "nb" : {
@@ -3015,6 +4119,12 @@
             "value" : "What's inside"
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Contenu du fichier"
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -3029,6 +4139,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "When enabled, using a saved password or private key requires a single Touch ID / login-password prompt per session — connecting, editing, and exporting are all covered by the same authentication for the duration of the grace window below. Your secrets stay on this Mac and never leave the Keychain."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Lorsque cette option est activée, l’utilisation d’un mot de passe ou d’une clé privée enregistrés n’exige qu’une seule demande Touch ID ou de mot de passe d’ouverture de session par session — la connexion, la modification et l’exportation sont toutes couvertes par la même authentification pendant toute la durée du délai de grâce ci-dessous. Vos données secrètes restent sur ce Mac et ne quittent jamais le trousseau."
           }
         },
         "nb" : {
@@ -3047,6 +4163,12 @@
             "value" : "When enabled, your connection **names** become searchable from system-wide Spotlight so you can jump straight to a connection. Only the name is indexed — never the hostname, username, port, or any credential."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Lorsque cette option est activée, les **noms** de vos connexions peuvent être recherchés dans Spotlight à l’échelle du système, ce qui vous permet d’accéder directement à une connexion. Seul le nom est indexé — jamais le nom d’hôte, le nom d’utilisateur, le port ni aucun identifiant."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -3063,6 +4185,12 @@
             "value" : "You choose a passphrase. The app derives a key with **PBKDF2-HMAC-SHA256 (600,000 iterations)** over a fresh 16-byte salt, then encrypts the payload with **AES-256-GCM**."
           }
         },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Vous choisissez une phrase secrète. L’app dérive une clé avec **PBKDF2-HMAC-SHA256 (600 000 itérations)** à partir d’un nouveau sel de 16 octets, puis chiffre les données avec **AES-256-GCM**."
+          }
+        },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
@@ -3077,6 +4205,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your encrypted key contains an RSA private key. RSA is not supported and cannot be converted to another algorithm. You need to generate a new Ed25519 or ECDSA key pair."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Votre clé chiffrée contient une clé privée RSA. RSA n’est pas pris en charge et ne peut pas être converti vers un autre algorithme. Vous devez générer une nouvelle paire de clés Ed25519 ou ECDSA."
           }
         },
         "nb" : {
