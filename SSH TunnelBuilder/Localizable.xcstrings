@@ -4565,7 +4565,7 @@
         }
       }
     },
-    "SSH Tunnel Builder Help" : {
+    "SSH TunnelBuilder Help" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -4582,18 +4582,18 @@
         "fr" : {
           "stringUnit" : {
             "state" : "machine_translated",
-            "value" : "Aide SSH Tunnel Builder"
+            "value" : "Aide SSH TunnelBuilder"
           }
         },
         "nb" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "SSH Tunnel Builder-hjelp"
+            "state" : "translated",
+            "value" : "SSH TunnelBuilder-hjelp"
           }
         }
       }
     },
-    "SSH Tunnel Builder is built on the following open-source projects, all distributed under the Apache License, Version 2.0:" : {
+    "SSH TunnelBuilder is built on the following open-source projects, all distributed under the Apache License, Version 2.0:" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -4610,18 +4610,18 @@
         "fr" : {
           "stringUnit" : {
             "state" : "machine_translated",
-            "value" : "SSH Tunnel Builder repose sur les projets open source suivants, tous distribués sous licence Apache, version 2.0 :"
+            "value" : "SSH TunnelBuilder repose sur les projets open source suivants, tous distribués sous licence Apache, version 2.0 :"
           }
         },
         "nb" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "SSH Tunnel Builder bygger på følgende åpen kildekode-prosjekter, som alle distribueres under Apache License, Version 2.0:"
+            "state" : "translated",
+            "value" : "SSH TunnelBuilder bygger på følgende åpen kildekode-prosjekter, som alle distribueres under Apache License, Version 2.0:"
           }
         }
       }
     },
-    "SSH Tunnel Builder itself is © 2020–2026 Comraich ANS." : {
+    "SSH TunnelBuilder itself is © 2020–2026 Comraich ANS." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -4638,13 +4638,13 @@
         "fr" : {
           "stringUnit" : {
             "state" : "machine_translated",
-            "value" : "SSH Tunnel Builder est lui-même © 2020–2026 Comraich ANS."
+            "value" : "SSH TunnelBuilder est lui-même © 2020–2026 Comraich ANS."
           }
         },
         "nb" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Selve SSH Tunnel Builder er © 2020–2026 Comraich ANS."
+            "state" : "translated",
+            "value" : "Selve SSH TunnelBuilder er © 2020–2026 Comraich ANS."
           }
         }
       }
@@ -4662,6 +4662,12 @@
         "fr" : {
           "stringUnit" : {
             "state" : "machine_translated",
+            "value" : "SSH TunnelBuilder"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
             "value" : "SSH TunnelBuilder"
           }
         }
@@ -5183,30 +5189,30 @@
         }
       }
     },
-    "Welcome. SSH Tunnel Builder sets up local **SSH port forwarding** so you can reach services on a remote network through an SSH connection." : {
+    "Welcome. SSH TunnelBuilder sets up local **SSH port forwarding** so you can reach services on a remote network through an SSH connection." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "machine_translated",
-            "value" : "Willkommen. SSH Tunnel Builder richtet lokale **SSH-Portweiterleitung** ein, damit du Dienste in einem Remote-Netzwerk über eine SSH-Verbindung erreichen kannst."
+            "value" : "Willkommen. SSH TunnelBuilder richtet lokale **SSH-Portweiterleitung** ein, damit du Dienste in einem Remote-Netzwerk über eine SSH-Verbindung erreichen kannst."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Welcome. SSH Tunnel Builder sets up local **SSH port forwarding** so you can reach services on a remote network through an SSH connection."
+            "value" : "Welcome. SSH TunnelBuilder sets up local **SSH port forwarding** so you can reach services on a remote network through an SSH connection."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "machine_translated",
-            "value" : "Bienvenue. SSH Tunnel Builder met en place une **redirection de port SSH** locale afin que vous puissiez atteindre des services d’un réseau distant via une connexion SSH."
+            "value" : "Bienvenue. SSH TunnelBuilder met en place une **redirection de port SSH** locale afin que vous puissiez atteindre des services d’un réseau distant via une connexion SSH."
           }
         },
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Velkommen. SSH Tunnel Builder setter opp lokal **SSH-portvideresending** slik at du kan nå tjenester på et eksternt nettverk via en SSH-tilkobling."
+            "value" : "Velkommen. SSH TunnelBuilder setter opp lokal **SSH-portvideresending** slik at du kan nå tjenester på et eksternt nettverk via en SSH-tilkobling."
           }
         }
       }
