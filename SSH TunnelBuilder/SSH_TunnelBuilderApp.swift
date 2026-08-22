@@ -38,7 +38,7 @@ struct SSH_TunnelBuilderApp: App {
         // to the Window menu — closing the window leaves the entry there, and
         // the user can reopen it from the menu (or the menu bar item, or the
         // dock icon).
-        Window("SSH Tunnel Builder", id: "main") {
+        Window("SSH TunnelBuilder", id: "main") {
             ContentView(connectionStore: connectionStore)
         }
         .commands {

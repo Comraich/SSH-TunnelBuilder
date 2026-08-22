@@ -203,6 +203,7 @@
 			knownRegions = (
 				en,
 				Base,
+				nb,
 			);
 			mainGroup = F4ABBF4B27DFDF730097436A;
 			packageReferences = (
