@@ -113,7 +113,7 @@ struct AppCommands: Commands {
         // to look us up in Apple's help system and fail) with an in-app help
         // window and a direct link to the issue tracker.
         CommandGroup(replacing: .help) {
-            Button("SSH Tunnel Builder Help") {
+            Button("SSH TunnelBuilder Help") {
                 openWindow(id: "help")
             }
             .keyboardShortcut("?", modifiers: .command)

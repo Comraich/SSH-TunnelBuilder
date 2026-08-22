@@ -53,7 +53,7 @@ struct SSH_TunnelBuilderApp: App {
         // In-app help, opened from the Help menu (and Help ▸ Search field).
         // Single-instance window keyed by id so repeat invocations bring the
         // existing window forward instead of stacking duplicates.
-        Window("SSH Tunnel Builder Help", id: "help") {
+        Window("SSH TunnelBuilder Help", id: "help") {
             HelpView()
         }
 
