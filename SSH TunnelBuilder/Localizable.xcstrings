@@ -4587,8 +4587,8 @@
         },
         "nb" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "SSH Tunnel Builder-hjelp"
+            "state" : "translated",
+            "value" : "SSH TunnelBuilder-hjelp"
           }
         }
       }
@@ -4615,8 +4615,8 @@
         },
         "nb" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "SSH Tunnel Builder bygger på følgende åpen kildekode-prosjekter, som alle distribueres under Apache License, Version 2.0:"
+            "state" : "translated",
+            "value" : "SSH TunnelBuilder bygger på følgende åpen kildekode-prosjekter, som alle distribueres under Apache License, Version 2.0:"
           }
         }
       }
@@ -4643,8 +4643,8 @@
         },
         "nb" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Selve SSH Tunnel Builder er © 2020–2026 Comraich ANS."
+            "state" : "translated",
+            "value" : "Selve SSH TunnelBuilder er © 2020–2026 Comraich ANS."
           }
         }
       }
@@ -4662,6 +4662,12 @@
         "fr" : {
           "stringUnit" : {
             "state" : "machine_translated",
+            "value" : "SSH TunnelBuilder"
+          }
+        },
+        "nb" : {
+          "stringUnit" : {
+            "state" : "translated",
             "value" : "SSH TunnelBuilder"
           }
         }
