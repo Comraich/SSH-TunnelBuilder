@@ -4582,7 +4582,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "machine_translated",
-            "value" : "Aide SSH Tunnel Builder"
+            "value" : "Aide SSH TunnelBuilder"
           }
         },
         "nb" : {
@@ -4610,7 +4610,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "machine_translated",
-            "value" : "SSH Tunnel Builder repose sur les projets open source suivants, tous distribués sous licence Apache, version 2.0 :"
+            "value" : "SSH TunnelBuilder repose sur les projets open source suivants, tous distribués sous licence Apache, version 2.0 :"
           }
         },
         "nb" : {
@@ -4638,7 +4638,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "machine_translated",
-            "value" : "SSH Tunnel Builder est lui-même © 2020–2026 Comraich ANS."
+            "value" : "SSH TunnelBuilder est lui-même © 2020–2026 Comraich ANS."
           }
         },
         "nb" : {
