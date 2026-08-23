@@ -419,6 +419,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "SSH-TunnelBuilder-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "SSH TunnelBuilder";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = YES;
+				INFOPLIST_KEY_ITSEncryptionExportComplianceCode = "3ef8a3c4-80f7-4480-b597-5c219492d86d";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2020-2026 Comraich ANS. Licensed under the Apache License, Version 2.0.";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -467,6 +469,8 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "SSH-TunnelBuilder-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "SSH TunnelBuilder";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = YES;
+				INFOPLIST_KEY_ITSEncryptionExportComplianceCode = "3ef8a3c4-80f7-4480-b597-5c219492d86d";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2020-2026 Comraich ANS. Licensed under the Apache License, Version 2.0.";
 				LD_RUNPATH_SEARCH_PATHS = (
