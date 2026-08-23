@@ -113,3 +113,13 @@ SSH TunnelBuilder.xcworkspace/xcshareddata/*
 SSH TunnelBuilder.xcodeproj/xcshareddata/*
 !SSH TunnelBuilder.xcodeproj/xcshareddata/xcschemes/
 !SSH TunnelBuilder.xcodeproj/xcshareddata/xcschemes/*.xcscheme
+
+# Track the *project's* resolved package versions. Xcode Cloud builds the
+# .xcodeproj (not the .xcworkspace) and sets IDEDisableAutomaticPackageResolution,
+# so it hard-fails unless the pins are committed at exactly this path. The
+# .xcworkspace copy above is never read by CI. Everything else under this
+# xcshareddata/ (ignored on line 9) stays ignored.
+!SSH TunnelBuilder.xcodeproj/project.xcworkspace/xcshareddata/
+SSH TunnelBuilder.xcodeproj/project.xcworkspace/xcshareddata/*
+!SSH TunnelBuilder.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+!SSH TunnelBuilder.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
