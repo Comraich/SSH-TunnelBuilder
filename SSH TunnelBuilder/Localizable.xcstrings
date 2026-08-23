@@ -32,6 +32,12 @@
             "state" : "translated",
             "value" : ""
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : ""
+          }
         }
       }
     },
@@ -67,6 +73,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "«Tilkobling avvist» ved bruk av tunnelen"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "“Conexão recusada” ao usar o túnel"
           }
         }
       }
@@ -104,6 +116,12 @@
             "state" : "translated",
             "value" : "«Feil passfrase» eller nøkkelen kan ikke dekrypteres"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "“Frase-senha incorreta” ou não é possível descriptografar a chave"
+          }
         }
       }
     },
@@ -137,6 +155,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**Legg til en tilkobling** — klikk på **+** i sidepanelet."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Adicione uma conexão** — clique em **+** na Barra Lateral."
           }
         }
       }
@@ -172,6 +196,12 @@
             "state" : "translated",
             "value" : "**Autentisering** — passord eller en privatnøkkel (valgfri passfrase)."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Autenticação** — senha ou uma chave privada (frase-senha opcional)."
+          }
         }
       }
     },
@@ -205,6 +235,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**Velg autentisering** — passord eller en privatnøkkel (med passfrase hvis det kreves)."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Escolha a autenticação** — senha ou uma chave privada (com frase-senha, se necessário)."
           }
         }
       }
@@ -240,6 +276,12 @@
             "state" : "translated",
             "value" : "**Konfigurer SSH-serveren** — vert, port (vanligvis 22) og brukernavn."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Configure o servidor SSH** — host, porta (geralmente 22) e nome de usuário."
+          }
         }
       }
     },
@@ -273,6 +315,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**Koble til** — velg tilkoblingen og trykk ⌘K, eller bruk Tilkobling-menyen."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Conecte** — selecione a conexão e pressione ⌘K, ou use o menu Conexão."
           }
         }
       }
@@ -308,6 +356,12 @@
             "state" : "translated",
             "value" : "**Påloggingsinformasjon i nøkkelringen** — passord og privatnøkler lagres i nøkkelringen i macOS og hentes bare når du kobler til eller eksporterer. Touch ID vil kanskje be om at du godkjenner tilgangen."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Credenciais nas Chaves** — as senhas e as chaves privadas são armazenadas nas Chaves do macOS e só são acessadas quando você se conecta ou exporta. O Touch ID pode pedir autorização para o acesso."
+          }
         }
       }
     },
@@ -341,6 +395,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**Ikke mist passfrasen** — filen er uleselig uten den. En feil passfrase fører til et avvik i GCM-taggen og fører til en lett-forståelig feilmelding."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Não perca a frase-senha** — o arquivo fica ilegível sem ela. Uma frase-senha incorreta resulta em uma divergência na tag GCM e exibe uma mensagem de erro clara."
           }
         }
       }
@@ -376,6 +436,12 @@
             "state" : "translated",
             "value" : "**Fil ▸ Eksporter ▸ Eksporter alle…** eller **Eksporter valgte…** — lagre en sikkerhetskopi."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Arquivo ▸ Exportar ▸ Exportar Tudo…** ou **Exportar Seleção…** — salve um backup."
+          }
         }
       }
     },
@@ -409,6 +475,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**Fil ▸ Importer tilkoblinger…** — les inn en sikkerhetskopi igjen."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Arquivo ▸ Importar Conexões…** — restaure um backup."
           }
         }
       }
@@ -444,6 +516,12 @@
             "state" : "translated",
             "value" : "**Vert / Port / Brukernavn** — SSH-serveren du kobler til."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Host / Porta / Nome de usuário** — o servidor SSH ao qual você está se conectando."
+          }
         }
       }
     },
@@ -477,6 +555,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**Vertsnøkler lagres ved første bruk** — appen spør første gang den ser vertsnøkkelen til en server. Etter at du har stolt på den, huskes nøkkelen. Hvis nøkkelen endres senere, mislykkes tilkoblingen til du bekrefter på nytt (dette beskytter mot mann-i-midten-angrep)."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Chaves do host fixadas no primeiro uso** — o aplicativo pede confirmação na primeira vez que vê a chave do host de um servidor. Depois que você confia nela, a chave é memorizada. Se a chave mudar posteriormente, a conexão falha até que você confirme novamente (isso protege contra ataques man-in-the-middle)."
           }
         }
       }
@@ -512,6 +596,12 @@
             "state" : "translated",
             "value" : "**iCloud-synkronisering (valgfritt)** — tilkoblingsmetadata som ikke er hemmelige (navn, vert, port osv.), synkroniseres til iCloud-kontoen hvis iCloud Drive er slått på. Hemmeligheter (som passord eller private nøkler) forlater aldri nøkkelringen."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Sincronização com o iCloud (opcional)** — os metadados não confidenciais da conexão (nome, host, porta, etc.) são sincronizados com a sua conta do iCloud se o iCloud Drive estiver ativado. Os dados confidenciais nunca saem das Chaves."
+          }
         }
       }
     },
@@ -545,6 +635,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**Lokal port** — porten på Macen som tunnelen lytter på."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Porta local** — a porta do seu Mac na qual o túnel escuta."
           }
         }
       }
@@ -580,6 +676,12 @@
             "state" : "translated",
             "value" : "**Navn** — visningsnavnet som vises i sidepanelet."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Nome** — nome de exibição mostrado na Barra Lateral."
+          }
         }
       }
     },
@@ -613,6 +715,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**Ingen analysedata, ingen telemetri** — appen gjør ingen eksterne nettverksforespørsler utover SSH-tilkoblingene du konfigurerer."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Sem dados de análise, sem telemetria** — o aplicativo não faz nenhuma solicitação de rede externa além das conexões SSH que você configura."
           }
         }
       }
@@ -648,6 +756,12 @@
             "state" : "translated",
             "value" : "**OpenSSH** (`openssh-key-v1`) — ukryptert og kryptert (bcrypt + AES-CTR/CBC/GCM)."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**OpenSSH** (`openssh-key-v1`) — sem criptografia e com criptografia (bcrypt + AES-CTR/CBC/GCM)."
+          }
         }
       }
     },
@@ -681,6 +795,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**PKCS#8** (`BEGIN PRIVATE KEY`) — ukryptert og kryptert med PBES2 / PBKDF2-SHA256 / AES-256-CBC."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**PKCS#8** (`BEGIN PRIVATE KEY`) — sem criptografia e com criptografia PBES2 / PBKDF2-SHA256 / AES-256-CBC."
           }
         }
       }
@@ -716,6 +836,12 @@
             "state" : "translated",
             "value" : "**Ekstern vert / Ekstern port** — destinasjonen sett fra SSH-serveren (f.eks. `localhost:5432` for en database som kjører på den eksterne maskinen)."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Host remoto / Porta remota** — o destino visto a partir do servidor SSH (p. ex. `localhost:5432` para um banco de dados em execução na máquina remota)."
+          }
         }
       }
     },
@@ -749,6 +875,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**SEC1** (`BEGIN EC PRIVATE KEY`) — bare ukryptert."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**SEC1** (`BEGIN EC PRIVATE KEY`) — apenas sem criptografia."
           }
         }
       }
@@ -784,6 +916,12 @@
             "state" : "translated",
             "value" : "**Angi videresending** — en **lokal port** på Macen, samt **ekstern vert og port** som tunnelen skal nå via SSH-serveren."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Configure o encaminhamento** — uma **porta local** no seu Mac, além do **host e da porta remotos** que o túnel deve alcançar por meio do servidor SSH."
+          }
         }
       }
     },
@@ -817,6 +955,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**Swift ASN.1** — ASN.1-parsing av nøkler i PKCS#8 / SEC1. © Apple Inc."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Swift ASN.1** — análise de ASN.1 para chaves PKCS#8 / SEC1. © Apple Inc."
           }
         }
       }
@@ -852,6 +996,12 @@
             "state" : "translated",
             "value" : "**Swift Atomics**, **Swift Collections**, **Swift System** — støttebiblioteker. © Apple Inc."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Swift Atomics**, **Swift Collections**, **Swift System** — bibliotecas de apoio. © Apple Inc."
+          }
         }
       }
     },
@@ -885,6 +1035,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "**Swift Crypto** — kryptografiske primitiver. © Apple Inc."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**Swift Crypto** — primitivas criptográficas. © Apple Inc."
           }
         }
       }
@@ -920,6 +1076,12 @@
             "state" : "translated",
             "value" : "**SwiftNIO SSH** — implementasjon av SSH-protokollen. © Apple Inc."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**SwiftNIO SSH** — implementação do protocolo SSH. © Apple Inc."
+          }
         }
       }
     },
@@ -954,6 +1116,12 @@
             "state" : "translated",
             "value" : "**SwiftNIO** — nettverksgrunnlag. © Apple Inc."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "**SwiftNIO** — base para a comunicação em rede. © Apple Inc."
+          }
         }
       }
     },
@@ -986,6 +1154,12 @@
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
+            "value" : "%1$@ — ↑ %2$@  ↓ %3$@"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
             "value" : "%1$@ — ↑ %2$@  ↓ %3$@"
           }
         }
@@ -1022,6 +1196,12 @@
             "state" : "translated",
             "value" : "%@ er ikke støttet. Konverter til ECDSA eller Ed25519:"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "%@ não é compatível. Converta para ECDSA ou Ed25519:"
+          }
         }
       }
     },
@@ -1054,6 +1234,12 @@
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
+            "value" : "%lld."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
             "value" : "%lld."
           }
         }
@@ -1090,6 +1276,12 @@
             "state" : "translated",
             "value" : "•"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "•"
+          }
         }
       }
     },
@@ -1123,6 +1315,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "• ECDSA P-256/P-384/P-521 (OpenSSH, EC PRIVATE KEY eller PKCS#8)"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "• ECDSA P-256/P-384/P-521 (OpenSSH, EC PRIVATE KEY ou PKCS#8)"
           }
         }
       }
@@ -1158,6 +1356,12 @@
             "state" : "translated",
             "value" : "• Ed25519 (OpenSSH- eller PKCS#8-format)"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "• Ed25519 (formato OpenSSH ou PKCS#8)"
+          }
         }
       }
     },
@@ -1191,6 +1395,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "• Krypterte OpenSSH-nøkler (aes-ctr/cbc/gcm, med passfrase)"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "• Chaves OpenSSH criptografadas (aes-ctr/cbc/gcm, com frase-senha)"
           }
         }
       }
@@ -1226,6 +1436,12 @@
             "state" : "translated",
             "value" : "• Krypterte PKCS#8-nøkler (med passfrase)"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "• Chaves PKCS#8 criptografadas (com frase-senha)"
+          }
         }
       }
     },
@@ -1259,6 +1475,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "• RSA- og DSA-nøkler"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "• Chaves RSA, DSA"
           }
         }
       }
@@ -1294,6 +1516,12 @@
             "state" : "translated",
             "value" : "<skjult>"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "<oculto>"
+          }
         }
       }
     },
@@ -1327,6 +1555,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Om SSH TunnelBuilder"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Sobre o SSH TunnelBuilder"
           }
         }
       }
@@ -1364,6 +1598,12 @@
             "state" : "translated",
             "value" : "Anerkjennelser"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Agradecimentos"
+          }
         }
       }
     },
@@ -1397,6 +1637,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "En eksport er en **fullstendig sikkerhetskopi**: passord og privatnøkler leses fra nøkkelringen og tas med i den krypterte datablokken. Metadataene for tilkoblingene følger med."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Uma exportação é um **backup completo**: as senhas e as chaves privadas são lidas das Chaves e incluídas no bloco de dados criptografado. Os metadados das conexões também são incluídos."
           }
         }
       }
@@ -1432,6 +1678,12 @@
             "state" : "translated",
             "value" : "Spør hver gang"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Perguntar sempre"
+          }
         }
       }
     },
@@ -1465,6 +1717,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sikkerhetskopier og gjenopprett tilkoblingene med en kryptert `.sshtunnels`-fil."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Faça backup das suas conexões e restaure-as com um arquivo `.sshtunnels` criptografado."
           }
         }
       }
@@ -1500,6 +1758,12 @@
             "state" : "translated",
             "value" : "Begge Mac-maskinene må være logget på samme iCloud-konto, og iCloud Drive må være slått på. Synkroniseringen kan ta litt tid etter første lagring."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Ambos os Macs devem estar com sessão iniciada na mesma conta do iCloud, com o iCloud Drive ativado. A sincronização pode demorar um pouco após salvar pela primeira vez."
+          }
         }
       }
     },
@@ -1534,6 +1798,12 @@
             "state" : "translated",
             "value" : "Avbryt"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Cancelar"
+          }
         }
       }
     },
@@ -1567,6 +1837,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Velg **Hjelp ▸ Rapporter et problem…** for å åpne problemsporeren."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Escolha **Ajuda ▸ Relatar um Problema…** para abrir o rastreador de problemas."
           }
         }
       }
@@ -1714,6 +1990,34 @@
               }
             }
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Escolha uma frase-senha para criptografar %#@connections@. Você precisará dela para importar o arquivo mais tarde — ela não pode ser recuperada se for perdida."
+          },
+          "substitutions" : {
+            "connections" : {
+              "argNum" : 1,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "machine_translated",
+                      "value" : "%arg conexão"
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "machine_translated",
+                      "value" : "%arg conexões"
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -1747,6 +2051,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bekreft passfrase"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Confirmar frase-senha"
           }
         }
       }
@@ -1782,6 +2092,12 @@
             "state" : "translated",
             "value" : "Kontroller at formatet på nøkkelen er støttet (se **Privatnøkler**), og skriv inn passfrasen nøye på nytt. Passfraser lagres ikke, så de må skrives inn hver gang."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Verifique se o formato da chave é compatível (consulte **Chaves Privadas**) e digite a frase-senha novamente com atenção. As frases-senha não são salvas, por isso precisam ser digitadas a cada vez."
+          }
         }
       }
     },
@@ -1815,6 +2131,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Koble til"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Conectar"
           }
         }
       }
@@ -1852,6 +2174,12 @@
             "state" : "translated",
             "value" : "Tilkoblet"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Conectado"
+          }
         }
       }
     },
@@ -1888,6 +2216,12 @@
             "state" : "translated",
             "value" : "Kobler til…"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Conectando..."
+          }
         }
       }
     },
@@ -1921,6 +2255,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tilkobling"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Conexão"
           }
         }
       }
@@ -1958,6 +2298,12 @@
             "state" : "translated",
             "value" : "Tilkoblingen henger i «Kobler til…»"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "A conexão fica travada em “Conectando…”"
+          }
         }
       }
     },
@@ -1994,6 +2340,12 @@
             "state" : "translated",
             "value" : "Tilkoblingsnavn:"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Nome da conexão:"
+          }
         }
       }
     },
@@ -2027,6 +2379,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tilkoblingsstatus:"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Status da conexão:"
           }
         }
       }
@@ -2064,6 +2422,12 @@
             "state" : "translated",
             "value" : "Tilkoblinger"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Conexões"
+          }
         }
       }
     },
@@ -2100,6 +2464,12 @@
             "state" : "translated",
             "value" : "Tilkoblingene vises ikke på en annen Mac"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "As conexões não aparecem em outro Mac"
+          }
         }
       }
     },
@@ -2133,6 +2503,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tilkoblinger synkroniseres mellom Mac-maskinene dine via iCloud hvis du er logget på og har slått på iCloud Drive i Systeminnstillinger. Hemmeligheter forblir i nøkkelringen — bare metadataene for tilkoblingene synkroniseres."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "As conexões são sincronizadas entre os seus Macs via iCloud se você tiver iniciado sessão e o iCloud Drive estiver ativado nos Ajustes do Sistema. Os dados confidenciais permanecem nas Chaves — apenas os metadados das conexões são sincronizados."
           }
         }
       }
@@ -2168,6 +2544,12 @@
             "state" : "translated",
             "value" : "Konverter nøkkelen:"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Converta sua chave:"
+          }
         }
       }
     },
@@ -2201,6 +2583,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kopier"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Copiar"
           }
         }
       }
@@ -2236,6 +2624,12 @@
             "state" : "translated",
             "value" : "Opprett"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Criar"
+          }
         }
       }
     },
@@ -2269,6 +2663,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Opprett tilkobling"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Criar Conexão"
           }
         }
       }
@@ -2304,6 +2704,12 @@
             "state" : "translated",
             "value" : "Opprett ny tilkobling"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Criar nova conexão"
+          }
         }
       }
     },
@@ -2337,6 +2743,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Data mottatt: %@"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Dados recebidos: %@"
           }
         }
       }
@@ -2372,6 +2784,12 @@
             "state" : "translated",
             "value" : "Data sendt: %@"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Dados enviados: %@"
+          }
         }
       }
     },
@@ -2405,6 +2823,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Slett tilkobling"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Apagar Conexão"
           }
         }
       }
@@ -2440,6 +2864,12 @@
             "state" : "translated",
             "value" : "Slett valgt tilkobling"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Apagar conexão selecionada"
+          }
         }
       }
     },
@@ -2474,6 +2904,12 @@
             "state" : "translated",
             "value" : "Oppdaget nøkkel: %@"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Chave detectada: %@"
+          }
         }
       }
     },
@@ -2507,6 +2943,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Koble fra"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Desconectar"
           }
         }
       }
@@ -2544,6 +2986,12 @@
             "state" : "translated",
             "value" : "Koblet fra"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Desconectado"
+          }
         }
       }
     },
@@ -2580,6 +3028,12 @@
             "state" : "translated",
             "value" : "Kobler fra…"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Desconectando..."
+          }
         }
       }
     },
@@ -2613,6 +3067,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lukk merknad"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Fechar aviso"
           }
         }
       }
@@ -2648,6 +3108,12 @@
             "state" : "translated",
             "value" : "Ikke vis igjen"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Não mostrar novamente"
+          }
         }
       }
     },
@@ -2681,6 +3147,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hver tilkobling samler en SSH-pålogging og én enkelt regel for portvideresending."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Cada conexão agrupa um login SSH e uma única regra de encaminhamento de portas."
           }
         }
       }
@@ -2716,6 +3188,12 @@
             "state" : "translated",
             "value" : "Rediger tilkobling…"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Editar Conexão…"
+          }
         }
       }
     },
@@ -2749,6 +3227,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rediger valgt tilkobling"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Editar conexão selecionada"
           }
         }
       }
@@ -2786,6 +3270,12 @@
             "state" : "translated",
             "value" : "Krypter eksportfilen"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Criptografar Exportação"
+          }
         }
       }
     },
@@ -2819,6 +3309,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kryptert OpenSSH-nøkkel"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Chave OpenSSH Criptografada"
           }
         }
       }
@@ -2856,6 +3352,12 @@
             "state" : "translated",
             "value" : "Kryptering"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Criptografia"
+          }
         }
       }
     },
@@ -2892,6 +3394,12 @@
             "state" : "translated",
             "value" : "Skriv inn tilkoblingsnavn"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Nome da conexão"
+          }
         }
       }
     },
@@ -2925,6 +3433,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Skriv inn påloggingsinformasjon"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Digite as Credenciais"
           }
         }
       }
@@ -2962,6 +3476,12 @@
             "state" : "translated",
             "value" : "Skriv inn lokal port"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Porta local"
+          }
         }
       }
     },
@@ -2996,6 +3516,12 @@
             "state" : "translated",
             "value" : "Skriv inn passfrase"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Frase-senha"
+          }
         }
       }
     },
@@ -3029,6 +3555,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Skriv inn passord"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Senha"
           }
         }
       }
@@ -3066,6 +3598,12 @@
             "state" : "translated",
             "value" : "Skriv inn portnummer"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Número da porta"
+          }
         }
       }
     },
@@ -3101,6 +3639,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Skriv inn privatnøkkel"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Chave privada"
           }
         }
       }
@@ -3138,6 +3682,12 @@
             "state" : "translated",
             "value" : "Skriv inn ekstern port"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Porta remota"
+          }
         }
       }
     },
@@ -3173,6 +3723,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Skriv inn ekstern server"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Servidor remoto"
           }
         }
       }
@@ -3210,6 +3766,12 @@
             "state" : "translated",
             "value" : "Skriv inn serveradresse"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Endereço do servidor"
+          }
         }
       }
     },
@@ -3245,6 +3807,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Skriv inn passfrasen som filen ble kryptert med."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Digite a frase-senha com a qual este arquivo foi criptografado."
           }
         }
       }
@@ -3282,6 +3850,12 @@
             "state" : "translated",
             "value" : "Skriv inn brukernavn"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Nome de usuário"
+          }
         }
       }
     },
@@ -3315,6 +3889,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Feil"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Erro"
           }
         }
       }
@@ -3350,6 +3930,12 @@
             "state" : "translated",
             "value" : "Eksporter"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Exportar"
+          }
         }
       }
     },
@@ -3384,6 +3970,12 @@
             "state" : "translated",
             "value" : "Eksporter alle…"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Exportar Tudo…"
+          }
         }
       }
     },
@@ -3417,6 +4009,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Eksporter valgte…"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Exportar Seleção…"
           }
         }
       }
@@ -3454,6 +4052,12 @@
             "state" : "translated",
             "value" : "Mislyktes: %@"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Falha: %@"
+          }
         }
       }
     },
@@ -3487,6 +4091,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "I 1 time"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Por 1 hora"
           }
         }
       }
@@ -3522,6 +4132,12 @@
             "state" : "translated",
             "value" : "I 5 minutter"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Por 5 minutos"
+          }
         }
       }
     },
@@ -3555,6 +4171,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "I 15 minutter"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Por 15 minutos"
           }
         }
       }
@@ -3590,6 +4212,12 @@
             "state" : "translated",
             "value" : "I 30 minutter"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Por 30 minutos"
+          }
         }
       }
     },
@@ -3624,6 +4252,12 @@
             "state" : "translated",
             "value" : "Fullstendig lisenstekst: <https://www.apache.org/licenses/LICENSE-2.0>"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Texto completo da licença: <https://www.apache.org/licenses/LICENSE-2.0>"
+          }
         }
       }
     },
@@ -3657,6 +4291,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Generer en ny nøkkel:"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Gere uma nova chave:"
           }
         }
       }
@@ -3694,6 +4334,12 @@
             "state" : "translated",
             "value" : "Vertsnøkkelen er endret"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "A chave do host mudou"
+          }
         }
       }
     },
@@ -3727,6 +4373,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hvor lenge én enkelt autentisering huskes. Innenfor dette tidsvinduet blir du ikke spurt igjen når du kobler til på nytt."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Por quanto tempo uma única autenticação é memorizada. Dentro desse período, ao reconectar você não precisará autenticar novamente."
           }
         }
       }
@@ -3764,6 +4416,12 @@
             "state" : "translated",
             "value" : "iCloud-synkronisering"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Sincronização com o iCloud"
+          }
         }
       }
     },
@@ -3798,6 +4456,12 @@
             "state" : "translated",
             "value" : "Hvis nøkkelen er kryptert, blir du bedt om passfrasen hver gang du kobler til. **Passfraser lagres aldri** — de finnes bare i minnet mens du kobler til."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Se a sua chave estiver criptografada, a frase-senha será solicitada sempre que você se conectar. **As frases-senha nunca são salvas** — elas ficam apenas na memória durante a conexão."
+          }
         }
       }
     },
@@ -3831,6 +4495,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Importer"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Importar"
           }
         }
       }
@@ -3868,6 +4538,12 @@
             "state" : "translated",
             "value" : "Import og eksport"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Importação e Exportação"
+          }
         }
       }
     },
@@ -3901,6 +4577,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Importer tilkoblinger…"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Importar Conexões…"
           }
         }
       }
@@ -3936,6 +4618,12 @@
             "state" : "translated",
             "value" : "Importerte tilkoblinger får nye ID-er, så en import overskriver aldri eksisterende oppføringer."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "As conexões importadas recebem novos IDs, então uma importação nunca sobrescreve as suas entradas existentes."
+          }
         }
       }
     },
@@ -3970,6 +4658,12 @@
             "state" : "translated",
             "value" : "Hjelp til nøkkelformater"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Ajuda sobre formatos de chave"
+          }
         }
       }
     },
@@ -4003,6 +4697,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Laster inn tilkoblinger…"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Carregando conexões..."
           }
         }
       }
@@ -4040,6 +4740,12 @@
             "state" : "translated",
             "value" : "Lokal port:"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Porta local:"
+          }
         }
       }
     },
@@ -4073,6 +4779,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Navigasjon"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Navegação"
           }
         }
       }
@@ -4108,6 +4820,12 @@
             "state" : "translated",
             "value" : "Ny tilkobling"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Nova Conexão"
+          }
         }
       }
     },
@@ -4141,6 +4859,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ingen aktive tilkoblinger"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Nenhuma conexão ativa"
           }
         }
       }
@@ -4176,6 +4900,12 @@
             "state" : "translated",
             "value" : "Ingen tilkobling valgt"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Nenhuma conexão selecionada"
+          }
         }
       }
     },
@@ -4210,6 +4940,12 @@
             "state" : "translated",
             "value" : "Ikke støttet:"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Não compatível:"
+          }
         }
       }
     },
@@ -4242,6 +4978,12 @@
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
+            "value" : "OK"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
             "value" : "OK"
           }
         }
@@ -4280,6 +5022,12 @@
             "state" : "translated",
             "value" : "Ved import"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Ao importar"
+          }
         }
       }
     },
@@ -4313,6 +5061,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Når du er tilkoblet, peker du verktøyene mot `localhost:<local-port>` for å nå den eksterne tjenesten."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Depois de conectado, aponte suas ferramentas para `localhost:<local-port>` e acesse o serviço remoto."
           }
         }
       }
@@ -4350,6 +5104,12 @@
             "state" : "translated",
             "value" : "Åpne eksportfilen"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Abrir Exportação"
+          }
         }
       }
     },
@@ -4383,6 +5143,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Åpne hovedvinduet"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Abrir Janela Principal"
           }
         }
       }
@@ -4418,6 +5184,12 @@
             "state" : "translated",
             "value" : "OpenSSH Ed25519/ECDSA-nøkler er støttet, inkludert passfrasebeskyttede nøkler (aes-ctr, aes-cbc, aes-gcm). Skriv inn passfrasen nedenfor hvis nøkkelen er kryptert."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "As chaves OpenSSH Ed25519/ECDSA são compatíveis, incluindo as chaves protegidas por frase-senha (aes-ctr, aes-cbc, aes-gcm). Digite a frase-senha abaixo se a chave estiver criptografada."
+          }
         }
       }
     },
@@ -4452,6 +5224,12 @@
             "state" : "translated",
             "value" : "Passfrase"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Frase-senha"
+          }
         }
       }
     },
@@ -4485,6 +5263,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Passfrase (valgfritt)"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Frase-senha (opcional)"
           }
         }
       }
@@ -4522,6 +5306,12 @@
             "state" : "translated",
             "value" : "Passfraser"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Frases-senha"
+          }
         }
       }
     },
@@ -4556,6 +5346,12 @@
             "state" : "translated",
             "value" : "Passfrasene er ikke like."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "As frases-senha não coincidem."
+          }
         }
       }
     },
@@ -4589,6 +5385,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Passord"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Senha"
           }
         }
       }
@@ -4626,6 +5428,12 @@
             "state" : "translated",
             "value" : "Passord:"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Senha:"
+          }
         }
       }
     },
@@ -4661,6 +5469,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Portnummer:"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Número da porta:"
           }
         }
       }
@@ -4698,6 +5512,12 @@
             "state" : "translated",
             "value" : "Personvern og data"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Privacidade e Dados"
+          }
         }
       }
     },
@@ -4731,6 +5551,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Privatnøkkel (PEM)"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Chave privada (PEM)"
           }
         }
       }
@@ -4768,6 +5594,12 @@
             "state" : "translated",
             "value" : "Privatnøkkel:"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Chave privada:"
+          }
         }
       }
     },
@@ -4804,6 +5636,12 @@
             "state" : "translated",
             "value" : "Privatnøkler"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Chaves Privadas"
+          }
         }
       }
     },
@@ -4837,6 +5675,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Oppgi enten et passord eller en privatnøkkel (PEM). Hvis du velger å ikke lagre, brukes påloggingsinformasjonen bare for denne økten. Merk: Passfraser lagres aldri og må skrives inn på nytt hver gang."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Forneça uma senha ou uma chave privada (PEM). Se você optar por não salvar, as credenciais serão usadas apenas nesta sessão. Observe que as frases-senha nunca são salvas e precisam ser digitadas novamente a cada vez."
           }
         }
       }
@@ -4874,6 +5718,12 @@
             "state" : "translated",
             "value" : "Hurtigstart"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Início Rápido"
+          }
         }
       }
     },
@@ -4907,6 +5757,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Husk autentisering"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Memorizar autenticação"
           }
         }
       }
@@ -4944,6 +5800,12 @@
             "state" : "translated",
             "value" : "Ekstern port:"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Porta remota:"
+          }
         }
       }
     },
@@ -4977,6 +5839,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ekstern server:"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Servidor remoto:"
           }
         }
       }
@@ -5012,6 +5880,12 @@
             "state" : "translated",
             "value" : "Rapporter et problem…"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Relatar um Problema…"
+          }
         }
       }
     },
@@ -5045,6 +5919,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Krev Touch ID eller passord for å bruke lagret påloggingsinformasjon"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Exigir Touch ID ou senha para usar as credenciais salvas"
           }
         }
       }
@@ -5080,6 +5960,12 @@
             "state" : "translated",
             "value" : "RSA og DSA er **ikke** støttet. DSA ble fjernet i OpenSSH 10.0, og støtte for RSA avhenger av oppstrømsarbeid i NIOSSH som ennå ikke er tilgjengelig."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "RSA e DSA **não** são compatíveis. O DSA foi removido do OpenSSH 10.0; a compatibilidade com RSA depende de mudanças no próprio NIOSSH que ainda não estão disponíveis."
+          }
         }
       }
     },
@@ -5113,6 +5999,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "RSA-nøkkel oppdaget"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Chave RSA Detectada"
           }
         }
       }
@@ -5148,6 +6040,12 @@
             "state" : "translated",
             "value" : "Lagre"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Salvar"
+          }
         }
       }
     },
@@ -5181,6 +6079,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lagre påloggingsinformasjonen for denne tilkoblingen"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Salvar as credenciais nesta conexão"
           }
         }
       }
@@ -5216,6 +6120,12 @@
             "state" : "translated",
             "value" : "Sikkerhet"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Segurança"
+          }
         }
       }
     },
@@ -5250,6 +6160,12 @@
             "state" : "translated",
             "value" : "Velg en tilkobling i sidepanelet, eller opprett en ny"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Selecione uma conexão na Barra Lateral ou crie uma nova"
+          }
         }
       }
     },
@@ -5283,6 +6199,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Velg et emne"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Selecione um tópico"
           }
         }
       }
@@ -5320,6 +6242,12 @@
             "state" : "translated",
             "value" : "Serveradresse:"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Endereço do servidor:"
+          }
         }
       }
     },
@@ -5356,6 +6284,12 @@
             "state" : "translated",
             "value" : "Sette opp en tunnel"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Configurar um túnel"
+          }
         }
       }
     },
@@ -5389,6 +6323,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vis tilkoblinger i Spotlight"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Mostrar conexões no Spotlight"
           }
         }
       }
@@ -5424,6 +6364,12 @@
             "state" : "translated",
             "value" : "Vis hovedvindu"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Mostrar Janela Principal"
+          }
         }
       }
     },
@@ -5456,6 +6402,12 @@
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
+            "value" : "Spotlight"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
             "value" : "Spotlight"
           }
         }
@@ -5492,6 +6444,12 @@
             "state" : "translated",
             "value" : "SSH"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "SSH"
+          }
         }
       }
     },
@@ -5526,6 +6484,12 @@
             "state" : "translated",
             "value" : "SSH-trafikk: indikatorer for sendte og mottatte data"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Tráfego SSH: indicadores de dados enviados e recebidos"
+          }
         }
       }
     },
@@ -5554,6 +6518,12 @@
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
+            "value" : "SSH TunnelBuilder"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
             "value" : "SSH TunnelBuilder"
           }
         }
@@ -5590,6 +6560,12 @@
             "state" : "translated",
             "value" : "SSH TunnelBuilder-hjelp"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Ajuda do SSH TunnelBuilder"
+          }
         }
       }
     },
@@ -5623,6 +6599,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "SSH TunnelBuilder bygger på følgende åpen kildekode-prosjekter, som alle distribueres under Apache License, Version 2.0:"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "O SSH TunnelBuilder é desenvolvido com base nos seguintes projetos de código aberto, todos distribuídos sob a Licença Apache, versão 2.0:"
           }
         }
       }
@@ -5658,6 +6640,12 @@
             "state" : "translated",
             "value" : "Selve SSH TunnelBuilder er © 2020–2026 Comraich ANS."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "O próprio SSH TunnelBuilder é © 2020–2026 Comraich ANS."
+          }
         }
       }
     },
@@ -5692,6 +6680,12 @@
         "nb" : {
           "stringUnit" : {
             "state" : "translated",
+            "value" : "Status"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
             "value" : "Status"
           }
         }
@@ -5730,6 +6724,12 @@
             "state" : "translated",
             "value" : "Står du fortsatt fast?"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Ainda com problemas?"
+          }
         }
       }
     },
@@ -5766,6 +6766,12 @@
             "state" : "translated",
             "value" : "Støttede filformater"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Formatos de arquivo compatíveis"
+          }
         }
       }
     },
@@ -5799,6 +6805,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Støttede nøkkelalgoritmer: **Ed25519** og **ECDSA** (P-256 / P-384 / P-521)."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Algoritmos de chave compatíveis: **Ed25519** e **ECDSA** (P-256 / P-384 / P-521)."
           }
         }
       }
@@ -5834,6 +6846,12 @@
             "state" : "translated",
             "value" : "Støttet:"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Compatível:"
+          }
         }
       }
     },
@@ -5867,6 +6885,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Verten «%@» er ukjent.\n\nFingeravtrykk:\n%@\n\nVil du stole på denne verten?"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "O host '%@' é desconhecido.\n\nImpressão digital:\n%@\n\nDeseja confiar neste host?"
           }
         }
       }
@@ -5902,6 +6926,12 @@
             "state" : "translated",
             "value" : "Verten er tilgjengelig, men SSH-håndtrykket eller autentiseringen fullføres ikke. Klikk på **Koble fra**, kontroller brukernavnet og nøkkelen/passordet en gang til, og prøv igjen."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "O host está acessível, mas o handshake SSH ou a autenticação não está sendo concluída. Clique em **Desconectar**, verifique com atenção o nome de usuário e a chave/senha e tente novamente."
+          }
         }
       }
     },
@@ -5935,6 +6965,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vertsnøkkelen for «%@» er endret siden du sist stolte på den.\n\nNytt fingeravtrykk:\n%@\n\nDette kan skje hvis serveren er installert på nytt eller har fått nye nøkler — eller det kan være tegn på et mannen-i-midten-angrep. Stol bare på den nye nøkkelen hvis du er sikker på at den er legitim."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "A chave do host '%@' mudou desde a última vez em que você confiou nela.\n\nNova impressão digital:\n%@\n\nIsso pode acontecer se o servidor foi reinstalado ou teve as chaves renovadas — ou pode indicar um ataque man-in-the-middle. Só confie na nova chave se você tiver certeza de que ela é legítima."
           }
         }
       }
@@ -5970,6 +7006,12 @@
             "state" : "translated",
             "value" : "Indikatoren ved siden av hver tilkobling viser: inaktiv, kobler til, tilkoblet (med trafikktellere i sanntid), kobler fra eller mislyktes. Når du er tilkoblet, viser menylinjen en liten SSH-indikator med TX/RX-punkter som blinker ved trafikk."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "O indicador ao lado de cada conexão mostra: inativo, conectando, conectado (com contadores de tráfego em tempo real), desconectando ou falha. Enquanto você estiver conectado, a Barra de Menus exibe um pequeno indicador SSH com pontos TX/RX que piscam conforme o tráfego."
+          }
         }
       }
     },
@@ -6003,6 +7045,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Den lokale porten er kanskje allerede i bruk, eller den eksterne `host:port` kan ikke nås fra SSH-serveren. Prøv en annen lokal port, og kontroller at den eksterne tjenesten kjører."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "A porta local pode já estar em uso, ou o `host:port` remoto pode estar inacessível a partir do servidor SSH. Tente outra porta local e verifique se o serviço remoto está em execução."
           }
         }
       }
@@ -6038,6 +7086,12 @@
             "state" : "translated",
             "value" : "Nøkkelen ser ut til å være kryptert. Skriv inn passfrasen."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Esta chave parece estar criptografada; digite a frase-senha."
+          }
         }
       }
     },
@@ -6071,6 +7125,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Denne OpenSSH-nøkkelen er kryptert med en krypteringsalgoritme som appen ikke støtter (bare AES ctr/cbc/gcm, ikke chacha20-poly1305 eller 3des-cbc). Krypter den på nytt med `ssh-keygen -p -Z aes256-ctr`, fjern passfrasen eller konverter den til PKCS#8."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Esta chave OpenSSH está criptografada com um algoritmo de criptografia incompatível com este aplicativo (apenas AES ctr/cbc/gcm; não chacha20-poly1305 nem 3des-cbc). Criptografe-a novamente com `ssh-keygen -p -Z aes256-ctr`, remova a frase-senha ou converta-a para PKCS#8."
           }
         }
       }
@@ -6108,6 +7168,12 @@
             "state" : "translated",
             "value" : "Feilsøking"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Solução de Problemas"
+          }
         }
       }
     },
@@ -6142,6 +7208,12 @@
             "state" : "translated",
             "value" : "Stol på"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Confiar"
+          }
         }
       }
     },
@@ -6175,6 +7247,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Stol på ny nøkkel"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Confiar na Nova Chave"
           }
         }
       }
@@ -6212,6 +7290,12 @@
             "state" : "translated",
             "value" : "Ukjent vert"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Host desconhecido"
+          }
         }
       }
     },
@@ -6248,6 +7332,12 @@
             "state" : "translated",
             "value" : "Brukernavn:"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Nome de usuário:"
+          }
         }
       }
     },
@@ -6282,6 +7372,12 @@
             "state" : "translated",
             "value" : "Advarsel: Nøkkelen ser ut til å være ukryptert. Bruk helst en kryptert PEM (PKCS#8) med en passfrase."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Aviso: a chave parece não estar criptografada. Prefira um PEM criptografado (PKCS#8) com uma frase-senha."
+          }
         }
       }
     },
@@ -6315,6 +7411,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Velkommen. SSH TunnelBuilder setter opp lokal **SSH-portvideresending** slik at du kan nå tjenester på et eksternt nettverk via en SSH-tilkobling."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Boas-vindas. O SSH TunnelBuilder configura o **encaminhamento de portas SSH** local para que você possa acessar serviços em uma rede remota por meio de uma conexão SSH."
           }
         }
       }
@@ -6352,6 +7454,12 @@
             "state" : "translated",
             "value" : "Hva filen inneholder"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Conteúdo do arquivo"
+          }
         }
       }
     },
@@ -6385,6 +7493,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Når dette er slått på, krever bruk av et lagret passord eller en privatnøkkel bare én forespørsel om Touch ID / påloggingspassord per økt — tilkobling, redigering og eksport dekkes alle av samme autentisering så lenge tidsvinduet nedenfor varer. Hemmelighetene forblir på denne Macen og forlater aldri nøkkelringen."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Quando esta opção está ativada, o uso de uma senha ou de uma chave privada salva exige apenas uma solicitação de Touch ID / senha de início de sessão por sessão — conectar, editar e exportar são cobertos pela mesma autenticação enquanto durar o período de tolerância definido abaixo. Os seus dados confidenciais permanecem neste Mac e nunca saem das Chaves."
           }
         }
       }
@@ -6420,6 +7534,12 @@
             "state" : "translated",
             "value" : "Når dette er slått på, blir **navnene** på tilkoblingene søkbare fra Spotlight i hele systemet, slik at du kan gå rett til en tilkobling. Bare navnet indekseres — aldri vertsnavnet, brukernavnet, porten eller påloggingsinformasjon av noe slag."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Quando esta opção está ativada, os **nomes** das suas conexões podem ser pesquisados no Spotlight em todo o sistema, permitindo que você vá direto para uma conexão. Apenas o nome é indexado — nunca o nome do host, o nome de usuário, a porta ou qualquer credencial."
+          }
         }
       }
     },
@@ -6454,6 +7574,12 @@
             "state" : "translated",
             "value" : "Du velger en passfrase. Appen utleder en nøkkel med **PBKDF2-HMAC-SHA256 (600 000 iterasjoner)** over et nytt 16-byte-salt og krypterer deretter nyttelasten med **AES-256-GCM**."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Você escolhe uma frase-senha. O aplicativo deriva uma chave com **PBKDF2-HMAC-SHA256 (600.000 iterações)** a partir de um novo sal de 16 bytes e depois criptografa os dados com **AES-256-GCM**."
+          }
         }
       }
     },
@@ -6487,6 +7613,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Den krypterte nøkkelen inneholder en RSA-privatnøkkel. RSA er ikke støttet og kan ikke konverteres til en annen algoritme. Du må generere et nytt Ed25519- eller ECDSA-nøkkelpar."
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "A sua chave criptografada contém uma chave privada RSA. O RSA não é compatível e não pode ser convertido para outro algoritmo. Você precisa gerar um novo par de chaves Ed25519 ou ECDSA."
           }
         }
       }
