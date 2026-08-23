@@ -34,6 +34,12 @@
             "state" : "machine_translated",
             "value" : "SSH TunnelBuilder"
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "SSH TunnelBuilder"
+          }
         }
       }
     },
@@ -66,6 +72,12 @@
           }
         },
         "nb" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "SSH TunnelBuilder"
+          }
+        },
+        "pt-BR" : {
           "stringUnit" : {
             "state" : "machine_translated",
             "value" : "SSH TunnelBuilder"
@@ -106,6 +118,12 @@
             "state" : "machine_translated",
             "value" : "Copyright © 2020-2026 Comraich ANS. Lisensiert under Apache License, Version 2.0."
           }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Copyright © 2020-2026 Comraich ANS. Distribuído sob a Licença Apache, versão 2.0."
+          }
         }
       }
     },
@@ -133,6 +151,12 @@
           "stringUnit" : {
             "state" : "machine_translated",
             "value" : "SSH TunnelBuilder-tilkoblinger"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Conexões do SSH TunnelBuilder"
           }
         }
       }
