@@ -16,7 +16,9 @@
 - **ConnectionStore.swift**: CloudKit sync + Keychain + SSHManager lifecycle
 - **KeychainService.swift**: Secure credential storage with protocol for testing
 - **SSHManager.swift**: NIO-based SSH client with tunneling
-- **PEMDecryptor.swift**: PKCS#8 key decryption with PBKDF2
+- **PEMDecryptor.swift**: PKCS#8 key decryption with PBKDF2. DER parsing uses
+  **SwiftASN1** (linked to the app target); the hand-rolled `ASN1Parser` was
+  deleted 2026-08-21 — don't reintroduce one
 - **BcryptPBKDF.swift**: Blowfish + `bcrypt_pbkdf` (from scratch; not in CryptoKit), used to key OpenSSH key decryption
 - **OpenSSHKeyDecryptor.swift**: decrypts encrypted `openssh-key-v1` private sections (AES-CTR/CBC/GCM)
 - **ConnectionTransfer.swift**: encrypted import/export codec (see below)
@@ -161,7 +163,14 @@ CryptoKit); broader PKCS#8 ciphers/KDFs.
 
 ### Test Coverage Gaps
 
-- [ ] `SSHManager` connect/disconnect flows
+- [x] `SSHManager` connect/disconnect flows — `SSHManagerLifecycleTests.swift`
+      (2026-08-21, 8 tests). Covers `missingCredentials`, `keyParsingFailed`,
+      handshake timeout against a silent TCP peer, refused connection,
+      `disconnect()` idempotency, counter reset, the already-connected no-op, and
+      a connect/disconnect concurrency stress over the refactored lock.
+      **Still uncovered** (needs a real SSH server): successful session
+      establishment, `startLocalListener` / port-forwarding, `invalidPort`, and
+      the host-key prompt's pause/re-arm of the handshake deadline.
 - [ ] CloudKit operations (mock `CKDatabase`)
 - [ ] PEM decryption with various key types
 - [ ] Error paths in `ConnectionStore`
@@ -238,6 +247,86 @@ All eight tasks are merged into `Development`:
 - [x] **6. Replace `DispatchQueue.main.asyncAfter`** — `refactor/async-error-clear` — *Low* — merged (PR #39)
 - [x] **7. NIO singleton event-loop group** — `refactor/nio-singleton-eventloop` — *Low* — merged (PR #41)
 - [x] **8. Remove dead `connection` environment value** — `refactor/remove-dead-connection-env` — *Low (cleanup)* — merged (PR #40)
+
+---
+
+## Swift API Modernization — Round 2 (2026-08-21)
+
+Branch `refactor/swift-api-modernization-round2` (off `Development`, which now
+includes the macOS 14 deployment-target change from PR #90). Tasks 9–13 in
+[`MODERNIZATION_ROADMAP.md`](MODERNIZATION_ROADMAP.md), shipped as one branch.
+
+- [x] **9. `Task.detached` → `@concurrent`** (Swift 6.2)
+  - `ConnectionTransfer` gained `encryptInBackground`/`decryptInBackground`
+    `@concurrent` wrappers around the existing pure sync `encrypt`/`decrypt`
+    (kept as-is so the tests still call them synchronously).
+  - `SSHManager.makeAuthDelegate` is now a `@concurrent` method replacing the
+    `Task.detached { … }.value` that built `FlexibleAuthDelegate`.
+  - **Why `@concurrent` and not plain `nonisolated async`:** with
+    `SWIFT_APPROACHABLE_CONCURRENCY = YES`, `nonisolated(nonsending)` is the
+    default — a plain `nonisolated async func` *stays on the caller's actor*, so
+    a main-actor caller would run PBKDF2/bcrypt on the main thread. `@concurrent`
+    is what actually forces the hop.
+
+- [x] **10. `NSLock` → `OSAllocatedUnfairLock<State>`** (`SSHManager.swift`)
+  - All seven mutable fields moved into a `private struct State` owned by the
+    lock, so there is no longer any way to *spell* an unguarded access.
+  - **This closed a real race**, not just a style change: `sessionReadyPromise`
+    and `sessionReadyCompleted` were previously plain stored properties that the
+    timeout/shutdown paths guarded but the connect path and channel initializer
+    touched unguarded (the 2026-02-05 "fixed" race was only half-fixed).
+  - Promise completion now always follows the same shape: claim-and-clear inside
+    the critical section, `fail()` outside it (NIO hops completion to the
+    promise's own event loop, so holding the lock across it is pointless).
+
+- [x] **11. Legacy `Alert` → `alert(_:isPresented:presenting:actions:message:)`**
+  - `ContentView.swift` host-key prompt. The old `.alert(item:)` + `Alert(...)`
+    API has been deprecated since macOS 12.
+  - **Ordering hazard worth remembering:** the derived `isPresented` binding
+    setter must *only* clear `hostKeyRequest`, never answer it. `ConnectionStore`'s
+    `decide` closure latches the first answer (`hasResumed`), so a setter that
+    also answered `false` could race a "Trust" tap and silently turn it into a
+    rejection. The buttons answer using the `request` value SwiftUI passes to the
+    `presenting:` closures, which stays valid after the store's optional clears.
+
+- [x] **12. Last `NSError` removed** — `ConnectionStore.UnconfiguredDatabase` now
+  throws `SSHTunnelError.internalError`.
+
+- [x] **13. `SecRandomCopyBytes` + `String(format:)` cleanup**
+  - `ConnectionTransfer.randomBytes` uses `SymmetricKey(size:)` (system CSPRNG),
+    so it no longer throws or force-unwraps `baseAddress`.
+    `ConnectionTransferError.randomGenerationFailed` is now unreachable but kept
+    — the error-equality test still references it.
+  - `PEMDecryptor`'s four `String(format:"0x%02X")` sites use a new
+    `UInt8.asn1TagDescription` helper. Verified byte-for-byte identical output
+    across `0x00…0xFF` edge values.
+
+**Verification:** both targets build clean with **zero warnings**
+(`buildForTesting`). Behaviour spot-checked via `RunCodeSnippet`: export/import
+round-trips through the new `@concurrent` entry points, salts differ between
+encryptions, wrong passphrase still yields `wrongPassphraseOrCorruptFile`, and
+the hex helper matches the old format string.
+
+**Test suite: 86/86 passing** (verified after the fact on 2026-08-21 — the
+Swift Testing runner bug that had blocked it is fixed, see Known Issues). The
+relevant coverage for this round:
+- `Connection Transfer Tests` (7) + `Connection Transfer Multi Tests` (1) —
+  exercise the new `SymmetricKey(size:)` salt path via round-trip and
+  wrong-passphrase assertions.
+- `Host Key Trust Flow Tests` (4) + `Host Key Request Tests` (3) — cover the
+  trust/mismatch/cancel/supersede flow the rewritten alert drives, including the
+  first-answer-latching behaviour the alert's binding setter has to respect.
+- `SSHTunnelError Description Coverage` (2) — `everyCaseHasMessage` covers the
+  `internalError` case now used by `UnconfiguredDatabase`.
+
+**The lock refactor is now covered too** — `SSHManagerLifecycleTests.swift`
+(2026-08-21) closed that gap; see Test Coverage Gaps above. The suite is
+**94/94**, green across three consecutive full runs.
+
+**Task 14 (SwiftASN1) is also done** — see `MODERNIZATION_ROADMAP.md` §14 for the
+outcome, the `DER.sequence` strict-consumption gotcha, and a **pre-existing**
+AES-CBC padding issue found while validating it (wrong passphrases are not
+rejected by `decryptEncryptedPKCS8PEM` alone; callers must parse the result).
 
 ---
 
@@ -361,7 +450,119 @@ compile-validated but not behaviourally tested on this toolchain.
     the selected `@Observable` instance's `connectionInfo` when selection changes
     (especially right after an edit, where `selectedConnection = tempConnection`).
 
-### Test suite cannot run reliably on the macOS 26/27 beta toolchain (2026-06-15)
+### `decryptEncryptedPKCS8PEM` does not detect a wrong passphrase on its own (2026-08-21)
+
+**Not a regression** — found while validating the SwiftASN1 swap, and confirmed
+present on the pre-change code too by swapping the old file back in.
+
+`AESCBC.decrypt` passes `kCCOptionPKCS7Padding`, which would normally make a
+wrong key fail with a padding error. It doesn't: **200/200** wrong passphrases
+were accepted, returning garbage plaintext, on both old and new parsers. Expected
+behaviour would be ~199/200 rejected (padding valid by luck ≈ 1/256).
+
+So `decryptEncryptedPKCS8PEM` is **not** a passphrase check. A wrong passphrase is
+only caught when the returned DER is subsequently parsed, which fails. Every
+current caller does parse it — `SSHKeyParsing.swift:146`, `KeyValidation.swift:62`,
+and the tests — so **there is no live bug**. But the guarantee is implicit: a
+future caller that treats a successful decrypt as "passphrase correct" would be
+wrong, and `KeyValidation` returning `.decryptionFailed` relies on the parse step.
+
+Options if this is worth closing: validate the PKCS#7 padding explicitly after
+`CCCrypt`, or document the contract on the function so the parse step is
+understood as load-bearing. Left alone deliberately — it's a separate concern
+from the parser swap and touches the crypto path.
+
+---
+
+### ~~Two files have wrong target membership~~ — RESOLVED (2026-08-21)
+
+Two mirror-image misconfigurations, both now **fixed**. Kept on record because the
+symptom of #1 is extremely misleading and the mechanism is worth knowing before
+adding test files.
+
+The project uses Xcode 16+ **file-system synchronized groups**
+(`PBXFileSystemSynchronizedRootGroup`), so there is no per-target Compile Sources
+list to inspect: a folder maps to a target and files are members automatically.
+That's also why new files added under `SSH TunnelBuilderTests/` need no
+`project.pbxproj` change at all.
+
+The duplication comes from two `PBXFileSystemSynchronizedBuildFileExceptionSet`
+entries, which *add* a file to a target that doesn't own its folder:
+
+| File | Owning folder/target | Had also been added to |
+|---|---|---|
+| `Classes/SSHTunnelError.swift` | `SSH TunnelBuilder` → app | `SSH TunnelBuilderTests` |
+| `SSHManagerTests.swift` | `SSH TunnelBuilderTests` → tests | `SSH TunnelBuilder` |
+
+Fix for either: select the file in Xcode and uncheck the extra target under
+**File Inspector ▸ Target Membership** (not Build Phases). Likely origin of #1:
+someone hit "cannot find SSHTunnelError in scope" in a test and added the file to
+the test target, which silently traded that error for the much subtler one below.
+
+**1. `SSHTunnelError.swift` was compiled into the *test* module as well as the app.**
+
+So the test module has a *second, independent* copy of the enum. Consequence:
+
+```swift
+// In test code, `SSHTunnelError` resolves to the TEST module's copy…
+let thrown: Error? = // …but SSHManager throws the APP module's copy
+thrown as? SSHTunnelError        // ← always nil. Two unrelated runtime types.
+thrown as? SSH_TunnelBuilder.SSHTunnelError  // ← works
+```
+
+This is genuinely baffling to debug because both copies print identically as
+`"SSH_TunnelBuilder.SSHTunnelError.missingCredentials"`, so the failure message
+reads "expected an SSHTunnelError, got …SSHTunnelError". The existing
+`SSHTunnelErrorDescriptionTests` never noticed because they construct the error in
+the test module and only read `localizedDescription` — they never cast a value
+that crossed the module boundary.
+
+**Fixed 2026-08-21.** The test target was unchecked for this file, and the
+`AppTunnelError` typealias workaround in `SSHManagerLifecycleTests.swift` was
+removed — the tests now cast to a plain `SSHTunnelError` and pass (94/94).
+
+**2. `SSHManagerTests.swift` was compiled into the *app* module too.**
+
+So it couldn't `import Testing` (the app target doesn't link it) — which is why
+its entire contents were commented out.
+
+**Fixed 2026-08-21.** The app target was unchecked, and the file — dead
+commented-out XCTest code superseded by `OpenSSHKeyParserTests.swift` — was
+deleted. The live SSHManager tests are in `SSHManagerLifecycleTests.swift`.
+
+**Check membership when adding test files.** `GetFileCompilerFlags` is the
+authoritative probe: it errors with "is not a member of a Compile Sources build
+phase" for non-members and returns an empty string for members. Note that
+`project.pbxproj` is *not* a reliable place to look — under synchronized groups a
+correctly-configured file appears nowhere in it.
+
+---
+
+### ~~Test suite cannot run reliably on the macOS 26/27 beta toolchain~~ — RESOLVED (2026-08-21)
+
+**The test suite runs clean. Run it. Do not skip testing on this basis.**
+
+Re-verified 2026-08-21 on macOS 27.0 (**26A5416b**) / Xcode 27.0 (27A5237l) /
+Swift 6.4: **86 tests in 24 suites, 86 passed**, five consecutive full runs, no
+crashes and no restarts. (Now **94 tests in 25 suites** after
+`SSHManagerLifecycleTests` was added the same day — also green, three runs.)
+
+Confirmed the pass is genuine and not a workaround masking the bug:
+- Default **parallel** configuration — no `--serialized` flag, no test-plan changes.
+- At the time of verification, no `.serialized` trait anywhere in the test sources
+  (all 24 `@Suite` declarations were plain names). **`SSHManagerLifecycleTests` is
+  now `.serialized`**, but for an unrelated and specific reason — it mutates
+  `SSHManager`'s `static var` timeout knobs — and the other 24 suites remain
+  parallel. Do not read that one trait as a revival of the old workaround.
+- Test target still has `SWIFT_APPROACHABLE_CONCURRENCY = YES` — the setting the
+  2026-06-15 investigation had considered disabling as a workaround.
+
+So the `Runner._applyScopingTraits(for:testCase:_:)` crash was indeed a Swift
+Testing **runtime** bug in the older beta toolchain (macOS 27.0 26A5353q), fixed
+upstream by the OS/Xcode update. No code or project change was needed.
+
+<details>
+<summary>Original 2026-06-15 report (kept for history)</summary>
 
 **Symptom:** Running the test bundle crashes the test host in Swift Testing's
 `Runner._applyScopingTraits(for:testCase:_:)`. With the default (parallel)
@@ -369,21 +570,24 @@ configuration *no* tests run at all — every suite reports
 `Crash: ... Runner._applyScopingTraits` before any test body executes, and the
 host hits "Exceeded max restart count". No `.ips` crash report is produced.
 
-**Diagnosis:** This is a Swift Testing **runtime** bug in the current
-Xcode-beta / macOS 27.0 (26A5353q) toolchain, not a defect in the test code or
-target configuration:
+**Diagnosis:** A Swift Testing runtime bug in the then-current Xcode-beta /
+macOS 27.0 (26A5353q) toolchain, not a defect in the test code or target config:
 - The test code is plain, idiomatic Swift Testing (no custom/scoping traits).
 - The test target settings are standard (`SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated`, Swift 6, hosted by the app).
-- It reproduces on a clean `Development` checkout, independent of the `@Observable`/CloudKit modernization work.
-- Behaviour scales with concurrency: 1–6 tests run fine in isolation; the full 30-test run crashes. It is also non-deterministic — the crashing test moves between runs.
+- It reproduced on a clean `Development` checkout, independent of the `@Observable`/CloudKit modernization work.
+- Behaviour scaled with concurrency: 1–6 tests ran fine in isolation; the full 30-test run crashed. Non-deterministic — the crashing test moved between runs.
 
 **Attempted workarounds (not adopted):** Serializing every suite (`.serialized`
 roots) plus disabling `SWIFT_APPROACHABLE_CONCURRENCY` on the test target raised
 the pass count from 0 to ~20–28/30, but runs still aborted non-deterministically
-partway through. We chose **not** to ship a flaky partial workaround.
+partway through. We chose not to ship a flaky partial workaround — which turned
+out to be the right call, since the fix arrived upstream.
 
-**Action:** Revisit when the Xcode/macOS toolchain updates (re-run the full
-suite; if it's green by default, this entry can be removed).
+</details>
+
+> **Note on the suite's size:** the 2026-06-15 entry refers to a "30-test run";
+> the suite is now **86 tests in 24 suites**. Any future report should quote the
+> current count rather than trusting the older figure.
 
 > **EC-key-parsing crash — root-caused and fixed (2026-06-15).** The `AuthDelegate`
 > EC crashes were a genuine parser bug, *not* the runner instability:

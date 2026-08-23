@@ -17,6 +17,7 @@ import NIO
 import NIOFoundationCompat
 @preconcurrency import NIOSSH
 import CryptoKit
+import os
 
 // SSH connection lifecycle: authenticate, bring up the session, and run a local
 // listener that forwards each accepted TCP connection over a direct-tcpip SSH
@@ -39,20 +40,32 @@ final class SSHManager: @unchecked Sendable {
     nonisolated(unsafe) static var handshakeTimeoutSeconds: Int64 = 15
 
     let connection: Connection
-    private var eventLoopGroup: MultiThreadedEventLoopGroup?
-    private var sshClientChannel: Channel?
-    private var localServerChannel: Channel?
-    private let lock = NSLock()
 
-    // Store active config safely for background threads
-    private var activeTunnelInfo: TunnelInfo?
+    /// Every piece of mutable state this manager shares between the calling task,
+    /// the NIO event loops, and the host-key prompt — held as one unit.
+    private struct State {
+        var eventLoopGroup: MultiThreadedEventLoopGroup?
+        var sshClientChannel: Channel?
+        var localServerChannel: Channel?
 
-    private var sessionReadyPromise: EventLoopPromise<Void>?
-    private var sessionReadyCompleted = false
+        /// Active tunnel config, read from background threads.
+        var activeTunnelInfo: TunnelInfo?
 
-    /// Scheduled task that fails `sessionReadyPromise` if the handshake/auth phase
-    /// runs past `handshakeTimeoutSeconds`. Guarded by `lock`.
-    private var handshakeTimeoutTask: Scheduled<Void>?
+        var sessionReadyPromise: EventLoopPromise<Void>?
+        var sessionReadyCompleted = false
+
+        /// Scheduled task that fails `sessionReadyPromise` if the handshake/auth
+        /// phase runs past `handshakeTimeoutSeconds`.
+        var handshakeTimeoutTask: Scheduled<Void>?
+    }
+
+    /// The lock *owns* the state rather than sitting beside it as a bare `NSLock`
+    /// did. That matters here: `sessionReadyPromise`/`sessionReadyCompleted` used
+    /// to be plain stored properties that most call sites guarded but a few — the
+    /// connect path and the channel initializer — touched unguarded. With the
+    /// fields living inside the lock there is no way to spell an unguarded access,
+    /// so the fix is enforced by the compiler instead of by convention.
+    private let state = OSAllocatedUnfairLock(initialState: State())
 
     // Async handler: (hostname, fingerprint, keyType, keyData, isMismatch) -> user's trust decision.
     // `isMismatch` is true when a previously pinned key exists but no longer matches — the UI should
@@ -63,6 +76,34 @@ final class SSHManager: @unchecked Sendable {
     var errorCallback: (@Sendable (String) -> Void)?
 
     init(connection: Connection) { self.connection = connection }
+
+    /// Builds the auth delegate, which parses (and may decrypt) the private key.
+    ///
+    /// `@concurrent` guarantees this runs on the concurrent thread pool rather than
+    /// inheriting the caller's executor — the modern spelling of the `Task.detached`
+    /// offload this replaced. Under `SWIFT_APPROACHABLE_CONCURRENCY` a plain
+    /// `nonisolated` async function stays on the caller's actor, which for a
+    /// `connect()` driven from the main actor would put PBKDF2/bcrypt work on the
+    /// main thread.
+    @concurrent
+    private func makeAuthDelegate(connectionInfo: ConnectionInfo,
+                                  hasPassword: Bool,
+                                  hasKey: Bool) async -> FlexibleAuthDelegate {
+        // Captured before the hop so the callback is available regardless of when
+        // the delegate reports a parse failure.
+        let errorHandler = self.errorCallback
+        return FlexibleAuthDelegate(
+            username: connectionInfo.username,
+            password: hasPassword ? connectionInfo.password : nil,
+            privateKeyString: hasKey ? connectionInfo.privateKey : nil,
+            privateKeyPassphrase: connectionInfo.privateKeyPassphrase,
+            reportError: { errorMsg in
+                Task { @MainActor in
+                    errorHandler?(errorMsg)
+                }
+            }
+        )
+    }
 
     func connect() async throws {
         // 1. Capture connection info on MainActor to avoid races and allow background processing
@@ -76,9 +117,7 @@ final class SSHManager: @unchecked Sendable {
 
         guard let connectionInfo = connInfo, let tunnelInfo = tunnelInfo else { return }
 
-        lock.withLock {
-            self.activeTunnelInfo = tunnelInfo
-        }
+        state.withLock { $0.activeTunnelInfo = tunnelInfo }
 
         let hasPassword = !connectionInfo.password.isEmpty
         let hasKey = !connectionInfo.privateKey.isEmpty
@@ -96,24 +135,16 @@ final class SSHManager: @unchecked Sendable {
         // Use NIO's process-wide singleton event loop group. It is shared across
         // all connections and must never be shut down (see shutdown()).
         let group = MultiThreadedEventLoopGroup.singleton
-        lock.withLock { self.eventLoopGroup = group }
+        state.withLock { $0.eventLoopGroup = group }
 
-        // 2. Offload auth delegate creation (heavy crypto) to detached task
-        // Capture errorCallback outside the detached task to ensure it's available
-        let errorHandler = self.errorCallback
-        let authDelegate = await Task.detached { () -> FlexibleAuthDelegate in
-            return FlexibleAuthDelegate(
-                username: connectionInfo.username,
-                password: hasPassword ? connectionInfo.password : nil,
-                privateKeyString: hasKey ? connectionInfo.privateKey : nil,
-                privateKeyPassphrase: connectionInfo.privateKeyPassphrase,
-                reportError: { errorMsg in
-                    Task { @MainActor in
-                        errorHandler?(errorMsg)
-                    }
-                }
-            )
-        }.value
+        // 2. Build the auth delegate off the caller's executor — parsing and
+        // decrypting a private key is heavy CPU work. `makeAuthDelegate` is
+        // `@concurrent`, so awaiting it hops to the concurrent pool and hops back.
+        let authDelegate = await makeAuthDelegate(
+            connectionInfo: connectionInfo,
+            hasPassword: hasPassword,
+            hasKey: hasKey
+        )
 
         // Check for initialization errors first - these are fatal
         if let initError = authDelegate.initializationError {
@@ -146,8 +177,11 @@ final class SSHManager: @unchecked Sendable {
             self?.handleHostKeyValidation(host: host, port: port, key: key, promise: promise, knownHostKey: connectionInfo.knownHostKey)
         }
 
-        self.sessionReadyPromise = group.next().makePromise(of: Void.self)
-        self.sessionReadyCompleted = false
+        let sessionReadyPromise = group.next().makePromise(of: Void.self)
+        state.withLock {
+            $0.sessionReadyPromise = sessionReadyPromise
+            $0.sessionReadyCompleted = false
+        }
 
         // Bound the handshake + auth phase (see handshakeTimeoutSeconds). Armed
         // before connecting so it is always in place before NIOSSH starts the
@@ -170,9 +204,9 @@ final class SSHManager: @unchecked Sendable {
                         allocator: channel.allocator,
                         inboundChildChannelInitializer: nil
                     )
-                    guard let sessionReadyPromise = self.sessionReadyPromise else {
-                        throw SSHTunnelError.internalError("Missing sessionReadyPromise")
-                    }
+                    // Captured from the enclosing scope rather than re-read from
+                    // shared state: the promise is created before `connect()` runs
+                    // the bootstrap, so there is nothing to look up here.
                     let sessionReadyHandler = SSHSessionReadyHandler(sessionReadyPromise: sessionReadyPromise)
                     try channel.pipeline.syncOperations.addHandlers([sshHandler, sessionReadyHandler])
                 }
@@ -181,13 +215,11 @@ final class SSHManager: @unchecked Sendable {
         do {
             let channel = try await bootstrap.connect(host: host, port: port).get()
 
-            if let sessionReadyPromise = self.sessionReadyPromise {
-                try await sessionReadyPromise.futureResult.get()
-                self.sessionReadyCompleted = true
-            }
+            try await sessionReadyPromise.futureResult.get()
+            state.withLock { $0.sessionReadyCompleted = true }
             cancelHandshakeTimeout()
 
-            lock.withLock { self.sshClientChannel = channel }
+            state.withLock { $0.sshClientChannel = channel }
             await MainActor.run {
                 self.connection.state = .connected
             }
@@ -196,11 +228,15 @@ final class SSHManager: @unchecked Sendable {
         } catch {
             Logger.error("SSH connect failed: \(error)", log: Logger.ssh)
             cancelHandshakeTimeout()
-            if let p = self.sessionReadyPromise, self.sessionReadyCompleted == false {
-                self.sessionReadyCompleted = true
-                p.fail(error)
+            // Claim the promise and clear it in one critical section so a
+            // concurrent shutdown()/handshake timeout can't also fail it.
+            let promiseToFail = state.withLock { state -> EventLoopPromise<Void>? in
+                defer { state.sessionReadyPromise = nil }
+                guard let promise = state.sessionReadyPromise, !state.sessionReadyCompleted else { return nil }
+                state.sessionReadyCompleted = true
+                return promise
             }
-            self.sessionReadyPromise = nil
+            promiseToFail?.fail(error)
 
             await MainActor.run {
                 self.connection.state = .failed(error.localizedDescription)
@@ -283,25 +319,29 @@ final class SSHManager: @unchecked Sendable {
     /// connection wedged in `.connecting`. Completing an already-resolved promise is
     /// a no-op in NIO, so this is safe even if the session becomes ready first.
     private func armHandshakeTimeout() {
-        guard let group = lock.withLock({ self.eventLoopGroup }) else { return }
+        guard let group = state.withLock({ $0.eventLoopGroup }) else { return }
         let scheduled = group.next().scheduleTask(in: .seconds(Self.handshakeTimeoutSeconds)) { [weak self] in
             guard let self else { return }
-            self.lock.withLock {
-                guard let promise = self.sessionReadyPromise, self.sessionReadyCompleted == false else { return }
-                self.sessionReadyCompleted = true
-                Logger.error("SSH handshake/auth timed out after \(Self.handshakeTimeoutSeconds)s", log: Logger.ssh)
-                promise.fail(SSHTunnelError.connectionTimeout)
+            // Claim the promise inside the lock, then fail it outside: NIO hops the
+            // completion to the promise's own event loop, and doing that while
+            // holding the lock would widen the critical section for no reason.
+            let promiseToFail = self.state.withLock { state -> EventLoopPromise<Void>? in
+                guard let promise = state.sessionReadyPromise, !state.sessionReadyCompleted else { return nil }
+                state.sessionReadyCompleted = true
+                return promise
             }
+            guard let promiseToFail else { return }
+            Logger.error("SSH handshake/auth timed out after \(Self.handshakeTimeoutSeconds)s", log: Logger.ssh)
+            promiseToFail.fail(SSHTunnelError.connectionTimeout)
         }
-        lock.withLock { self.handshakeTimeoutTask = scheduled }
+        state.withLock { $0.handshakeTimeoutTask = scheduled }
     }
 
     /// Cancels a pending handshake-timeout task, if any.
     private func cancelHandshakeTimeout() {
-        let task = lock.withLock { () -> Scheduled<Void>? in
-            let existing = self.handshakeTimeoutTask
-            self.handshakeTimeoutTask = nil
-            return existing
+        let task = state.withLock { state -> Scheduled<Void>? in
+            defer { state.handshakeTimeoutTask = nil }
+            return state.handshakeTimeoutTask
         }
         task?.cancel()
     }
@@ -323,10 +363,15 @@ final class SSHManager: @unchecked Sendable {
     // MARK: - Local Listener / Forwarding
 
     private func startLocalListener() async throws {
-        // Capture active tunnel info safely
-        guard let group = lock.withLock({ self.eventLoopGroup }),
-              let sshChannel = lock.withLock({ self.sshClientChannel }),
-              let tunnelInfo = lock.withLock({ self.activeTunnelInfo }) else { return }
+        // Read the three values in one critical section so they can't be a mix of
+        // pre- and post-shutdown state (three separate locks could interleave with
+        // shutdown() clearing them).
+        let snapshot = state.withLock { state in
+            (state.eventLoopGroup, state.sshClientChannel, state.activeTunnelInfo)
+        }
+        guard let group = snapshot.0,
+              let sshChannel = snapshot.1,
+              let tunnelInfo = snapshot.2 else { return }
 
         guard let localPort = Int(tunnelInfo.localPort),
               localPort >= 1 && localPort <= 65535 else {
@@ -387,7 +432,7 @@ final class SSHManager: @unchecked Sendable {
 
         do {
             let server = try await serverBootstrap.bind(host: "127.0.0.1", port: localPort).get()
-            lock.withLock { self.localServerChannel = server }
+            state.withLock { $0.localServerChannel = server }
             if let localPort = server.localAddress?.port {
                 Logger.info("Local listener bound on 127.0.0.1:\(localPort)", log: Logger.ssh)
             }
@@ -442,28 +487,29 @@ final class SSHManager: @unchecked Sendable {
         cancelHandshakeTimeout()
         await withTaskGroup(of: Void.self) { group in
             var mutableGroup = group
-            let (ssh, local) = lock.withLock { (self.sshClientChannel, self.localServerChannel) }
+            let (ssh, local) = state.withLock { ($0.sshClientChannel, $0.localServerChannel) }
             mutableGroup.closeChannel(ssh, name: "SSH client")
             mutableGroup.closeChannel(local, name: "local server")
         }
 
-        lock.withLock {
-            sshClientChannel = nil
-            localServerChannel = nil
-            activeTunnelInfo = nil
+        // Clear everything in one critical section, taking ownership of any
+        // unresolved promise so it can be failed after the lock is released. The
+        // event loop group is NIO's process-wide singleton — perpetual, and must
+        // not be shut down — so we only drop our reference to it.
+        let promiseToFail = state.withLock { state -> EventLoopPromise<Void>? in
+            state.sshClientChannel = nil
+            state.localServerChannel = nil
+            state.activeTunnelInfo = nil
+            state.eventLoopGroup = nil
 
-            if let p = self.sessionReadyPromise, self.sessionReadyCompleted == false {
-                self.sessionReadyCompleted = true
-                p.fail(ChannelError.ioOnClosedChannel)
+            defer {
+                state.sessionReadyPromise = nil
+                state.sessionReadyCompleted = false
             }
-            self.sessionReadyPromise = nil
-            self.sessionReadyCompleted = false
+            guard let promise = state.sessionReadyPromise, !state.sessionReadyCompleted else { return nil }
+            return promise
         }
-
-        // The event loop group is NIO's process-wide singleton, which is perpetual
-        // and must not be shut down. Just drop our reference to it; the channels
-        // were already closed above.
-        lock.withLock { self.eventLoopGroup = nil }
+        promiseToFail?.fail(ChannelError.ioOnClosedChannel)
 
         await MainActor.run {
             // Only transition to idle if we're disconnecting normally

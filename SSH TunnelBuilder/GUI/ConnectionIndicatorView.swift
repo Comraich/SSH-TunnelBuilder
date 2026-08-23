@@ -27,7 +27,9 @@ struct ConnectionIndicatorView: View {
         }
     }
 
-    private var statusText: String {
+    /// `LocalizedStringKey`, not `String` — `Text(String)` would bypass
+    /// localization and render these literals verbatim.
+    private var statusText: LocalizedStringKey {
         switch connection.state {
         case .idle: return "Disconnected"
         case .connecting: return "Connecting..."

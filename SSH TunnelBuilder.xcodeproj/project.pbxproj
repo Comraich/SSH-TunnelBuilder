@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F421A6013038B12C004510C9 /* SwiftASN1 in Frameworks */ = {isa = PBXBuildFile; productRef = F421A6003038B12C004510C9 /* SwiftASN1 */; };
 		F47CCD3B2FDB588600BBECDF /* NIOSSH in Frameworks */ = {isa = PBXBuildFile; productRef = F47CCD3A2FDB588600BBECDF /* NIOSSH */; };
 		F47CCD3E2FDB592A00BBECDF /* NIO in Frameworks */ = {isa = PBXBuildFile; productRef = F47CCD3D2FDB592A00BBECDF /* NIO */; };
 		F47CCD402FDB592A00BBECDF /* NIOConcurrencyHelpers in Frameworks */ = {isa = PBXBuildFile; productRef = F47CCD3F2FDB592A00BBECDF /* NIOConcurrencyHelpers */; };
@@ -43,45 +44,14 @@
 		F4CB866B2EE49D1D0066AEDA /* SSH TunnelBuilderTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "SSH TunnelBuilderTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		F47CCD382FDB4F1500BBECDF /* Exceptions for "SSH TunnelBuilder" folder in "SSH TunnelBuilderTests" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Classes/SSHTunnelError.swift,
-			);
-			target = F4CB866A2EE49D1D0066AEDA /* SSH TunnelBuilderTests */;
-		};
-		F49710F62EF01016003ADB19 /* Exceptions for "SSH TunnelBuilderTests" folder in "SSH TunnelBuilder" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				SSHManagerTests.swift,
-			);
-			target = F4ABBF5327DFDF730097436A /* SSH TunnelBuilder */;
-		};
-		F4BAFED02FE1F22400D898D2 /* Exceptions for "SSH TunnelBuilder" folder in "SSH TunnelBuilder" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				"SSH-TunnelBuilder-Info.plist",
-			);
-			target = F4ABBF5327DFDF730097436A /* SSH TunnelBuilder */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		F47CCD262FDB4F1400BBECDF /* SSH TunnelBuilder */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				F4BAFED02FE1F22400D898D2 /* Exceptions for "SSH TunnelBuilder" folder in "SSH TunnelBuilder" target */,
-				F47CCD382FDB4F1500BBECDF /* Exceptions for "SSH TunnelBuilder" folder in "SSH TunnelBuilderTests" target */,
-			);
 			path = "SSH TunnelBuilder";
 			sourceTree = "<group>";
 		};
 		F4CB866C2EE49D1D0066AEDA /* SSH TunnelBuilderTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				F49710F62EF01016003ADB19 /* Exceptions for "SSH TunnelBuilderTests" folder in "SSH TunnelBuilder" target */,
-			);
 			path = "SSH TunnelBuilderTests";
 			sourceTree = "<group>";
 		};
@@ -100,6 +70,7 @@
 				F47CCD562FDB592A00BBECDF /* _NIOFileSystem in Frameworks */,
 				F47CCD422FDB592A00BBECDF /* NIOCore in Frameworks */,
 				F47CCD4E2FDB592A00BBECDF /* NIOTLS in Frameworks */,
+				F421A6013038B12C004510C9 /* SwiftASN1 in Frameworks */,
 				F47CCD582FDB592A00BBECDF /* _NIOFileSystemFoundationCompat in Frameworks */,
 				F47CCD3E2FDB592A00BBECDF /* NIO in Frameworks */,
 				F47CCD462FDB592A00BBECDF /* NIOFoundationCompat in Frameworks */,
@@ -179,6 +150,7 @@
 				F47CCD532FDB592A00BBECDF /* _NIOConcurrency */,
 				F47CCD552FDB592A00BBECDF /* _NIOFileSystem */,
 				F47CCD572FDB592A00BBECDF /* _NIOFileSystemFoundationCompat */,
+				F421A6003038B12C004510C9 /* SwiftASN1 */,
 			);
 			productName = "SSH TunnelBuilder2";
 			productReference = F4ABBF5427DFDF730097436A /* SSH TunnelBuilder.app */;
@@ -213,7 +185,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2610;
-				LastUpgradeCheck = 2610;
+				LastUpgradeCheck = 2700;
 				ORGANIZATIONNAME = Comraich;
 				TargetAttributes = {
 					F4ABBF5327DFDF730097436A = {
@@ -231,11 +203,17 @@
 			knownRegions = (
 				en,
 				Base,
+				nb,
+				de,
+				fr,
+				es,
+				"pt-BR",
 			);
 			mainGroup = F4ABBF4B27DFDF730097436A;
 			packageReferences = (
 				F47CCD392FDB588600BBECDF /* XCRemoteSwiftPackageReference "swift-nio-ssh" */,
 				F47CCD3C2FDB592A00BBECDF /* XCRemoteSwiftPackageReference "swift-nio" */,
+				F421A5FF3038B12C004510C9 /* XCRemoteSwiftPackageReference "swift-asn1" */,
 			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = F4ABBF5527DFDF730097436A /* Products */;
@@ -288,6 +266,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
@@ -338,7 +317,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -354,6 +333,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
@@ -398,9 +378,10 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = macosx;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
@@ -417,7 +398,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"SSH TunnelBuilder/Preview Content\"";
 				DEVELOPMENT_TEAM = 64GECYFVCN;
@@ -444,7 +425,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 15.6;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 2.2;
 				PRODUCT_BUNDLE_IDENTIFIER = no.comraich.sshTunnelBuilder;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -465,7 +446,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"SSH TunnelBuilder/Preview Content\"";
 				DEVELOPMENT_TEAM = 64GECYFVCN;
@@ -492,7 +473,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 15.6;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 2.2;
 				PRODUCT_BUNDLE_IDENTIFIER = no.comraich.sshTunnelBuilder;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -515,7 +496,7 @@
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 15.6;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 2.2;
 				PRODUCT_BUNDLE_IDENTIFIER = "no.comraich.SSH-TunnelBuilderTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -540,7 +521,7 @@
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 15.6;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 2.2;
 				PRODUCT_BUNDLE_IDENTIFIER = "no.comraich.SSH-TunnelBuilderTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -583,6 +564,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		F421A5FF3038B12C004510C9 /* XCRemoteSwiftPackageReference "swift-asn1" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-asn1.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.7.1;
+			};
+		};
 		F47CCD392FDB588600BBECDF /* XCRemoteSwiftPackageReference "swift-nio-ssh" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/apple/swift-nio-ssh.git";
@@ -602,6 +591,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		F421A6003038B12C004510C9 /* SwiftASN1 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F421A5FF3038B12C004510C9 /* XCRemoteSwiftPackageReference "swift-asn1" */;
+			productName = SwiftASN1;
+		};
 		F47CCD3A2FDB588600BBECDF /* NIOSSH */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = F47CCD392FDB588600BBECDF /* XCRemoteSwiftPackageReference "swift-nio-ssh" */;

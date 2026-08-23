@@ -23,12 +23,14 @@ import AppKit
 /// `TextField`/`SecureField` otherwise.
 struct EditableFieldView: View {
     let value: Binding<String>
-    let placeholder: String
+    /// `LocalizedStringKey`, not `String` — `TextField`/`SecureField` have a
+    /// `StringProtocol` overload that would bypass localization entirely.
+    let placeholder: LocalizedStringKey
     let isSecure: Bool
 
     @Environment(ConnectionStore.self) private var connectionStore
 
-    init(value: Binding<String>, placeholder: String, isSecure: Bool = false) {
+    init(value: Binding<String>, placeholder: LocalizedStringKey, isSecure: Bool = false) {
         self.value = value
         self.placeholder = placeholder
         self.isSecure = isSecure
@@ -230,14 +232,30 @@ struct ConnectionDetailView: View {
     private var connectionForm: some View {
         VStack(alignment: .leading) {
             Group {
-                infoRow(label: "Server Address:", value: serverAddressBinding)
-                infoRow(label: "Port Number:", value: portNumberBinding)
-                infoRow(label: "User Name:", value: usernameBinding)
-                infoRow(label: "Password:", value: passwordBinding, isSecure: true)
-                infoRow(label: "Private Key:", value: privateKeyBinding, isSecure: true)
-                infoRow(label: "Local Port:", value: localPortBinding)
-                infoRow(label: "Remote Server:", value: remoteServerBinding)
-                infoRow(label: "Remote Port:", value: remotePortBinding)
+                infoRow(label: "Server Address:",
+                        placeholder: "Enter server address",
+                        value: serverAddressBinding)
+                infoRow(label: "Port Number:",
+                        placeholder: "Enter port number",
+                        value: portNumberBinding)
+                infoRow(label: "User Name:",
+                        placeholder: "Enter user name",
+                        value: usernameBinding)
+                infoRow(label: "Password:",
+                        placeholder: "Enter password",
+                        value: passwordBinding, isSecure: true)
+                infoRow(label: "Private Key:",
+                        placeholder: "Enter private key",
+                        value: privateKeyBinding, isSecure: true)
+                infoRow(label: "Local Port:",
+                        placeholder: "Enter local port",
+                        value: localPortBinding)
+                infoRow(label: "Remote Server:",
+                        placeholder: "Enter remote server",
+                        value: remoteServerBinding)
+                infoRow(label: "Remote Port:",
+                        placeholder: "Enter remote port",
+                        value: remotePortBinding)
             }
 
             HStack {
@@ -426,16 +444,25 @@ struct ConnectionDetailView: View {
     /// Small repeated fragment within this view's body — a `@ViewBuilder`
     /// helper is appropriate here (not a factored-out section).
     @ViewBuilder
-    private func infoRow(label: String, value: Binding<String>, isSecure: Bool = false) -> some View {
+    /// The placeholder is passed in rather than derived from the label. Building
+    /// it as `"Enter \(label.lowercased())"` produced an English sentence at
+    /// runtime that no translator could reach — and lowercasing a label that
+    /// ends in a colon put that colon in the placeholder too.
+    private func infoRow(
+        label: LocalizedStringKey,
+        placeholder: LocalizedStringKey,
+        value: Binding<String>,
+        isSecure: Bool = false
+    ) -> some View {
         HStack {
             Text(label)
             Spacer()
-            EditableFieldView(value: value, placeholder: "Enter \(label.lowercased())", isSecure: isSecure)
+            EditableFieldView(value: value, placeholder: placeholder, isSecure: isSecure)
         }
         .padding(.horizontal)
     }
 
-    private func connectionNameRow(label: String, value: Binding<String>) -> some View {
+    private func connectionNameRow(label: LocalizedStringKey, value: Binding<String>) -> some View {
         HStack {
             Text(label)
                 .font(.largeTitle)

@@ -85,15 +85,18 @@ struct PassphrasePromptView: View {
         .frame(width: 380)
     }
 
-    private var title: String {
+    private var title: LocalizedStringKey {
         isEncrypting ? "Encrypt Export" : "Open Export"
     }
 
-    private var explanation: String {
+    /// The count's plural agreement is handled by the String Catalog's plural
+    /// variations rather than by picking a noun here — a hand-rolled
+    /// `count == 1` switch only ever gets English right, and languages with
+    /// more than two plural categories can't be expressed that way at all.
+    private var explanation: LocalizedStringKey {
         switch purpose {
         case .encrypt(let count):
-            let noun = count == 1 ? "connection" : "connections"
-            return "Choose a passphrase to encrypt \(count) \(noun). You’ll need it to import the file later — it can’t be recovered if lost."
+            return "Choose a passphrase to encrypt \(count) connections. You’ll need it to import the file later — it can’t be recovered if lost."
         case .decrypt:
             return "Enter the passphrase this file was encrypted with."
         }

@@ -26,7 +26,7 @@ struct HelpView: View {
                                        systemImage: "questionmark.circle")
             }
         }
-        .navigationTitle("SSH Tunnel Builder Help")
+        .navigationTitle("SSH TunnelBuilder Help")
         .frame(minWidth: 720, minHeight: 520)
     }
 }
@@ -42,7 +42,9 @@ enum HelpTopic: String, CaseIterable, Identifiable, Hashable {
 
     var id: String { rawValue }
 
-    var title: String {
+    /// `LocalizedStringKey`, not `String`, so the sidebar and detail-pane
+    /// headings are extracted into the String Catalog and localize.
+    var title: LocalizedStringKey {
         switch self {
         case .quickStart: "Quick Start"
         case .connections: "Connections"
@@ -99,7 +101,7 @@ struct HelpDetailView: View {
     // MARK: - Sections
 
     @ViewBuilder private var quickStart: some View {
-        HelpParagraph("Welcome. SSH Tunnel Builder sets up local **SSH port forwarding** so you can reach services on a remote network through an SSH connection.")
+        HelpParagraph("Welcome. SSH TunnelBuilder sets up local **SSH port forwarding** so you can reach services on a remote network through an SSH connection.")
 
         HelpHeader("Set up a tunnel")
         HelpStep(1, "**Add a connection** — click **+** in the sidebar.")
@@ -182,7 +184,7 @@ struct HelpDetailView: View {
     }
 
     @ViewBuilder private var acknowledgments: some View {
-        HelpParagraph("SSH Tunnel Builder is built on the following open-source projects, all distributed under the Apache License, Version 2.0:")
+        HelpParagraph("SSH TunnelBuilder is built on the following open-source projects, all distributed under the Apache License, Version 2.0:")
 
         HelpBullet("**SwiftNIO** — networking foundation. © Apple Inc.")
         HelpBullet("**SwiftNIO SSH** — SSH protocol implementation. © Apple Inc.")
@@ -192,16 +194,16 @@ struct HelpDetailView: View {
 
         HelpParagraph("Full license text: <https://www.apache.org/licenses/LICENSE-2.0>")
 
-        HelpParagraph("SSH Tunnel Builder itself is © 2020–2026 Comraich ANS.")
+        HelpParagraph("SSH TunnelBuilder itself is © 2020–2026 Comraich ANS.")
     }
 }
 
 // MARK: - Layout helpers
 
 private struct HelpHeader: View {
-    let title: String
+    let title: LocalizedStringKey
 
-    init(_ title: String) { self.title = title }
+    init(_ title: LocalizedStringKey) { self.title = title }
 
     var body: some View {
         Text(title)

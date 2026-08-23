@@ -51,13 +51,10 @@ extension CKDatabase: ConnectionDatabase {}
 /// Any accidental CloudKit call from a test fails loudly instead of reaching
 /// the user's real iCloud account.
 private struct UnconfiguredDatabase: ConnectionDatabase {
-    private static func fail() -> NSError {
-        NSError(domain: "ConnectionStore.UnconfiguredDatabase", code: 0,
-                userInfo: [NSLocalizedDescriptionKey: "no ConnectionDatabase configured"])
-    }
-    func save(_: CKRecord) async throws -> CKRecord { throw Self.fail() }
-    func record(for _: CKRecord.ID) async throws -> CKRecord { throw Self.fail() }
-    func deleteRecord(withID _: CKRecord.ID) async throws -> CKRecord.ID { throw Self.fail() }
+    private static let failure = SSHTunnelError.internalError("no ConnectionDatabase configured")
+    func save(_: CKRecord) async throws -> CKRecord { throw Self.failure }
+    func record(for _: CKRecord.ID) async throws -> CKRecord { throw Self.failure }
+    func deleteRecord(withID _: CKRecord.ID) async throws -> CKRecord.ID { throw Self.failure }
 }
 
 // A wrapper to make error strings identifiable for SwiftUI Alerts

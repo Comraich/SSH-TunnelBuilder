@@ -38,7 +38,7 @@ struct SSH_TunnelBuilderApp: App {
         // to the Window menu — closing the window leaves the entry there, and
         // the user can reopen it from the menu (or the menu bar item, or the
         // dock icon).
-        Window("SSH Tunnel Builder", id: "main") {
+        Window("SSH TunnelBuilder", id: "main") {
             ContentView(connectionStore: connectionStore)
         }
         .commands {
@@ -53,7 +53,7 @@ struct SSH_TunnelBuilderApp: App {
         // In-app help, opened from the Help menu (and Help ▸ Search field).
         // Single-instance window keyed by id so repeat invocations bring the
         // existing window forward instead of stacking duplicates.
-        Window("SSH Tunnel Builder Help", id: "help") {
+        Window("SSH TunnelBuilder Help", id: "help") {
             HelpView()
         }
 
